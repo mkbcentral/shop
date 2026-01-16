@@ -1,4 +1,4 @@
-name: 🚀 Deploy via SSH Mahubiri backend
+name: 🚀 Deploy via SSH Shop app
 
 on:
   push:
