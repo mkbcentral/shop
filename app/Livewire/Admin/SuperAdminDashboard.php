@@ -70,8 +70,8 @@ class SuperAdminDashboard extends Component
             'active_stores' => Store::where('is_active', true)->count(),
 
             // Ventes globales
-            'total_sales_amount' => Sale::sum('total_amount'),
-            'period_sales_amount' => Sale::where('created_at', '>=', $startDate)->sum('total_amount'),
+            'total_sales_amount' => Sale::sum('total'),
+            'period_sales_amount' => Sale::where('created_at', '>=', $startDate)->sum('total'),
             'total_sales_count' => Sale::count(),
 
             // Produits
