@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Events\Store;
+
+use App\Models\StoreTransfer;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class TransferCancelled
+{
+    use Dispatchable, SerializesModels;
+
+    public function __construct(
+        public StoreTransfer $transfer,
+        public string $reason
+    ) {}
+}

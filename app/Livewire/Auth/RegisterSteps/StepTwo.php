@@ -1,0 +1,82 @@
+<?php
+
+namespace App\Livewire\Auth\RegisterSteps;
+
+use App\Services\SubscriptionService;
+use Illuminate\Validation\Rule;
+use Livewire\Component;
+
+class StepTwo extends Component
+{
+    public string $organization_name = '';
+    public string $subscription_plan = 'free';
+    public array $plans = [];
+    public string $currency = '€';
+
+    /**
+     * Validation rules
+     */
+    protected function rules(): array
+    {
+        $plans = SubscriptionService::getPlansFromCache();
+        $planSlugs = array_keys($plans);
+
+        return [
+            'organization_name' => ['required', 'string', 'max:255'],
+            'subscription_plan' => ['required', Rule::in($planSlugs)],
+        ];
+    }
+
+    /**
+     * Custom validation messages
+     */
+    protected function messages(): array
+    {
+        return [
+            'organization_name.required' => 'Le nom de l\'organisation est obligatoire.',
+            'organization_name.max' => 'Le nom de l\'organisation ne doit pas dépasser 255 caractères.',
+            'subscription_plan.required' => 'Vous devez choisir un plan.',
+            'subscription_plan.in' => 'Le plan sélectionné n\'est pas valide.',
+        ];
+    }
+
+    /**
+     * Load saved data and plans
+     */
+    public function mount()
+    {
+        // Charger les plans depuis le cache (même logique que welcome page)
+        $this->plans = SubscriptionService::getPlansFromCache();
+        $this->currency = SubscriptionService::getCurrencyFromCache();
+
+        $data = session('registration.step2', []);
+        $this->fill($data);
+    }
+
+    /**
+     * Continue to next step
+     */
+    public function nextStep()
+    {
+        $validated = $this->validate();
+
+        // Save data to session
+        session(['registration.step2' => $validated]);
+
+        // Emit event to parent component
+        $this->dispatch('step-completed', step: 2);
+    }
+
+    /**
+     * Go back to previous step
+     */
+    public function previousStep()
+    {
+        $this->dispatch('go-back', step: 1);
+    }
+
+    public function render()
+    {
+        return view('livewire.auth.register-steps.step-two');
+    }
+}

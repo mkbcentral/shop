@@ -1,0 +1,401 @@
+<div x-data="{ showModal: false, showDeleteModal: false, storeToDelete: null, storeName: '', isEditing: false }"
+     @open-store-modal.window="showModal = true"
+     @open-edit-modal.window="isEditing = true; showModal = true"
+     @close-store-modal.window="showModal = false; isEditing = false">
+     <?php $__env->slot('header', null, []); ?> 
+        <?php if (isset($component)) { $__componentOriginale19f62b34dfe0bfdf95075badcb45bc2 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginale19f62b34dfe0bfdf95075badcb45bc2 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.breadcrumb','data' => ['items' => [['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Magasins']]]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('breadcrumb'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['items' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute([['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Magasins']])]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginale19f62b34dfe0bfdf95075badcb45bc2)): ?>
+<?php $attributes = $__attributesOriginale19f62b34dfe0bfdf95075badcb45bc2; ?>
+<?php unset($__attributesOriginale19f62b34dfe0bfdf95075badcb45bc2); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginale19f62b34dfe0bfdf95075badcb45bc2)): ?>
+<?php $component = $__componentOriginale19f62b34dfe0bfdf95075badcb45bc2; ?>
+<?php unset($__componentOriginale19f62b34dfe0bfdf95075badcb45bc2); ?>
+<?php endif; ?>
+     <?php $__env->endSlot(); ?>
+
+    <div class="flex items-center justify-between mt-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Gestion des Magasins</h1>
+            <p class="text-gray-500 mt-1">Gérez vos points de vente et entrepôts</p>
+        </div>
+        <!--[if BLOCK]><![endif]--><?php if($canCreateStore): ?>
+            <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
+                class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-150">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Nouveau Magasin
+            </button>
+        <?php else: ?>
+            <div class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-500 font-medium rounded-lg">
+                <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Limite de <?php echo e($organization->max_stores ?? '∞'); ?> magasin(s) atteinte
+            </div>
+        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+    </div>
+
+    <!-- Toast Notifications -->
+    <?php if (isset($component)) { $__componentOriginal7cfab914afdd05940201ca0b2cbc009b = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal7cfab914afdd05940201ca0b2cbc009b = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.toast','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('toast'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal7cfab914afdd05940201ca0b2cbc009b)): ?>
+<?php $attributes = $__attributesOriginal7cfab914afdd05940201ca0b2cbc009b; ?>
+<?php unset($__attributesOriginal7cfab914afdd05940201ca0b2cbc009b); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal7cfab914afdd05940201ca0b2cbc009b)): ?>
+<?php $component = $__componentOriginal7cfab914afdd05940201ca0b2cbc009b; ?>
+<?php unset($__componentOriginal7cfab914afdd05940201ca0b2cbc009b); ?>
+<?php endif; ?>
+
+    <!-- Search and Filters -->
+    <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Search -->
+            <?php if (isset($component)) { $__componentOriginal894294112bf23c4166443c90d4833959 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal894294112bf23c4166443c90d4833959 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.form.search-input','data' => ['wire:model.live.debounce.300ms' => 'search','wireModel' => 'search','placeholder' => 'Rechercher un magasin...']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('form.search-input'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['wire:model.live.debounce.300ms' => 'search','wireModel' => 'search','placeholder' => 'Rechercher un magasin...']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal894294112bf23c4166443c90d4833959)): ?>
+<?php $attributes = $__attributesOriginal894294112bf23c4166443c90d4833959; ?>
+<?php unset($__attributesOriginal894294112bf23c4166443c90d4833959); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal894294112bf23c4166443c90d4833959)): ?>
+<?php $component = $__componentOriginal894294112bf23c4166443c90d4833959; ?>
+<?php unset($__componentOriginal894294112bf23c4166443c90d4833959); ?>
+<?php endif; ?>
+
+            <!-- Per Page Selector -->
+            <div class="flex items-center space-x-2">
+                <label for="perPage" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Afficher :
+                </label>
+                <select id="perPage" wire:model.live="perPage"
+                    class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <option value="5">5 magasins</option>
+                    <option value="10">10 magasins</option>
+                    <option value="25">25 magasins</option>
+                    <option value="50">50 magasins</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stores Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!--[if BLOCK]><![endif]--><?php $__empty_1 = true; $__currentLoopData = $stores; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $store): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+            <div wire:key="store-<?php echo e($store->id); ?>"
+                class="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:border-indigo-200 transition-all duration-200">
+                <!-- Header -->
+                <div class="px-6 py-5 border-b border-gray-100">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3 flex-1 min-w-0">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br <?php echo e($store->is_main ? 'from-indigo-500 to-purple-600' : 'from-gray-400 to-gray-600'); ?> flex items-center justify-center shadow-md">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="text-lg font-bold text-gray-900 truncate"><?php echo e($store->name); ?></h3>
+                                    <!--[if BLOCK]><![endif]--><?php if($store->is_main): ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                            Principal
+                                        </span>
+                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                </div>
+                                <!--[if BLOCK]><![endif]--><?php if($store->code): ?>
+                                    <p class="text-xs font-mono text-gray-500 bg-gray-50 inline-block px-2 py-0.5 rounded"><?php echo e($store->code); ?></p>
+                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="px-6 py-4 space-y-3">
+                    <!-- Address -->
+                    <!--[if BLOCK]><![endif]--><?php if($store->address || $store->city): ?>
+                        <div class="flex items-start space-x-2 text-sm">
+                            <svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="text-gray-600">
+                                <?php echo e($store->address); ?><!--[if BLOCK]><![endif]--><?php if($store->address && $store->city): ?>, <?php endif; ?><!--[if ENDBLOCK]><![endif]--><?php echo e($store->city); ?>
+
+                            </span>
+                        </div>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    <!-- Phone -->
+                    <!--[if BLOCK]><![endif]--><?php if($store->phone): ?>
+                        <div class="flex items-center space-x-2 text-sm">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            <span class="text-gray-600"><?php echo e($store->phone); ?></span>
+                        </div>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    <!-- Statistics -->
+                    <!--[if BLOCK]><![endif]--><?php if(isset($statistics[$store->id])): ?>
+                        <div class="grid grid-cols-2 gap-4 pt-3 mt-3 border-t border-gray-100">
+                            <div class="bg-indigo-50 rounded-lg p-3 text-center">
+                                <p class="text-2xl font-bold text-indigo-600">
+                                    <?php echo e($statistics[$store->id]['total_products'] ?? 0); ?>
+
+                                </p>
+                                <p class="text-xs text-indigo-600 font-medium mt-1">Produits</p>
+                            </div>
+                            <div class="bg-green-50 rounded-lg p-3 text-center">
+                                <p class="text-xl font-bold text-green-600">
+                                    <?php echo e(number_format($statistics[$store->id]['total_stock_value'] ?? 0, 0, ',', ' ')); ?>
+
+                                </p>
+                                <p class="text-xs text-green-600 font-medium mt-1">Valeur Stock</p>
+                            </div>
+                        </div>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    <!-- Status -->
+                    <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold <?php echo e($store->is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'); ?>">
+                            <span class="w-1.5 h-1.5 rounded-full mr-1.5 <?php echo e($store->is_active ? 'bg-green-500' : 'bg-red-500'); ?>"></span>
+                            <?php echo e($store->is_active ? 'Actif' : 'Inactif'); ?>
+
+                        </span>
+                        <button wire:click="toggleStatus(<?php echo e($store->id); ?>)"
+                            class="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline transition">
+                            <?php echo e($store->is_active ? 'Désactiver' : 'Activer'); ?>
+
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                    <a href="<?php echo e(route('stores.show', $store->id)); ?>" wire:navigate
+                        class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-semibold group-hover:underline transition">
+                        <span>Voir détails</span>
+                        <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                    <div class="flex items-center space-x-1">
+                        <button @click="$wire.openEditModal(<?php echo e($store->id); ?>)"
+                            wire:loading.attr="disabled"
+                            wire:target="openEditModal(<?php echo e($store->id); ?>)"
+                            class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Modifier">
+                            <svg wire:loading.remove wire:target="openEditModal(<?php echo e($store->id); ?>)" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <svg wire:loading wire:target="openEditModal(<?php echo e($store->id); ?>)" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                        <!--[if BLOCK]><![endif]--><?php if(!$store->is_main): ?>
+                            <button
+                                @click="showDeleteModal = true; storeToDelete = <?php echo e($store->id); ?>; storeName = '<?php echo e($store->name); ?>'"
+                                class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Supprimer">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+            <div class="col-span-full">
+                <div class="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Aucun magasin</h3>
+                    <p class="mt-1 text-sm text-gray-500">Commencez par créer votre premier magasin.</p>
+                    <div class="mt-6">
+                        <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Nouveau Magasin
+                        </button>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+    </div>
+
+    <!-- Pagination -->
+    <!--[if BLOCK]><![endif]--><?php if($stores->hasPages()): ?>
+        <div class="mt-6">
+            <?php echo e($stores->links()); ?>
+
+        </div>
+    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+    <!-- Delete Confirmation Modal -->
+    <?php if (isset($component)) { $__componentOriginal8b7b112f0fae85419ee5abf8337434ab = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal8b7b112f0fae85419ee5abf8337434ab = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.delete-confirmation-modal','data' => ['show' => 'showDeleteModal','itemName' => 'storeName','itemType' => 'ce magasin','onCancel' => 'showDeleteModal = false; storeToDelete = null','onConfirm' => '$wire.deleteStore(storeToDelete); showDeleteModal = false; storeToDelete = null']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('delete-confirmation-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['show' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute('showDeleteModal'),'item-name' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute('storeName'),'item-type' => 'ce magasin','on-cancel' => 'showDeleteModal = false; storeToDelete = null','on-confirm' => '$wire.deleteStore(storeToDelete); showDeleteModal = false; storeToDelete = null']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal8b7b112f0fae85419ee5abf8337434ab)): ?>
+<?php $attributes = $__attributesOriginal8b7b112f0fae85419ee5abf8337434ab; ?>
+<?php unset($__attributesOriginal8b7b112f0fae85419ee5abf8337434ab); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal8b7b112f0fae85419ee5abf8337434ab)): ?>
+<?php $component = $__componentOriginal8b7b112f0fae85419ee5abf8337434ab; ?>
+<?php unset($__componentOriginal8b7b112f0fae85419ee5abf8337434ab); ?>
+<?php endif; ?>
+
+    <!-- Modal Store -->
+    <?php if (isset($component)) { $__componentOriginal290e498d3a9be9ca04daade6fb284d0b = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal290e498d3a9be9ca04daade6fb284d0b = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.ui.alpine-modal','data' => ['name' => 'store','maxWidth' => '2xl','title' => 'Nouveau Magasin','editTitle' => 'Modifier le Magasin','iconBg' => 'from-indigo-500 to-purple-600']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('ui.alpine-modal'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['name' => 'store','max-width' => '2xl','title' => 'Nouveau Magasin','edit-title' => 'Modifier le Magasin','icon-bg' => 'from-indigo-500 to-purple-600']); ?>
+         <?php $__env->slot('icon', null, []); ?> 
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+         <?php $__env->endSlot(); ?>
+
+        <form wire:submit="save" wire:key="store-form-<?php echo e($selectedStoreId ?? 'new'); ?>">
+            <?php if (isset($component)) { $__componentOriginal136d40145c4a8a37773366d184b33c29 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal136d40145c4a8a37773366d184b33c29 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.ui.alpine-modal-body','data' => []] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('ui.alpine-modal-body'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+                <?php if (isset($component)) { $__componentOriginal8a6cfd5a0abdce70d067b4e8518e544e = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal8a6cfd5a0abdce70d067b4e8518e544e = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.store.form','data' => ['isEditing' => $isEditMode,'submitAction' => 'save','cancelAction' => 'closeModal','formPrefix' => 'form']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('store.form'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['is-editing' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($isEditMode),'submit-action' => 'save','cancel-action' => 'closeModal','form-prefix' => 'form']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal8a6cfd5a0abdce70d067b4e8518e544e)): ?>
+<?php $attributes = $__attributesOriginal8a6cfd5a0abdce70d067b4e8518e544e; ?>
+<?php unset($__attributesOriginal8a6cfd5a0abdce70d067b4e8518e544e); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal8a6cfd5a0abdce70d067b4e8518e544e)): ?>
+<?php $component = $__componentOriginal8a6cfd5a0abdce70d067b4e8518e544e; ?>
+<?php unset($__componentOriginal8a6cfd5a0abdce70d067b4e8518e544e); ?>
+<?php endif; ?>
+             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal136d40145c4a8a37773366d184b33c29)): ?>
+<?php $attributes = $__attributesOriginal136d40145c4a8a37773366d184b33c29; ?>
+<?php unset($__attributesOriginal136d40145c4a8a37773366d184b33c29); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal136d40145c4a8a37773366d184b33c29)): ?>
+<?php $component = $__componentOriginal136d40145c4a8a37773366d184b33c29; ?>
+<?php unset($__componentOriginal136d40145c4a8a37773366d184b33c29); ?>
+<?php endif; ?>
+
+            <?php if (isset($component)) { $__componentOriginal8e8eaa045f8a4c30dce91be3944639da = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal8e8eaa045f8a4c30dce91be3944639da = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.ui.alpine-modal-footer','data' => ['submitText' => 'Créer le magasin','editSubmitText' => 'Enregistrer les modifications','target' => 'save']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('ui.alpine-modal-footer'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['submit-text' => 'Créer le magasin','edit-submit-text' => 'Enregistrer les modifications','target' => 'save']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal8e8eaa045f8a4c30dce91be3944639da)): ?>
+<?php $attributes = $__attributesOriginal8e8eaa045f8a4c30dce91be3944639da; ?>
+<?php unset($__attributesOriginal8e8eaa045f8a4c30dce91be3944639da); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal8e8eaa045f8a4c30dce91be3944639da)): ?>
+<?php $component = $__componentOriginal8e8eaa045f8a4c30dce91be3944639da; ?>
+<?php unset($__componentOriginal8e8eaa045f8a4c30dce91be3944639da); ?>
+<?php endif; ?>
+        </form>
+     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal290e498d3a9be9ca04daade6fb284d0b)): ?>
+<?php $attributes = $__attributesOriginal290e498d3a9be9ca04daade6fb284d0b; ?>
+<?php unset($__attributesOriginal290e498d3a9be9ca04daade6fb284d0b); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal290e498d3a9be9ca04daade6fb284d0b)): ?>
+<?php $component = $__componentOriginal290e498d3a9be9ca04daade6fb284d0b; ?>
+<?php unset($__componentOriginal290e498d3a9be9ca04daade6fb284d0b); ?>
+<?php endif; ?>
+</div>
+<?php /**PATH D:\stk\stk-back\resources\views/livewire/store/index.blade.php ENDPATH**/ ?>

@@ -1,0 +1,182 @@
+<?php
+
+namespace App\Livewire\Auth;
+
+use App\Enums\PaymentStatus;
+use App\Enums\SubscriptionPlan;
+use App\Models\Organization;
+use App\Services\SubscriptionService;
+use App\Models\Store;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Livewire\Attributes\On;
+use Livewire\Component;
+
+class Register extends Component
+{
+    public int $currentStep = 1;
+
+    /**
+     * Listen for step completion
+     */
+    #[On('step-completed')]
+    public function handleStepCompleted(int $step)
+    {
+        if ($step === 1) {
+            $this->currentStep = 2;
+        } elseif ($step === 2) {
+            $this->currentStep = 3;
+        }
+    }
+
+    /**
+     * Listen for back navigation
+     */
+    #[On('go-back')]
+    public function handleGoBack(int $step)
+    {
+        $this->currentStep = $step;
+    }
+
+    /**
+     * Listen for registration completion
+     */
+    #[On('complete-registration')]
+    public function completeRegistration()
+    {
+        $this->register();
+    }
+
+    /**
+     * Complete registration process
+     */
+    protected function register()
+    {
+        // Get all data from session
+        $step1 = session('registration.step1', []);
+        $step2 = session('registration.step2', []);
+
+        DB::beginTransaction();
+
+        try {
+            // 1. Create the user
+            $user = User::create([
+                'name' => $step1['name'],
+                'email' => $step1['email'],
+                'password' => Hash::make($step1['password']),
+            ]);
+
+            // 2. Get the selected subscription plan from cache
+            $planSlug = $step2['subscription_plan'];
+            $allPlans = SubscriptionService::getPlansFromCache();
+            $planData = $allPlans[$planSlug] ?? [];
+
+            // Convert slug to enum for database storage
+            $plan = SubscriptionPlan::from($planSlug);
+
+            // 3. Determine payment status
+            $isFree = ($planData['price'] ?? 0) == 0;
+            $paymentStatus = $isFree
+                ? PaymentStatus::COMPLETED
+                : PaymentStatus::PENDING;
+
+            // 4. Create the organization
+            $organization = Organization::create([
+                'name' => $step2['organization_name'],
+                'slug' => Str::slug($step2['organization_name']),
+                'owner_id' => $user->id,
+                'subscription_plan' => $plan,
+                'payment_status' => $paymentStatus,
+                'subscription_starts_at' => now(),
+                'subscription_ends_at' => now()->addYear(),
+                'is_trial' => false,
+                'trial_days' => 0,
+                'max_stores' => $planData['max_stores'] ?? 1,
+                'max_users' => $planData['max_users'] ?? 3,
+                'max_products' => $planData['max_products'] ?? 100,
+                'currency' => 'EUR',
+                'timezone' => 'Europe/Paris',
+                'is_active' => $isFree, // Active immediately for free plan
+                'is_verified' => false,
+            ]);
+
+            // 5. Attach user to organization as owner
+            $organization->members()->attach($user->id, [
+                'role' => 'owner',
+                'is_active' => true,
+                'accepted_at' => now(),
+            ]);
+
+            // 6. Set as default organization for user
+            $user->update([
+                'default_organization_id' => $organization->id,
+            ]);
+
+            // 7. Create default store for the organization
+            $store = Store::create([
+                'organization_id' => $organization->id,
+                'name' => 'Magasin Principal',
+                'slug' => Str::slug('Magasin Principal-' . $organization->id),
+                'code' => 'MAIN-' . $organization->id,
+                'address' => '',
+                'city' => '',
+                'country' => 'France',
+                'phone' => '',
+                'email' => $organization->email ?? $user->email,
+                'is_active' => true,
+                'is_main' => true,
+            ]);
+
+            // 8. Attach the store to the user with owner role
+            $user->stores()->attach($store->id, [
+                'role' => 'admin',
+                'is_default' => true,
+            ]);
+
+            // 9. Set as current store for user
+            $user->update([
+                'current_store_id' => $store->id,
+            ]);
+
+            DB::commit();
+
+            // 10. Authentifier l'utilisateur
+            Auth::login($user);
+            request()->session()->regenerate();
+
+            // 11. Set organization and store in session
+            session([
+                'current_organization_id' => $organization->id,
+                'current_store_id' => $store->id,
+            ]);
+
+            // 12. Envoyer l'email de vérification
+            $user->sendEmailVerificationNotification();
+
+            // Clear registration session data
+            session()->forget(['registration.step1', 'registration.step2']);
+
+            // 13. La redirection sera gérée par RegisterResponse
+            // qui vérifiera d'abord l'email, puis le paiement si nécessaire
+            return redirect()->route('dashboard');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => 'Une erreur est survenue lors de l\'inscription: ' . $e->getMessage()
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function render()
+    {
+        return view('livewire.auth.register');
+    }
+}
