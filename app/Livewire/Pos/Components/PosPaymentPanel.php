@@ -318,7 +318,7 @@ class PosPaymentPanel extends Component
         }
 
         $lastSale = Sale::with(['items.productVariant.product'])->find($this->lastSaleId);
-        $lastInvoice = Invoice::find($this->lastInvoiceId);
+        $lastInvoice = Invoice::with('organization')->find($this->lastInvoiceId);
 
         if ($lastSale && $lastInvoice) {
             $receiptData = $this->printerService->prepareReceiptData(
@@ -364,7 +364,7 @@ class PosPaymentPanel extends Component
             return null;
         }
 
-        return Invoice::find($this->lastInvoiceId);
+        return Invoice::with('organization')->find($this->lastInvoiceId);
     }
 
     /**

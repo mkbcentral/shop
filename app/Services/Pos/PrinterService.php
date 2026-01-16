@@ -6,6 +6,7 @@ namespace App\Services\Pos;
 
 use App\Models\Sale;
 use App\Models\Invoice;
+use App\Models\Organization;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,9 +23,15 @@ class PrinterService
      */
     public function prepareReceiptData(Sale $sale, Invoice $invoice, float $change): array
     {
+        // Charger l'organisation de la facture pour avoir les infos de l'entreprise
+        $organization = $this->getOrganizationFromInvoice($invoice);
+
+        // Utiliser l'heure actuelle avec le timezone local - ajouter 1 heure pour WAT (UTC+1)
+        $currentDate = \Carbon\Carbon::now('UTC')->addHour();
+
         return [
             'invoice_number' => $invoice->invoice_number,
-            'date' => $sale->created_at->format('d/m/Y H:i:s'),
+            'date' => $currentDate->format('d/m/Y H:i:s'),
             'client' => $this->formatClient($sale),
             'items' => $this->formatItems($sale->items),
             'subtotal' => $sale->subtotal,
@@ -36,6 +43,7 @@ class PrinterService
             'payment_method' => $this->formatPaymentMethod($sale->payment_method),
             'cashier' => $sale->user->name ?? 'N/A',
             'notes' => $sale->notes,
+            'company' => $this->getCompanyInfoFromOrganization($organization),
         ];
     }
 
@@ -44,6 +52,9 @@ class PrinterService
      */
     public function prepareInvoiceData(Sale $sale, Invoice $invoice): array
     {
+        // Charger l'organisation de la facture pour avoir les infos de l'entreprise
+        $organization = $this->getOrganizationFromInvoice($invoice);
+
         return [
             'invoice' => [
                 'number' => $invoice->invoice_number,
@@ -51,7 +62,7 @@ class PrinterService
                 'due_date' => $invoice->due_date?->format('d/m/Y'),
                 'status' => $this->formatInvoiceStatus($invoice->status),
             ],
-            'company' => $this->getCompanyInfo(),
+            'company' => $this->getCompanyInfoFromOrganization($organization),
             'client' => $this->getClientInfo($sale),
             'items' => $this->formatItemsDetailed($sale->items),
             'totals' => [
@@ -68,7 +79,7 @@ class PrinterService
                 'status' => $sale->payment_status,
             ],
             'notes' => $sale->notes,
-            'terms' => $this->getPaymentTerms(),
+            'terms' => $this->getPaymentTerms($organization),
         ];
     }
 
@@ -111,11 +122,11 @@ class PrinterService
 
         // Totaux
         $receipt[] = $this->formatLine('Sous-total', number_format($data['subtotal'], 0) . ' CDF', $width);
-        
+
         if ($data['discount'] > 0) {
             $receipt[] = $this->formatLine('Remise', '-' . number_format($data['discount'], 0) . ' CDF', $width);
         }
-        
+
         if ($data['tax'] > 0) {
             $receipt[] = $this->formatLine('Taxe', number_format($data['tax'], 0) . ' CDF', $width);
         }
@@ -158,7 +169,7 @@ class PrinterService
                 'variant' => $this->formatVariant($item->productVariant),
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
-                'total' => $item->total_price,
+                'total' => $item->subtotal,
             ];
         })->toArray();
     }
@@ -176,7 +187,7 @@ class PrinterService
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'subtotal' => $item->quantity * $item->unit_price,
-                'total' => $item->total_price,
+                'total' => $item->subtotal,
             ];
         })->toArray();
     }
@@ -221,17 +232,70 @@ class PrinterService
     }
 
     /**
-     * Obtient les informations de l'entreprise
+     * Récupère l'organisation associée à la facture
      */
-    private function getCompanyInfo(): array
+    private function getOrganizationFromInvoice(Invoice $invoice): ?Organization
+    {
+        // Charger la relation si elle n'est pas déjà chargée
+        if (!$invoice->relationLoaded('organization')) {
+            $invoice->load('organization');
+        }
+
+        return $invoice->organization;
+    }
+
+    /**
+     * Obtient les informations de l'entreprise depuis l'organisation
+     */
+    private function getCompanyInfoFromOrganization(?Organization $organization): array
+    {
+        if (!$organization) {
+            return $this->getDefaultCompanyInfo();
+        }
+
+        return [
+            'name' => $organization->name ?? $organization->legal_name ?? config('app.company_name', 'Mon Entreprise'),
+            'legal_name' => $organization->legal_name ?? $organization->name ?? '',
+            'address' => $organization->address ?? '',
+            'city' => $organization->city ?? '',
+            'country' => $organization->country ?? '',
+            'phone' => $organization->phone ?? '',
+            'email' => $organization->email ?? '',
+            'website' => $organization->website ?? '',
+            'tax_id' => $organization->tax_id ?? '',
+            'registration_number' => $organization->registration_number ?? '',
+            'logo' => $organization->logo ?? null,
+            'currency' => $organization->currency ?? 'CDF',
+        ];
+    }
+
+    /**
+     * Obtient les informations par défaut de l'entreprise (fallback)
+     */
+    private function getDefaultCompanyInfo(): array
     {
         return [
             'name' => config('app.company_name', 'Mon Entreprise'),
+            'legal_name' => config('app.company_name', 'Mon Entreprise'),
             'address' => config('app.company_address', ''),
+            'city' => '',
+            'country' => '',
             'phone' => config('app.company_phone', ''),
             'email' => config('app.company_email', ''),
+            'website' => '',
             'tax_id' => config('app.company_tax_id', ''),
+            'registration_number' => '',
+            'logo' => null,
+            'currency' => 'CDF',
         ];
+    }
+
+    /**
+     * Obtient les informations de l'entreprise (deprecated - use getCompanyInfoFromOrganization)
+     */
+    private function getCompanyInfo(): array
+    {
+        return $this->getDefaultCompanyInfo();
     }
 
     /**
@@ -262,7 +326,7 @@ class PrinterService
     private function getDiscountLabel(Sale $sale): string
     {
         if ($sale->discount <= 0) return '';
-        
+
         $percentage = ($sale->discount / $sale->subtotal) * 100;
         return sprintf('Remise (%.1f%%)', $percentage);
     }
@@ -273,15 +337,20 @@ class PrinterService
     private function getTaxLabel(Sale $sale): string
     {
         if (!$sale->tax || $sale->tax <= 0) return '';
-        
+
         return 'TVA';
     }
 
     /**
      * Obtient les conditions de paiement
      */
-    private function getPaymentTerms(): string
+    private function getPaymentTerms(?Organization $organization = null): string
     {
+        // On peut stocker les conditions de paiement dans les settings de l'organisation
+        if ($organization && isset($organization->settings['payment_terms'])) {
+            return $organization->settings['payment_terms'];
+        }
+
         return config('app.payment_terms', 'Paiement à la livraison');
     }
 

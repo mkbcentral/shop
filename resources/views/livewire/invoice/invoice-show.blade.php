@@ -49,6 +49,68 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content -->
         <div class="lg:col-span-2 space-y-6">
+            <!-- Organization/Company Information -->
+            @if($invoice->organization)
+                <x-card>
+                    <x-slot:header>
+                        <x-card-title title="Émetteur de la Facture" />
+                    </x-slot:header>
+
+                    <div class="flex items-start gap-4">
+                        @if($invoice->organization->logo)
+                            <img src="{{ $invoice->organization->logo }}" alt="{{ $invoice->organization->name }}" class="h-16 w-16 object-contain rounded-lg">
+                        @else
+                            <div class="h-16 w-16 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                        @endif
+                        <div class="flex-1 space-y-2">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">{{ $invoice->organization->legal_name ?? $invoice->organization->name }}</h3>
+                                @if($invoice->organization->legal_name && $invoice->organization->name !== $invoice->organization->legal_name)
+                                    <p class="text-sm text-gray-500">{{ $invoice->organization->name }}</p>
+                                @endif
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                @if($invoice->organization->address)
+                                    <div>
+                                        <span class="text-gray-500">Adresse:</span>
+                                        <p class="text-gray-900">{{ $invoice->organization->address }}</p>
+                                        @if($invoice->organization->city)
+                                            <p class="text-gray-900">{{ $invoice->organization->city }}, {{ $invoice->organization->country ?? '' }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+                                @if($invoice->organization->phone || $invoice->organization->email)
+                                    <div>
+                                        @if($invoice->organization->phone)
+                                            <p class="text-gray-900"><span class="text-gray-500">Tél:</span> {{ $invoice->organization->phone }}</p>
+                                        @endif
+                                        @if($invoice->organization->email)
+                                            <p class="text-gray-900"><span class="text-gray-500">Email:</span> {{ $invoice->organization->email }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+                                @if($invoice->organization->tax_id)
+                                    <div>
+                                        <span class="text-gray-500">N.I.F:</span>
+                                        <p class="text-gray-900 font-medium">{{ $invoice->organization->tax_id }}</p>
+                                    </div>
+                                @endif
+                                @if($invoice->organization->registration_number)
+                                    <div>
+                                        <span class="text-gray-500">RCCM:</span>
+                                        <p class="text-gray-900 font-medium">{{ $invoice->organization->registration_number }}</p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </x-card>
+            @endif
+
             <!-- Invoice Header -->
             <x-card>
                 <x-slot:header>

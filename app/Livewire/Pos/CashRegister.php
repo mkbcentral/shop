@@ -246,7 +246,7 @@ class CashRegister extends Component
         }
 
         $cachedInvoiceId = $this->lastInvoiceId;
-        $cachedInvoice = Invoice::find($this->lastInvoiceId);
+        $cachedInvoice = Invoice::with('organization')->find($this->lastInvoiceId);
 
         return $cachedInvoice;
     }
@@ -519,7 +519,7 @@ class CashRegister extends Component
     {
         if ($this->lastSaleId && $this->lastInvoiceId) {
             $lastSale = Sale::find($this->lastSaleId);
-            $lastInvoice = Invoice::find($this->lastInvoiceId);
+            $lastInvoice = Invoice::with('organization')->find($this->lastInvoiceId);
 
             if ($lastSale && $lastInvoice) {
                 $receiptData = $this->printerService->prepareReceiptData(
@@ -538,7 +538,7 @@ class CashRegister extends Component
      */
     public function reprintTransaction(int $saleId): void
     {
-        $sale = Sale::with(['items.productVariant.product', 'invoice'])->find($saleId);
+        $sale = Sale::with(['items.productVariant.product', 'invoice.organization'])->find($saleId);
 
         if (!$sale || !$sale->invoice) {
             $this->errorMessage = 'Transaction introuvable.';
@@ -634,7 +634,7 @@ class CashRegister extends Component
         // Réimprimer le reçu
         if ($this->lastSaleId && $this->lastInvoiceId) {
             $lastSale = Sale::find($this->lastSaleId);
-            $lastInvoice = Invoice::find($this->lastInvoiceId);
+            $lastInvoice = Invoice::with('organization')->find($this->lastInvoiceId);
             if ($lastSale && $lastInvoice) {
                 $receiptData = $this->printerService->prepareReceiptData(
                     $lastSale,

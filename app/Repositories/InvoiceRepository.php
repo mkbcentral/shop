@@ -55,7 +55,7 @@ class InvoiceRepository
      */
     public function find(int $id): ?Invoice
     {
-        return Invoice::with('sale.client', 'sale.items.productVariant.product')
+        return Invoice::with('sale.client', 'sale.items.productVariant.product', 'organization')
             ->find($id);
     }
 
@@ -65,7 +65,7 @@ class InvoiceRepository
     public function findByNumber(string $invoiceNumber): ?Invoice
     {
         return Invoice::where('invoice_number', $invoiceNumber)
-            ->with('sale.client')
+            ->with('sale.client', 'organization')
             ->first();
     }
 

@@ -60,13 +60,34 @@
             <!-- Receipt Content -->
             <div class="p-6 overflow-y-auto max-h-[60vh]">
                 @if($lastSale && $lastInvoice)
+                    @php
+                        // Récupérer l'organisation de la facture
+                        $organization = $lastInvoice->organization;
+                    @endphp
                     <!-- Receipt Paper Style -->
                     <div class="bg-gray-50 rounded-lg p-4 font-mono text-sm border-2 border-dashed border-gray-300">
                         <!-- Store Header -->
                         <div class="text-center border-b border-gray-300 pb-3 mb-3">
-                            <h4 class="text-lg font-bold">{{ config('app.name', 'STOCK Manager') }}</h4>
-                            <p class="text-xs text-gray-600">{{ $lastSale->store?->name ?? 'Magasin Principal' }}</p>
-                            <p class="text-xs text-gray-600">{{ $lastSale->store?->address ?? '' }}</p>
+                            @if($organization && $organization->logo)
+                                <img src="{{ $organization->logo }}" alt="{{ $organization->name }}" class="h-12 mx-auto mb-2">
+                            @endif
+                            <h4 class="text-lg font-bold">{{ $organization?->name ?? config('app.name', 'STOCK Manager') }}</h4>
+                            @if($organization?->address)
+                                <p class="text-xs text-gray-600">{{ $organization->address }}</p>
+                            @endif
+                            @if($organization?->city)
+                                <p class="text-xs text-gray-600">{{ $organization->city }}, {{ $organization->country ?? '' }}</p>
+                            @endif
+                            @if($organization?->phone)
+                                <p class="text-xs text-gray-600">Tél: {{ $organization->phone }}</p>
+                            @endif
+                            @if($organization?->email)
+                                <p class="text-xs text-gray-600">{{ $organization->email }}</p>
+                            @endif
+                            @if($organization?->tax_id)
+                                <p class="text-xs text-gray-600">N.I.F: {{ $organization->tax_id }}</p>
+                            @endif
+                            <p class="text-xs text-gray-500 mt-1">{{ $lastSale->store?->name ?? 'Magasin Principal' }}</p>
                         </div>
 
                         <!-- Invoice Info -->
@@ -149,6 +170,12 @@
                         <!-- Footer -->
                         <div class="text-center mt-4 pt-3 border-t border-gray-300">
                             <p class="text-xs text-gray-600">Merci pour votre achat !</p>
+                            @if($organization?->phone)
+                                <p class="text-xs text-gray-500">Service client: {{ $organization->phone }}</p>
+                            @endif
+                            @if($organization?->website)
+                                <p class="text-xs text-gray-500">{{ $organization->website }}</p>
+                            @endif
                             <p class="text-xs text-gray-500">{{ now()->format('d/m/Y H:i:s') }}</p>
                         </div>
                     </div>

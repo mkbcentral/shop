@@ -44,23 +44,49 @@ class ThermalPrinter {
      */
     async initialize() {
         try {
+            // Vérifier si qz est défini (CDN chargé)
+            if (typeof qz === 'undefined') {
+                console.error('❌ QZ Tray library non chargée');
+                this.showError('Bibliothèque QZ Tray non chargée. Vérifiez votre connexion internet.');
+                return false;
+            }
+
             // Ne PAS définir de certificat ni de signature
             // Cela permettra à QZ Tray d'utiliser son système de mise en liste blanche
             // L'utilisateur devra autoriser une seule fois via l'interface QZ Tray
 
             // Connexion à QZ Tray
             if (!qz.websocket.isActive()) {
+                console.log('🔄 Tentative de connexion à QZ Tray...');
                 await qz.websocket.connect();
-                this.connected = true;
                 console.log('✅ Connecté à QZ Tray');
+            } else {
+                console.log('✅ Déjà connecté à QZ Tray');
+            }
 
-                // Trouver l'imprimante par défaut
+            this.connected = true;
+
+            // Toujours chercher l'imprimante si pas encore définie
+            if (!this.printerName) {
                 await this.findDefaultPrinter();
             }
+
             return true;
         } catch (error) {
             console.error('❌ Erreur connexion QZ Tray:', error);
-            this.showError('QZ Tray non disponible. Installez QZ Tray: https://qz.io/download/');
+            console.error('❌ Message d\'erreur:', error.message);
+
+            // Message d'erreur plus détaillé
+            let errorMsg = 'Impossible de se connecter à QZ Tray.\n\n';
+
+            if (error.message && error.message.includes('WebSocket')) {
+                errorMsg += '🔹 QZ Tray n\'est probablement pas démarré.\n';
+                errorMsg += '🔹 Vérifiez que QZ Tray est dans la barre des tâches (icône QZ).\n';
+            }
+
+            errorMsg += '\n📥 Si QZ Tray n\'est pas installé:\nhttps://qz.io/download/';
+
+            this.showError(errorMsg);
             return false;
         }
     }
@@ -70,11 +96,19 @@ class ThermalPrinter {
      */
     async findDefaultPrinter() {
         try {
+            console.log('🔍 Recherche d\'imprimantes...');
             const printers = await qz.printers.find();
             console.log('🖨️ Imprimantes trouvées:', printers);
+            console.log('🖨️ Nombre d\'imprimantes:', printers.length);
+
+            if (printers.length === 0) {
+                console.warn('⚠️ Aucune imprimante détectée par QZ Tray');
+                return;
+            }
 
             // Vérifier d'abord s'il y a une imprimante configurée dans localStorage
             const configuredPrinter = localStorage.getItem('thermal_printer_name');
+            console.log('💾 Imprimante en localStorage:', configuredPrinter);
 
             if (configuredPrinter && printers.includes(configuredPrinter)) {
                 this.printerName = configuredPrinter;
@@ -86,37 +120,46 @@ class ThermalPrinter {
             // Inclut USB, Bluetooth, et imprimantes réseau
             const thermalPrinter = printers.find(p => {
                 const name = p.toLowerCase();
-                return name.includes('thermal') ||
+                const isMatch = name.includes('thermal') ||
                     name.includes('pos') ||
                     name.includes('receipt') ||
+                    name.includes('epson') || // Epson printers
                     name.includes('tm-') || // Epson TM series
+                    name.includes('tm-t') || // Epson TM-T series
                     name.includes('rp-') || // Star RP series
+                    name.includes('star') || // Star printers
                     name.includes('xprinter') ||
-                    name.includes('bluetooth') || // Détection explicite Bluetooth
-                    name.includes('bt-') || // Préfixe Bluetooth commun
+                    name.includes('bluetooth') ||
+                    name.includes('bt-') ||
                     name.includes('80mm') ||
                     name.includes('58mm') ||
-                    name.includes('zj-') || // Imprimantes Zjiang
-                    name.includes('goojprt') || // GoojPRT Bluetooth printers
-                    name.includes('pozer') || // Pozer PP200b et similaires
-                    name.includes('pp200') || // Pozer PP200 series
-                    name.includes('pp-200') || // Variante avec tiret
-                    name.includes('printer') || // Nom générique Bluetooth Printer
-                    name.includes('peripage') || // Peripage
-                    name.includes('prt-') || // Préfixe imprimante commun
-                    name.includes('mini') || // Mini printers
-                    name.includes('portable'); // Imprimantes portables
+                    name.includes('zj-') ||
+                    name.includes('goojprt') ||
+                    name.includes('pozer') ||
+                    name.includes('pp200') ||
+                    name.includes('pp-200') ||
+                    name.includes('peripage') ||
+                    name.includes('prt-') ||
+                    name.includes('mini') ||
+                    name.includes('portable');
+
+                if (isMatch) {
+                    console.log(`✅ Match trouvé: "${p}"`);
+                }
+                return isMatch;
             });
 
             if (thermalPrinter) {
                 this.printerName = thermalPrinter;
                 const connectionType = this.detectConnectionType(thermalPrinter);
-                console.log(`🎯 Imprimante thermique détectée: ${this.printerName} (${connectionType})`);
+                console.log(`🎯 Imprimante thermique sélectionnée: ${this.printerName} (${connectionType})`);
             } else if (printers.length > 0) {
                 // Prendre la première imprimante disponible
                 this.printerName = printers[0];
-                console.log('📝 Imprimante par défaut:', this.printerName);
+                console.log('📝 Aucune imprimante thermique reconnue, utilisation de:', this.printerName);
             }
+
+            console.log('🖨️ this.printerName final:', this.printerName);
         } catch (error) {
             console.error('❌ Erreur recherche imprimante:', error);
         }
@@ -205,16 +248,23 @@ class ThermalPrinter {
         // Initialiser l'imprimante
         commands.push(ESC + '@');
 
+        // Configurer le jeu de caractères pour les accents (Code Page 858 - Multilingual Latin I + Euro)
+        commands.push(ESC + 't' + '\x13'); // Code page 858
+
         // Espace initial
         commands.push('\n');
 
         // === EN-TETE ENTREPRISE ===
-        // Lire les informations depuis localStorage
-        const companyName = localStorage.getItem('thermal_company_name') || 'VOTRE ENTREPRISE';
-        const companyAddress = localStorage.getItem('thermal_company_address') || 'Votre Adresse';
-        const companyPhone = localStorage.getItem('thermal_company_phone') || '+243 XXX XXX XXX';
-        const companyEmail = localStorage.getItem('thermal_company_email') || 'contact@entreprise.cd';
-        const companyWebsite = localStorage.getItem('thermal_company_website') || 'www.votre-site.cd';
+        // Priorité aux données de l'organisation, sinon localStorage, sinon valeurs par défaut
+        const companyData = data.company || {};
+        const companyName = this.removeAccents(companyData.name || localStorage.getItem('thermal_company_name') || 'VOTRE ENTREPRISE');
+        const companyAddress = this.removeAccents(companyData.address || localStorage.getItem('thermal_company_address') || 'Votre Adresse');
+        const companyCity = this.removeAccents(companyData.city || '');
+        const companyPhone = companyData.phone || localStorage.getItem('thermal_company_phone') || '+243 XXX XXX XXX';
+        const companyEmail = companyData.email || localStorage.getItem('thermal_company_email') || 'contact@entreprise.cd';
+        const companyWebsite = companyData.website || localStorage.getItem('thermal_company_website') || 'www.votre-site.cd';
+        const companyTaxId = companyData.tax_id || '';
+        const companyCurrency = companyData.currency || 'CDF';
 
         commands.push(ESC + 'a' + '\x01'); // Centre
         commands.push(ESC + 'E' + '\x01'); // Gras ON
@@ -224,9 +274,21 @@ class ThermalPrinter {
         commands.push(ESC + 'E' + '\x00'); // Gras OFF
 
         // Informations entreprise
-        commands.push('Adresse: ' + companyAddress + '\n');
-        commands.push('Tel: ' + companyPhone + '\n');
-        commands.push('Email: ' + companyEmail + '\n');
+        if (companyAddress) {
+            commands.push('Adresse: ' + companyAddress + '\n');
+        }
+        if (companyCity) {
+            commands.push('Ville: ' + companyCity + '\n');
+        }
+        if (companyPhone) {
+            commands.push('Tel: ' + companyPhone + '\n');
+        }
+        if (companyEmail) {
+            commands.push('Email: ' + companyEmail + '\n');
+        }
+        if (companyTaxId) {
+            commands.push('N.I.F: ' + companyTaxId + '\n');
+        }
         commands.push('\n');
 
         // Titre du reçu
@@ -241,7 +303,10 @@ class ThermalPrinter {
         commands.push(ESC + 'a' + '\x00'); // Alignement gauche
         commands.push('Facture N: ' + data.invoice_number + '\n');
         commands.push('Date: ' + data.date + '\n');
-        commands.push('Caissier: Admin\n');
+        commands.push('Caissier: ' + (data.cashier || 'N/A') + '\n');
+        if (data.client && data.client !== 'Client Comptant') {
+            commands.push('Client: ' + data.client + '\n');
+        }
 
         // === SECTION ARTICLES ===
         commands.push(doubleSeparator + '\n');
@@ -253,35 +318,40 @@ class ThermalPrinter {
         commands.push(separator + '\n');
         commands.push(ESC + 'E' + '\x00'); // Gras OFF
 
-        // Lignes du tableau
+        // Lignes du tableau - tout sur une seule ligne
         data.items.forEach((item) => {
-            // Nom du produit
-            const maxNameLength = width - 2;
-            const name = this.truncateText(item.name, maxNameLength);
-            commands.push(name + '\n');
-
-            // Détails en colonnes alignées
             const qty = item.quantity.toString();
-            const price = this.formatPrice(item.unit_price);
-            const total = this.formatPrice(item.total);
-            const detailLine = this.formatTableRow('', qty, price, total);
-            commands.push(detailLine);
+            const price = this.formatPriceShort(item.unit_price);
+            const total = this.formatPriceShort(item.total);
+
+            // Calculer la largeur disponible pour le nom
+            const qtyWidth = this.paperWidth <= 32 ? 4 : 6;
+            const priceWidth = this.paperWidth <= 32 ? 8 : 11;
+            const totalWidth = this.paperWidth <= 32 ? 8 : 11;
+            const nameWidth = this.paperWidth - qtyWidth - priceWidth - totalWidth;
+
+            // Tronquer le nom si nécessaire
+            const name = this.truncateText(item.name, nameWidth);
+
+            // Formater la ligne complète
+            const line = this.formatTableRow(name, qty, price, total);
+            commands.push(line);
         });
 
         // === SECTION TOTAUX ===
         commands.push(doubleSeparator + '\n');
 
         // Sous-total
-        commands.push(this.formatLine('Sous-total:', this.formatPrice(data.subtotal) + ' CDF'));
+        commands.push(this.formatLine('Sous-total:', this.formatPrice(data.subtotal, companyCurrency)));
 
         // Remise
         if (data.discount > 0) {
-            commands.push(this.formatLine('Remise:', '-' + this.formatPrice(data.discount) + ' CDF'));
+            commands.push(this.formatLine('Remise:', '-' + this.formatPrice(data.discount, companyCurrency)));
         }
 
         // Taxe
         if (data.tax > 0) {
-            commands.push(this.formatLine('Taxe:', this.formatPrice(data.tax) + ' CDF'));
+            commands.push(this.formatLine('Taxe:', this.formatPrice(data.tax, companyCurrency)));
         }
 
         // Ligne de séparation forte
@@ -292,7 +362,7 @@ class ThermalPrinter {
         commands.push(ESC + 'E' + '\x01'); // Gras ON
         commands.push(GS + '!' + '\x11');  // Double hauteur/largeur
         commands.push('TOTAL\n');
-        commands.push(this.formatPrice(data.total) + ' CDF\n');
+        commands.push(this.formatPrice(data.total, companyCurrency) + '\n');
         commands.push(GS + '!' + '\x00');  // Taille normale
         commands.push(ESC + 'E' + '\x00'); // Gras OFF
         commands.push(ESC + 'a' + '\x00'); // Alignement gauche
@@ -301,12 +371,12 @@ class ThermalPrinter {
         commands.push(doubleSeparator + '\n');
 
         // Montant payé
-        commands.push(this.formatLine('Montant paye:', this.formatPrice(data.paid) + ' CDF'));
+        commands.push(this.formatLine('Montant paye:', this.formatPrice(data.paid, companyCurrency)));
 
         // Monnaie rendue
         if (data.change > 0) {
             commands.push(ESC + 'E' + '\x01'); // Gras ON
-            commands.push(this.formatLine('Monnaie rendue:', this.formatPrice(data.change) + ' CDF'));
+            commands.push(this.formatLine('Monnaie rendue:', this.formatPrice(data.change, companyCurrency)));
             commands.push(ESC + 'E' + '\x00'); // Gras OFF
         }
 
@@ -320,8 +390,12 @@ class ThermalPrinter {
         commands.push(ESC + 'E' + '\x00'); // Gras OFF
         commands.push('A bientot!\n');
         commands.push('\n');
-        commands.push('Service client: ' + companyPhone + '\n');
-        commands.push(companyWebsite + '\n');
+        if (companyPhone) {
+            commands.push('Service client: ' + companyPhone + '\n');
+        }
+        if (companyWebsite) {
+            commands.push(companyWebsite + '\n');
+        }
         commands.push('\n');
         commands.push(doubleSeparator + '\n');
 
@@ -336,16 +410,19 @@ class ThermalPrinter {
      * Formate une ligne avec label à gauche et valeur à droite
      */
     formatLine(label, value) {
-        const spacing = ' '.repeat(Math.max(0, this.paperWidth - label.length - value.length));
-        return label + spacing + value + '\n';
+        const cleanLabel = this.removeAccents(label);
+        const cleanValue = this.removeAccents(value);
+        const spacing = ' '.repeat(Math.max(0, this.paperWidth - cleanLabel.length - cleanValue.length));
+        return cleanLabel + spacing + cleanValue + '\n';
     }
 
     /**
      * Tronque un texte à la longueur maximale
      */
     truncateText(text, maxLength) {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength - 3) + '...';
+        const cleanText = this.removeAccents(text || '');
+        if (cleanText.length <= maxLength) return cleanText;
+        return cleanText.substring(0, maxLength - 3) + '...'
     }
 
     /**
@@ -391,7 +468,7 @@ class ThermalPrinter {
      * @param {string} align - 'left' ou 'right'
      */
     padText(text, width, align = 'left') {
-        const str = text.toString();
+        const str = this.removeAccents(text.toString());
         if (str.length >= width) {
             return str.substring(0, width);
         }
@@ -401,13 +478,50 @@ class ThermalPrinter {
     }
 
     /**
-     * Formate un prix
+     * Supprime les accents d'une chaîne de caractères
+     * @param {string} str - Chaîne avec accents
+     * @returns {string} Chaîne sans accents
      */
-    formatPrice(amount) {
+    removeAccents(str) {
+        if (!str) return '';
+        const accentsMap = {
+            'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a', 'ã': 'a',
+            'è': 'e', 'ê': 'e', 'ë': 'e', 'é': 'e',
+            'ì': 'i', 'î': 'i', 'ï': 'i', 'í': 'i',
+            'ò': 'o', 'ô': 'o', 'ö': 'o', 'ó': 'o', 'õ': 'o',
+            'ù': 'u', 'û': 'u', 'ü': 'u', 'ú': 'u',
+            'ç': 'c', 'ñ': 'n',
+            'À': 'A', 'Â': 'A', 'Ä': 'A', 'Á': 'A', 'Ã': 'A',
+            'È': 'E', 'Ê': 'E', 'Ë': 'E', 'É': 'E',
+            'Ì': 'I', 'Î': 'I', 'Ï': 'I', 'Í': 'I',
+            'Ò': 'O', 'Ô': 'O', 'Ö': 'O', 'Ó': 'O', 'Õ': 'O',
+            'Ù': 'U', 'Û': 'U', 'Ü': 'U', 'Ú': 'U',
+            'Ç': 'C', 'Ñ': 'N',
+            '°': 'o', '€': 'EUR', '£': 'GBP', '¥': 'JPY'
+        };
+        return str.split('').map(char => accentsMap[char] || char).join('');
+    }
+
+    /**
+     * Formate un prix avec la devise
+     * @param {number} amount - Montant à formater
+     * @param {string} currency - Code de la devise (défaut: CDF)
+     */
+    formatPrice(amount, currency = 'CDF') {
         // Convertir en string sans formatage pour éviter les problèmes d'encodage
-        const str = Math.floor(amount).toString();
+        const num = parseFloat(amount) || 0;
+        const str = Math.floor(num).toString();
         // Utiliser uniquement des caractères ASCII de base
-        return str + 'CDF';
+        return str + ' ' + currency;
+    }
+
+    /**
+     * Formate un prix sans la devise (pour les colonnes étroites)
+     * @param {number} amount - Montant à formater
+     */
+    formatPriceShort(amount) {
+        const num = parseFloat(amount) || 0;
+        return Math.floor(num).toString();
     }
 
     /**
@@ -429,11 +543,20 @@ class ThermalPrinter {
      * Affiche un message d'erreur
      */
     showError(message) {
+        console.error('🔴 Erreur impression:', message);
+
         // Utiliser l'événement Livewire si disponible
         if (window.Livewire) {
-            window.Livewire.dispatch('show-error', { message });
-        } else {
-            alert('Erreur: ' + message);
+            // Utiliser show-toast pour cohérence avec le reste de l'app
+            window.Livewire.dispatch('show-toast', {
+                message: message.replace(/\n/g, ' '), // Enlever les retours ligne pour le toast
+                type: 'error'
+            });
+        }
+
+        // Toujours afficher une alerte pour les erreurs critiques de connexion
+        if (message.includes('QZ Tray')) {
+            alert('⚠️ ' + message);
         }
     }
 
@@ -441,10 +564,10 @@ class ThermalPrinter {
      * Affiche un message de succès
      */
     showSuccess(message) {
-        if (window.Livewire) {
-            window.Livewire.dispatch('show-success', { message });
-        }
         console.log('✅', message);
+        if (window.Livewire) {
+            window.Livewire.dispatch('show-toast', { message, type: 'success' });
+        }
     }
 }
 
@@ -454,4 +577,7 @@ window.thermalPrinter = new ThermalPrinter();
 // Initialiser au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 ThermalPrinter initialisé');
+    console.log('📋 Pour configurer une imprimante manuellement:');
+    console.log("   localStorage.setItem('thermal_printer_name', 'NOM_DE_VOTRE_IMPRIMANTE');");
+    console.log("   localStorage.setItem('thermal_paper_width', '48'); // 32 pour 58mm, 48 pour 80mm");
 });
