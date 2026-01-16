@@ -21,3 +21,27 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Fichiers de test/debug temporaires
+check-*.php
+fix-*.php
+debug-*.php
+test-*.php
+cleanup-*.php
+delete-*.php
+reset-*.php
+activate-*.php
+analyze-*.php
+migrate-*.php
+clear-*.php
+
+# Images temporaires
+*.png
+*.jpg
+*.jpeg
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.jpeg
+!resources/**/*.png
+!resources/**/*.jpg
+!resources/**/*.jpeg
