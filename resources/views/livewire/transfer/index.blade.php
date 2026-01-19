@@ -1,4 +1,6 @@
-<div x-data="{ showCancelModal: false, transferToCancel: null, transferReference: '' }">
+<div x-data="{ showCancelModal: false, transferToCancel: null, transferReference: '', showModal: false, isEditing: false }"
+     @open-transfer-modal.window="showModal = true; isEditing = false"
+     @close-transfer-modal.window="showModal = false">
     <x-slot name="header">
         <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Transferts']]" />
     </x-slot>
@@ -8,7 +10,7 @@
             <h1 class="text-3xl font-bold text-gray-900">Transferts Inter-Magasins</h1>
             <p class="text-gray-500 mt-1">Gérez les mouvements de stock entre vos magasins</p>
         </div>
-        <x-form.button @click="$dispatch('open-create-transfer-modal')" icon="switch-horizontal">
+        <x-form.button @click="showModal = true" icon="switch-horizontal">
             Nouveau Transfert
         </x-form.button>
     </div>
@@ -207,7 +209,7 @@
                                 <h3 class="mt-2 text-sm font-medium text-gray-900">Aucun transfert</h3>
                                 <p class="mt-1 text-sm text-gray-500">Commencez par créer votre premier transfert.</p>
                                 <div class="mt-6">
-                                    <button @click="$dispatch('open-create-transfer-modal')"
+                                    <button @click="showModal = true"
                                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

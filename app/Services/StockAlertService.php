@@ -50,9 +50,9 @@ class StockAlertService
             ->with('product');
         
         // Filter by current store if user is not admin
-        if (!user_can_access_all_stores() && current_store_id()) {
-            $query->whereHas('product', function($q) {
-                $q->where('store_id', current_store_id());
+        if (!user_can_access_all_stores() && effective_store_id()) {
+            $query->whereHas('product', function ($q) {
+                $q->where('store_id', effective_store_id());
             });
         }
         
@@ -69,9 +69,9 @@ class StockAlertService
             ->with('product');
         
         // Filter by current store if user is not admin
-        if (!user_can_access_all_stores() && current_store_id()) {
+        if (!user_can_access_all_stores() && effective_store_id()) {
             $query->whereHas('product', function($q) {
-                $q->where('store_id', current_store_id());
+                $q->where('store_id', effective_store_id());
             });
         }
         

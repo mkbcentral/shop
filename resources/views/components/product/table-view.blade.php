@@ -71,11 +71,11 @@
                 </x-table.cell>
                 <x-table.cell>
                     <div class="{{ $textSize }} font-semibold text-gray-900">
-                        {{ number_format($product->price, 0, ',', ' ') }} CDF
+                        {{ format_currency($product->price) }}
                     </div>
                     @if ($product->cost_price)
                         <div class="{{ $densityMode === 'compact' ? 'text-[10px]' : 'text-xs' }} text-gray-500">
-                            Coût: {{ number_format($product->cost_price, 0, ',', ' ') }} CDF
+                            Coût: {{ format_currency($product->cost_price) }}
                         </div>
                     @endif
                 </x-table.cell>

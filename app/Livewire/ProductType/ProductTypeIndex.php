@@ -16,7 +16,8 @@ class ProductTypeIndex extends Component
 
     public string $search = '';
     public int $perPage = 10;
-    public ?int $editingProductTypeId = null;
+    public $selectedProductTypeId = null;
+    public $isEditMode = false;
 
     public function render(ProductTypeService $service)
     {
@@ -38,10 +39,12 @@ class ProductTypeIndex extends Component
     public function openCreateModal()
     {
         $this->form->reset();
-        $this->editingProductTypeId = null;
+        $this->selectedProductTypeId = null;
+        $this->isEditMode = false;
+        $this->dispatch('open-producttype-modal');
     }
 
-    public function openEditModal(ProductTypeService $service, int $id)
+    public function openEditModal(int $id, ProductTypeService $service)
     {
         try {
             $productType = $service->getProductTypeById($id);
@@ -49,10 +52,22 @@ class ProductTypeIndex extends Component
                 $this->dispatch('show-toast', message: 'Type de produit introuvable.', type: 'error');
                 return;
             }
+            
+            // Vérifier si l'utilisateur peut modifier ce type
+            if (!$productType->canBeModifiedBy(auth()->user())) {
+                $this->dispatch('show-toast', 
+                    message: 'Vous ne pouvez pas modifier ce type car il appartient à une autre organisation.', 
+                    type: 'warning'
+                );
+                return;
+            }
+            
             $this->form->reset();
+            $this->selectedProductTypeId = $productType->id;
+            $this->isEditMode = true;
             $this->form->setProductType($productType);
-            $this->editingProductTypeId = $id;
-            $this->dispatch('open-edit-modal');
+            
+            // Le modal est ouvert via Alpine.js après le retour de cette méthode
         } catch (\Exception $e) {
             $this->dispatch('show-toast', message: 'Une erreur est survenue.', type: 'error');
             Log::error('Error opening edit modal', [
@@ -67,43 +82,29 @@ class ProductTypeIndex extends Component
         $this->form->validate();
 
         try {
-            $data = $this->form->toArray();
-
-            Log::info('Saving product type', [
-                'editingProductTypeId' => $this->editingProductTypeId,
-                'formProductTypeId' => $this->form->productTypeId,
-                'data' => $data
-            ]);
-
-            if ($this->editingProductTypeId) {
-                $productType = $service->updateProductType($this->editingProductTypeId, $data);
-                $this->dispatch('show-toast',
+            if ($this->isEditMode) {
+                Log::info('Updating product type', ['id' => $this->selectedProductTypeId]);
+                $productType = $service->updateProductType($this->selectedProductTypeId, $this->form->toArray());
+                $this->dispatch(
+                    'show-toast',
                     message: "Type \"{$productType->name}\" mis à jour avec succès.",
                     type: 'success'
                 );
             } else {
-                $productType = $service->createProductType($data);
-                $this->dispatch('show-toast',
+                Log::info('Creating product type');
+                $productType = $service->createProductType($this->form->toArray());
+                $this->dispatch(
+                    'show-toast',
                     message: "Type \"{$productType->name}\" créé avec succès.",
                     type: 'success'
                 );
             }
 
             $this->dispatch('close-producttype-modal');
-            $this->editingProductTypeId = null;
             $this->form->reset();
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
-            Log::error('Error saving product type', [
-                'product_type_id' => $this->form->productTypeId,
-                'error' => $e->getMessage(),
-            ]);
-            $this->dispatch('show-toast',
-                message: 'Erreur : ' . $e->getMessage(),
-                type: 'error'
-            );
+            Log::error('Error in save', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            $this->dispatch('show-toast', message: 'Erreur : ' . $e->getMessage(), type: 'error');
         }
     }
 
@@ -114,6 +115,15 @@ class ProductTypeIndex extends Component
 
             if (!$productType) {
                 $this->dispatch('show-toast', message: 'Type de produit introuvable.', type: 'error');
+                return;
+            }
+
+            // Vérifier si l'utilisateur peut supprimer ce type
+            if (!$productType->canBeModifiedBy(auth()->user())) {
+                $this->dispatch('show-toast', 
+                    message: "Vous ne pouvez pas supprimer \"{$productType->name}\" car il appartient à une autre organisation.", 
+                    type: 'warning'
+                );
                 return;
             }
 

@@ -72,9 +72,9 @@
 
         <div class="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
-                <p class="text-lg font-bold text-gray-900">{{ number_format($product->price, 0, ',', ' ') }} CDF</p>
+                <p class="text-lg font-bold text-gray-900">{{ format_currency($product->price) }}</p>
                 @if($product->cost_price)
-                    <p class="text-xs text-gray-500">Coût: {{ number_format($product->cost_price, 0, ',', ' ') }}</p>
+                    <p class="text-xs text-gray-500">Coût: {{ format_currency($product->cost_price) }}</p>
                 @endif
             </div>
             <span class="px-3 py-1 rounded-full text-xs font-medium border {{ $stockClass }}">

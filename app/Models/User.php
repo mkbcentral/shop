@@ -89,6 +89,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Check if user is super-admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        // Charger les rôles si pas déjà chargés pour éviter N+1
+        if (!$this->relationLoaded('roles')) {
+            $this->load('roles');
+        }
+
+        // Vérifier dans la collection chargée plutôt que faire une requête
+        return $this->roles->where('slug', 'super-admin')->isNotEmpty();
+    }
+
+    /**
      * Clear cached admin status
      */
     public function clearAdminCache(): void

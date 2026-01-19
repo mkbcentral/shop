@@ -13,7 +13,7 @@ class CheckPermission
      * Mapping des permissions vers les codes de menu
      */
     private const PERMISSION_TO_MENU = [
-        'categories.view' => 'categories',
+        'categories.view' => 'categories.index',
         'products.view' => 'products',
         'sales.view' => 'sales',
         'sales.create' => 'sales',

@@ -1,4 +1,6 @@
-<div>
+<div x-data="{ showModal: false, isEditing: false }"
+     @open-store-modal.window="showModal = true; isEditing = false"
+     @close-store-modal.window="showModal = false">
     <x-slot name="header">
         <x-breadcrumb :items="[
             ['label' => 'Accueil', 'url' => route('dashboard')],
@@ -50,6 +52,11 @@
                 </x-form.button>
             @endcan
             @can('update', $organization)
+                <x-form.button href="{{ route('organizations.taxes', $organization) }}" wire:navigate variant="secondary" icon="calculator">
+                    Taxes
+                </x-form.button>
+            @endcan
+            @can('update', $organization)
                 <x-form.button href="{{ route('organizations.edit', $organization) }}" wire:navigate variant="secondary" icon="edit">
                     Modifier
                 </x-form.button>
@@ -66,72 +73,38 @@
     <x-toast />
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-        <!-- Stores -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Magasins</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ $statistics['stores']['total'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">sur {{ $organization->max_stores ?? '∞' }}</p>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                </div>
-            </div>
-        </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+        <x-stat-card
+            title="Magasins"
+            :value="($statistics['stores']['total'] ?? 0) . ' / ' . ($organization->max_stores ?? '∞')"
+            icon="cube"
+            color="blue"
+        />
 
-        <!-- Members -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Membres</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ $statistics['members']['total'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">sur {{ $organization->max_users ?? '∞' }}</p>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                </div>
-            </div>
-        </div>
+        <x-stat-card
+            title="Membres"
+            :value="($statistics['members']['total'] ?? 0) . ' / ' . ($organization->max_users ?? '∞')"
+            icon="users"
+            color="green"
+        />
 
-        <!-- Active Stores -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Magasins actifs</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ $statistics['stores']['active'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ ($statistics['stores']['total'] ?? 0) ? round((($statistics['stores']['active'] ?? 0)/($statistics['stores']['total']))*100) : 0 }}% actifs</p>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-            </div>
-        </div>
+        <x-stat-card
+            title="Magasins actifs"
+            :value="$statistics['stores']['active'] ?? 0"
+            icon="check-circle"
+            color="purple"
+            :trend="(($statistics['stores']['total'] ?? 0) ? round((($statistics['stores']['active'] ?? 0)/($statistics['stores']['total']))*100) : 0) . '% actifs'"
+            :trend-up="true"
+        />
 
-        <!-- Invitations -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Invitations</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">{{ $statistics['pending_invitations'] ?? 0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">En attente</p>
-                </div>
-                <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                </div>
-            </div>
-        </div>
+        <x-stat-card
+            title="Invitations"
+            :value="$statistics['pending_invitations'] ?? 0"
+            icon="clock"
+            color="yellow"
+            badge="En attente"
+            badge-color="amber"
+        />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
@@ -353,44 +326,23 @@
         </div>
     </div>
 
-    <!-- Modal Création Magasin -->
-    <x-modal name="showStoreModal" maxWidth="xl" :showHeader="false">
-        <div class="bg-white rounded-xl shadow-xl">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900">Nouveau magasin</h3>
-                </div>
-                <button wire:click="closeStoreModal" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+    <!-- Modal Création Magasin (Alpine) -->
+    <x-ui.alpine-modal name="store" max-width="xl" title="Nouveau magasin" icon-bg="from-indigo-500 to-purple-600">
+        <x-slot name="icon">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+        </x-slot>
 
-            <!-- Modal Body -->
-            <form wire:submit.prevent="saveStore">
-                <div class="p-6 space-y-4">
-                    <!-- Nom et Code sur la même ligne -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <!-- Nom -->
-                        <x-form.form-group label="Nom du magasin" for="storeFormName" required>
-                            <x-form.input wire:model="storeForm.name" id="storeFormName" type="text" />
-                            <x-form.input-error for="storeForm.name" />
-                        </x-form.form-group>
-
-                        <!-- Code -->
-                        <x-form.form-group label="Code" for="storeFormCode" hint="Généré automatiquement">
-                            <x-form.input wire:model="storeForm.code" id="storeFormCode" type="text" disabled class="bg-gray-50 text-gray-500" />
-                            <x-form.input-error for="storeForm.code" />
-                        </x-form.form-group>
-                    </div>
+        <form wire:submit.prevent="saveStore">
+            <x-ui.alpine-modal-body>
+                <div class="space-y-4">
+                    <!-- Nom -->
+                    <x-form.form-group label="Nom du magasin" for="storeFormName" required>
+                        <x-form.input wire:model="storeForm.name" id="storeFormName" type="text" />
+                        <x-form.input-error for="storeForm.name" />
+                    </x-form.form-group>
 
                     <!-- Adresse -->
                     <x-form.form-group label="Adresse" for="storeFormAddress">
@@ -432,19 +384,10 @@
                             <span class="ml-2 text-sm text-gray-700">Magasin principal</span>
                         </label>
                     </div>
+                </div>
+            </x-ui.alpine-modal-body>
 
-                        <!-- Actions -->
-                        <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-                            <x-form.button type="button" variant="secondary" wire:click="closeStoreModal">
-                                Annuler
-                            </x-form.button>
-                            <x-form.button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="saveStore">
-                                <span wire:loading.remove wire:target="saveStore">Créer le magasin</span>
-                                <span wire:loading wire:target="saveStore">Création...</span>
-                            </x-form.button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </x-modal>
+            <x-ui.alpine-modal-footer submit-text="Créer le magasin" target="saveStore" />
+        </form>
+    </x-ui.alpine-modal>
 </div>

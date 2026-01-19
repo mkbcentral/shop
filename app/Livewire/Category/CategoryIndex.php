@@ -46,6 +46,16 @@ class CategoryIndex extends Component
     {
         try {
             $category = $categoryRepository->findOrFail($id);
+            
+            // Vérifier si l'utilisateur peut modifier cette catégorie
+            if (!$category->canBeModifiedBy(auth()->user())) {
+                $this->dispatch('show-toast', 
+                    message: 'Vous ne pouvez pas modifier cette catégorie car elle appartient à une autre organisation.', 
+                    type: 'warning'
+                );
+                return;
+            }
+            
             $this->form->reset();
             $this->selectedCategoryId = $category->id;
             $this->isEditMode = true;
@@ -117,6 +127,15 @@ class CategoryIndex extends Component
         try {
             $category = $categoryRepository->findOrFail($id);
             $categoryName = $category->name;
+
+            // Vérifier si l'utilisateur peut supprimer cette catégorie
+            if (!$category->canBeModifiedBy(auth()->user())) {
+                $this->dispatch('show-toast', 
+                    message: "Vous ne pouvez pas supprimer la catégorie \"{$categoryName}\" car elle appartient à une autre organisation.", 
+                    type: 'warning'
+                );
+                return;
+            }
 
             // Use the model method for checking
             if (!$category->canBeDeleted()) {

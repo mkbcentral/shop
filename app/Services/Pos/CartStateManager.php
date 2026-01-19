@@ -11,7 +11,7 @@ namespace App\Services\Pos;
 class CartStateManager
 {
     private array $cart = [];
-    
+
     public function __construct(
         private readonly CartService $cartService
     ) {}
@@ -51,6 +51,17 @@ class CartStateManager
     {
         $this->sync();
         $result = $this->cartService->updateQuantity($key, $quantity);
+        $this->cart = $result['cart'];
+        return $result;
+    }
+
+    /**
+     * Met à jour le prix négocié avec synchronisation automatique
+     */
+    public function updatePrice(string $key, float $price): array
+    {
+        $this->sync();
+        $result = $this->cartService->updatePrice($key, $price);
         $this->cart = $result['cart'];
         return $result;
     }

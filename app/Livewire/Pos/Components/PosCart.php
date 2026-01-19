@@ -145,6 +145,49 @@ class PosCart extends Component
     }
 
     /**
+     * Met à jour le prix négocié d'un article
+     */
+    public function updatePrice(string $key, $price): void
+    {
+        $price = \floatval($price);
+
+        // Vérifier la limite de remise maximale
+        if (isset($this->cart[$key]['product_id'])) {
+            $product = \App\Models\Product::find($this->cart[$key]['product_id']);
+            if ($product && isset($product->max_discount_amount)) {
+                if ($price < $product->max_discount_amount) {
+                    $this->dispatch('show-toast',
+                    message: 'Le prix ne peut pas être inférieur à la réduction maximale autorisée qui est de ' . $product->max_discount_amount .'', type: 'info');
+                    return;
+                }
+            }
+        }
+
+        $result = $this->cartManager->updatePrice($key, $price);
+        $this->cart = $result['cart'];
+        $this->persistCart();
+
+        if ($result['success']) {
+            $this->dispatch('show-toast', message: $result['message'], type: 'success');
+        } else {
+            $this->dispatch('show-toast', message: $result['message'], type: 'error');
+        }
+
+        $this->recalculateTotals();
+        $this->dispatchCartState();
+    }
+
+    /**
+     * Réinitialise le prix au prix original
+     */
+    public function resetPrice(string $key): void
+    {
+        if (isset($this->cart[$key]) && isset($this->cart[$key]['original_price'])) {
+            $this->updatePrice($key, $this->cart[$key]['original_price']);
+        }
+    }
+
+    /**
      * Retire un article du panier
      */
     public function removeFromCart(string $key): void

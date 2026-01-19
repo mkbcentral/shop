@@ -30,6 +30,14 @@ class ProductService
         // Vérifier la limite de produits du plan
         $this->checkProductLimit();
 
+        // Clean empty strings to null for nullable integer fields
+        $nullableFields = ['product_type_id', 'category_id', 'cost_price'];
+        foreach ($nullableFields as $field) {
+            if (isset($data[$field]) && $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
+
         // Get current organization
         $currentOrganization = app()->bound('current_organization') ? app('current_organization') : null;
 
@@ -82,17 +90,21 @@ class ProductService
             $data['qr_code'] = $this->qrCodeGenerator->generateForProduct();
         }
 
-        // Final check: Ensure reference is unique
+        // Final check: Ensure reference is unique (globally)
         if (isset($data['reference'])) {
-            $referenceExists = Product::where('reference', $data['reference'])->exists();
+            $referenceExists = Product::withoutGlobalScope('organization')
+                ->where('reference', $data['reference'])
+                ->exists();
             if ($referenceExists) {
                 throw new \Exception("La référence {$data['reference']} existe déjà. Veuillez en choisir une autre.");
             }
         }
 
-        // Final check: Ensure barcode is unique (if provided)
+        // Final check: Ensure barcode is unique (globally, if provided)
         if (isset($data['barcode']) && !empty($data['barcode'])) {
-            $barcodeExists = Product::where('barcode', $data['barcode'])->exists();
+            $barcodeExists = Product::withoutGlobalScope('organization')
+                ->where('barcode', $data['barcode'])
+                ->exists();
             if ($barcodeExists) {
                 throw new \Exception("Le code-barres {$data['barcode']} existe déjà. Veuillez en générer un autre.");
             }
@@ -178,6 +190,7 @@ class ProductService
 
     /**
      * Generate a unique slug for a product.
+     * Le slug doit être unique globalement (toutes organisations confondues).
      */
     private function generateUniqueSlug(string $name, ?int $excludeId = null): string
     {
@@ -185,9 +198,10 @@ class ProductService
         $originalSlug = $slug;
         $counter = 1;
 
-        // Check if slug exists
+        // Check if slug exists globally (without organization scope)
         while (true) {
-            $query = Product::where('slug', $slug);
+            $query = Product::withoutGlobalScope('organization')
+                ->where('slug', $slug);
 
             if ($excludeId) {
                 $query->where('id', '!=', $excludeId);

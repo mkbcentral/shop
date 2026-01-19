@@ -28,27 +28,10 @@ class TransferCreate extends Component
     public $selectedVariantName = '';
     public $selectedVariantSku = '';
 
-    protected $listeners = ['open-create-transfer-modal' => 'openModal'];
-
-    public $showModal = false;
-
     public function mount()
     {
         // Set current store as default from_store
         $this->from_store_id = auth()->user()->current_store_id;
-    }
-
-    public function openModal()
-    {
-        $this->showModal = true;
-        $this->resetForm();
-        $this->from_store_id = auth()->user()->current_store_id;
-    }
-
-    public function closeModal()
-    {
-        $this->showModal = false;
-        $this->resetForm();
     }
 
     public function resetForm()
@@ -187,7 +170,8 @@ class TransferCreate extends Component
 
             $this->dispatch('show-toast', message: 'Transfert créé avec succès !', type: 'success');
             $this->dispatch('transferCreated');
-            $this->closeModal();
+            $this->resetForm();
+            $this->dispatch('close-modal', 'transfer');
 
         } catch (\Exception $e) {
             $this->dispatch('show-toast', message: 'Erreur : ' . $e->getMessage(), type: 'error');
@@ -206,29 +190,40 @@ class TransferCreate extends Component
         // Get available products/variants if searching
         $variants = [];
         if ($this->searchProduct && $this->from_store_id) {
-            $variants = \App\Models\ProductVariant::whereHas('product', function ($query) {
-                $query->where('name', 'like', '%' . $this->searchProduct . '%')
-                    ->orWhere('sku', 'like', '%' . $this->searchProduct . '%');
-            })
+            $searchTerm = $this->searchProduct;
+            
+            $variants = \App\Models\ProductVariant::query()
+                ->with('product')
+                ->where(function ($query) use ($searchTerm) {
+                    // Recherche dans le SKU de la variante
+                    $query->where('sku', 'like', '%' . $searchTerm . '%')
+                        // Ou dans le nom du produit
+                        ->orWhereHas('product', function ($q) use ($searchTerm) {
+                            $q->where('name', 'like', '%' . $searchTerm . '%')
+                              ->orWhere('reference', 'like', '%' . $searchTerm . '%');
+                        });
+                })
                 ->whereIn('id', function ($query) {
                     $query->select('product_variant_id')
                         ->from('store_stock')
                         ->where('store_id', $this->from_store_id)
                         ->where('quantity', '>', 0);
                 })
-                ->with('product')
                 ->limit(10)
                 ->get();
 
             // Add stock quantity to each variant
             $variantIds = $variants->pluck('id')->toArray();
-            $stockData = \App\Models\StoreStock::where('store_id', $this->from_store_id)
-                ->whereIn('product_variant_id', $variantIds)
-                ->pluck('quantity', 'product_variant_id');
+            
+            if (!empty($variantIds)) {
+                $stockData = \App\Models\StoreStock::where('store_id', $this->from_store_id)
+                    ->whereIn('product_variant_id', $variantIds)
+                    ->pluck('quantity', 'product_variant_id');
 
-            $variants->each(function ($variant) use ($stockData) {
-                $variant->available_stock = $stockData[$variant->id] ?? 0;
-            });
+                $variants->each(function ($variant) use ($stockData) {
+                    $variant->available_stock = $stockData[$variant->id] ?? 0;
+                });
+            }
         }
 
         return view('livewire.transfer.create', [

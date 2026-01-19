@@ -19,7 +19,7 @@ class PaymentData
         public readonly float $tax,
         public readonly float $paidAmount,
         public readonly float $total,
-        public readonly string $notes,
+        public readonly ?string $notes,
         public readonly array $stockValidation
     ) {}
 

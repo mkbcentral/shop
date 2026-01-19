@@ -1,29 +1,15 @@
 <div>
-    <!-- Modal -->
-    <x-modal :show="$showModal" @close="closeModal" maxWidth="4xl" :showHeader="false">
-        <div class="bg-white rounded-xl">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div
-                        class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900">Nouveau Transfert</h3>
-                </div>
-                <button @click="$dispatch('close')" class="text-gray-400 hover:text-gray-500 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <!-- Modal Body -->
-            <form wire:submit="save">
-                <div class="p-6 space-y-6">
+    <!-- Modal Création Transfert (Alpine) -->
+    <x-ui.alpine-modal name="transfer" max-width="4xl" title="Nouveau Transfert" icon-bg="from-indigo-500 to-purple-600">
+        <x-slot name="icon">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+        </x-slot>
+
+        <form wire:submit="save">
+            <x-ui.alpine-modal-body>
                     <!-- Store Selection -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <x-form.form-group label="Magasin source" name="from_store_id" :required="true"
@@ -248,7 +234,7 @@
                         Créer le transfert
                     </x-form.button>
                 </div>
-            </form>
-        </div>
-    </x-modal>
+            </x-ui.alpine-modal-body>
+        </form>
+    </x-ui.alpine-modal>
 </div>

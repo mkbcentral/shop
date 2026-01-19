@@ -21,7 +21,7 @@
                 @endif
 
                 {{-- Forgot Password Form --}}
-                <form wire:submit.prevent="sendResetLink" class="space-y-4" autocomplete="on">
+                <form wire:submit="sendResetLink" class="space-y-4" autocomplete="on">
                     {{-- Email Input --}}
                     <x-auth.input
                         wire:model="email"

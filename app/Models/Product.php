@@ -37,6 +37,7 @@ class Product extends Model
         'qr_code',
         'slug',
         'price',
+        'max_discount_amount',
         'cost_price',
         'image',
         'status',
@@ -59,6 +60,7 @@ class Product extends Model
      */
     protected $casts = [
         'price' => 'decimal:2',
+        'max_discount_amount' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'weight' => 'decimal:3',
         'length' => 'decimal:2',
@@ -138,12 +140,12 @@ class Product extends Model
     public function getTotalStockAttribute(): int
     {
         $storeId = current_store_id();
-        
+
         if ($storeId && !user_can_access_all_stores()) {
             // Return stock for specific store from store_stock table
             return $this->getStoreStock($storeId);
         }
-        
+
         // Admin viewing all stores - return global stock
         return $this->variants()->sum('stock_quantity');
     }
@@ -154,11 +156,11 @@ class Product extends Model
     public function getStoreStock(?int $storeId = null): int
     {
         $storeId = $storeId ?? current_store_id();
-        
+
         if (!$storeId) {
             return $this->variants()->sum('stock_quantity');
         }
-        
+
         return \App\Models\StoreStock::whereIn('product_variant_id', $this->variants()->pluck('id'))
             ->where('store_id', $storeId)
             ->sum('quantity');
@@ -271,5 +273,76 @@ class Product extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Vérifie si ce produit a une limite de remise configurée.
+     */
+    public function hasDiscountLimit(): bool
+    {
+        return $this->max_discount_amount !== null && $this->max_discount_amount > 0;
+    }
+
+    /**
+     * Obtient le montant maximum de remise autorisé pour ce produit.
+     * Retourne null si pas de limite.
+     */
+    public function getMaxDiscountAmount(): ?float
+    {
+        if (!$this->hasDiscountLimit()) {
+            return null;
+        }
+
+        // Le montant max de remise ne peut jamais dépasser le prix de vente
+        return min((float) $this->max_discount_amount, (float) $this->price);
+    }
+
+    /**
+     * Obtient le prix minimum de vente (prix - remise max autorisée).
+     */
+    public function getMinSellingPrice(): float
+    {
+        $maxDiscount = $this->getMaxDiscountAmount();
+
+        if ($maxDiscount === null) {
+            // Pas de limite, le prix minimum est 0 (ou le prix d'achat si on veut éviter les pertes)
+            return 0;
+        }
+
+        return max(0, (float) $this->price - $maxDiscount);
+    }
+
+    /**
+     * Vérifie si une remise donnée est autorisée pour ce produit.
+     *
+     * @param float $discountAmount Montant de la remise à vérifier
+     * @return bool True si la remise est autorisée
+     */
+    public function isDiscountAllowed(float $discountAmount): bool
+    {
+        // Si pas de limite configurée, toute remise est autorisée
+        if (!$this->hasDiscountLimit()) {
+            return true;
+        }
+
+        // La remise ne peut pas dépasser le montant maximum autorisé
+        return $discountAmount <= $this->getMaxDiscountAmount();
+    }
+
+    /**
+     * Calcule le montant de remise autorisé pour une quantité donnée.
+     *
+     * @param int $quantity Quantité de produits
+     * @return float|null Montant maximum de remise pour cette quantité, null si pas de limite
+     */
+    public function getMaxDiscountForQuantity(int $quantity = 1): ?float
+    {
+        $maxPerUnit = $this->getMaxDiscountAmount();
+
+        if ($maxPerUnit === null) {
+            return null;
+        }
+
+        return $maxPerUnit * $quantity;
     }
 }

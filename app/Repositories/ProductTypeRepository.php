@@ -12,7 +12,10 @@ class ProductTypeRepository
      */
     public function all(): Collection
     {
-        return ProductType::withCount('products')->orderBy('display_order')->get();
+        return ProductType::withCount('products')
+            ->with('organization')
+            ->orderBy('display_order')
+            ->get();
     }
 
     /**

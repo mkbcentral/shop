@@ -29,13 +29,16 @@ $showProperty = is_string($show) && !in_array($show, ['true', 'false', '1', '0',
 @endphp
 
 <div
-    x-data="{ show: @entangle($showProperty).live }"
+    x-data="{ 
+        show: @entangle($showProperty).live,
+        close() { this.show = false; }
+    }"
     x-show="show"
     x-cloak
     x-on:livewire:navigating.window="document.body.style.overflow = ''"
     x-init="$watch('show', value => { document.body.style.overflow = value ? 'hidden' : '' })"
     @if($closeOnEscape && $closeable && !$persistent)
-        x-on:keydown.escape.window="show = false"
+        x-on:keydown.escape.window="close()"
     @endif
     class="fixed inset-0 z-50 overflow-y-auto"
     aria-labelledby="modal-{{ $name }}-title"
@@ -46,7 +49,7 @@ $showProperty = is_string($show) && !in_array($show, ['true', 'false', '1', '0',
     <!-- Backdrop -->
     <div
         @if($closeOnClickOutside && $closeable && !$persistent)
-            x-on:click="show = false"
+            x-on:click="close()"
         @endif
         x-show="show"
         x-transition:enter="ease-out duration-300"

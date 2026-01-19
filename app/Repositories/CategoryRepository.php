@@ -8,27 +8,39 @@ use Illuminate\Database\Eloquent\Collection;
 class CategoryRepository
 {
     /**
-     * Get all categories.
+     * Get all categories (toutes les organisations).
+     * Utilisé pour les selects/dropdowns où on veut afficher toutes les catégories.
      */
     public function all(): Collection
+    {
+        return Category::withoutOrganizationScope()
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Get categories for current organization only.
+     * Utilisé quand on veut filtrer par l'organisation courante.
+     */
+    public function allForCurrentOrganization(): Collection
     {
         return Category::orderBy('name')->get();
     }
 
     /**
-     * Find category by ID.
+     * Find category by ID (toutes les organisations).
      */
     public function find(int $id): ?Category
     {
-        return Category::find($id);
+        return Category::withoutOrganizationScope()->find($id);
     }
 
     /**
-     * Find category by ID or fail.
+     * Find category by ID or fail (toutes les organisations).
      */
     public function findOrFail(int $id): Category
     {
-        return Category::findOrFail($id);
+        return Category::withoutOrganizationScope()->findOrFail($id);
     }
 
     /**
@@ -83,11 +95,14 @@ class CategoryRepository
 
     /**
      * Get paginated categories with optional search.
+     * Affiche TOUTES les catégories de toutes les organisations.
      */
     public function paginate(?string $search = null, int $perPage = 10)
     {
         return Category::query()
+            ->withoutOrganizationScope() // Afficher toutes les catégories
             ->withCount('products')
+            ->with('organization') // Charger l'organisation pour afficher le propriétaire
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', '%' . $search . '%')
                     ->orWhere('description', 'like', '%' . $search . '%');

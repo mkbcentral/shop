@@ -107,7 +107,10 @@ class OrganizationForm extends Form
         $this->website = $organization->website ?? '';
         $this->currency = $organization->currency;
         $this->timezone = $organization->timezone;
-        $this->subscription_plan = $organization->subscription_plan;
+        // Convertir l'enum en string pour la validation
+        $this->subscription_plan = $organization->subscription_plan instanceof \App\Enums\SubscriptionPlan
+            ? $organization->subscription_plan->value
+            : $organization->subscription_plan;
         $this->current_logo = $organization->logo;
     }
 

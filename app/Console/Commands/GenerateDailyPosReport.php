@@ -155,12 +155,12 @@ class GenerateDailyPosReport extends Command
     /**
      * Formate un montant monétaire
      *
-     * @param float $amount
+     * @param float|string|int $amount
      * @return string
      */
-    private function formatMoney(float $amount): string
+    private function formatMoney(float|string|int $amount): string
     {
-        return number_format($amount, 0, ',', ' ') . ' FCFA';
+        return number_format((float) $amount, 0, ',', ' ') . ' FCFA';
     }
 
     /**

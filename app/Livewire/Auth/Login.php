@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Livewire\Forms\LoginForm;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,9 +13,7 @@ use Livewire\Component;
 class Login extends Component
 {
     // Direct properties instead of Form Object
-    public string $email = '';
-    public string $password = '';
-    public bool $remember = false;
+    public LoginForm $form;
 
     public ?string $errorMessage = null;
     public ?string $successMessage = null;
@@ -23,32 +22,6 @@ class Login extends Component
     public int $remainingAttempts = 5;
     public int $lockoutSeconds = 0;
     public bool $isLocked = false;
-
-    /**
-     * Get the validation rules.
-     */
-    protected function rules(): array
-    {
-        return [
-            'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:6'],
-        ];
-    }
-
-    /**
-     * Get custom validation messages.
-     */
-    protected function messages(): array
-    {
-        return [
-            'email.required' => 'L\'adresse e-mail est obligatoire.',
-            'email.email' => 'Veuillez fournir une adresse e-mail valide.',
-            'email.max' => 'L\'adresse e-mail ne doit pas dépasser 255 caractères.',
-            'password.required' => 'Le mot de passe est obligatoire.',
-            'password.string' => 'Le mot de passe doit être une chaîne de caractères.',
-            'password.min' => 'Le mot de passe doit contenir au moins 6 caractères.',
-        ];
-    }
 
     /**
      * Attempt to authenticate the request's credentials.
@@ -74,8 +47,7 @@ class Login extends Component
         $this->ensureIsNotRateLimited();
 
         // Check if user exists
-        $user = User::where('email', $this->email)->first();
-
+        $user = User::where('email', $this->form->email)->first();
         if (!$user) {
             RateLimiter::hit($this->throttleKey());
             $this->updateAttemptStatus();
@@ -92,14 +64,18 @@ class Login extends Component
         }
 
         // Attempt authentication
-        if (Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        if (Auth::attempt(['email' => $this->form->email, 'password' => $this->form->password], $this->form->remember)) {
             RateLimiter::clear($this->throttleKey());
 
             request()->session()->regenerate();
 
             $this->successMessage = 'Connexion réussie ! Redirection en cours...';
-
-            return redirect()->intended(route('dashboard', absolute: false));
+            $this->dispatch('show-toast', message: $this->successMessage, type: 'success');
+            //check if user is super admin and redirect accordingly
+            if ($user->isSuperAdmin()) {
+                return $this->redirectIntended(route('admin.dashboard', absolute: false));
+            }
+            return $this->redirectIntended(route('dashboard', absolute: false));
         }
 
         // Authentication failed
@@ -150,7 +126,7 @@ class Login extends Component
      */
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email) . '|' . request()->ip());
+        return Str::transliterate(string: Str::lower($this->form->email) . '|' . request()->ip());
     }
 
     /**

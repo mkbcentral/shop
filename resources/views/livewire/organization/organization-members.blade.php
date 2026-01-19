@@ -1,4 +1,6 @@
-<div x-data="{ showRemoveModal: false, memberToRemove: null }">
+<div x-data="{ showRemoveModal: false, memberToRemove: null, showModal: false, isEditing: false }"
+     @open-invite-modal.window="showModal = true; isEditing = false"
+     @close-invite-modal.window="showModal = false">
     <x-slot name="header">
         <x-breadcrumb :items="[
             ['label' => 'Accueil', 'url' => route('dashboard')],
@@ -198,29 +200,17 @@
         </div>
     @endif
 
-    <!-- Invite Modal -->
-    <x-modal name="showInviteModal" maxWidth="lg" :showHeader="false">
-        <div class="bg-white rounded-xl">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-gray-900">Inviter un membre</h3>
-                </div>
-                <button wire:click="closeInviteModal" type="button" class="text-gray-400 hover:text-gray-500 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+    <!-- Invite Modal (Alpine) -->
+    <x-ui.alpine-modal name="invite" max-width="lg" title="Inviter un membre" icon-bg="from-indigo-500 to-purple-600">
+        <x-slot name="icon">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+        </x-slot>
 
-            <!-- Modal Body -->
-            <form wire:submit="invite">
-                <div class="p-6 space-y-4">
+        <form wire:submit="invite">
+            <x-ui.alpine-modal-body>
+                <div class="space-y-4">
                     <!-- Email -->
                     <x-form.form-group label="Adresse email" for="inviteEmail" required>
                         <x-form.input wire:model="inviteEmail" id="inviteEmail" type="email" placeholder="membre@exemple.com" />
@@ -255,20 +245,11 @@
                         </div>
                     </div>
                 </div>
+            </x-ui.alpine-modal-body>
 
-                <!-- Modal Footer -->
-                <div class="bg-gray-50 px-6 py-4 flex items-center justify-end space-x-3 border-t border-gray-200">
-                    <x-form.button variant="secondary" type="button" wire:click="closeInviteModal">
-                        Annuler
-                    </x-form.button>
-                    <x-form.button type="submit" wire:loading.attr="disabled" wire:target="invite">
-                        <span wire:loading.remove wire:target="invite">Envoyer l'invitation</span>
-                        <span wire:loading wire:target="invite">Envoi...</span>
-                    </x-form.button>
-                </div>
-            </form>
-        </div>
-    </x-modal>
+            <x-ui.alpine-modal-footer submit-text="Envoyer l'invitation" target="invite" />
+        </form>
+    </x-ui.alpine-modal>
 
     <!-- Remove Member Confirmation Modal -->
     <div x-show="showRemoveModal"

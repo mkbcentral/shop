@@ -213,8 +213,8 @@ class ProductRepository
 
         // Filter by current store if user is not admin
         // Show products that belong to this store OR have stock in this store
-        if (!user_can_access_all_stores() && current_store_id()) {
-            $storeId = current_store_id();
+        if (!user_can_access_all_stores() && effective_store_id()) {
+            $storeId = effective_store_id();
             $query->where(function ($q) use ($storeId) {
                 $q->where('store_id', $storeId)
                     ->orWhereHas('variants', function ($variantQuery) use ($storeId) {

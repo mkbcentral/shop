@@ -151,10 +151,11 @@
     </div>
 
     <!-- Cart Items -->
-    <div class="px-2 py-2 space-y-1.5">
+    <div class="px-2 py-2 space-y-1.5 flex-1 overflow-y-auto">
         @forelse($cart as $index => $item)
             <!-- Cart Item - Ultra Compact -->
-            <div class="bg-white rounded-lg px-2.5 py-2 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100" wire:key="cart-{{ $item['variant_id'] ?? $index }}">
+            <div class="bg-white rounded-lg px-2.5 py-2 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100" wire:key="cart-{{ $item['variant_id'] ?? $index }}"
+                x-data="{ showPriceEdit: false }">
                 <div class="flex items-center gap-2">
                     <!-- Nom et variantes -->
                     <div class="flex-1 min-w-0">
@@ -168,12 +169,30 @@
                                 </span>
                             @endif
                         </div>
-                        <p class="text-xs text-gray-500">@currency($item['price'])</p>
+                        <!-- Prix avec indicateur de négociation -->
+                        <div class="flex items-center gap-1">
+                            <button @click="showPriceEdit = !showPriceEdit"
+                                class="text-xs text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-0.5"
+                                title="Cliquez pour négocier le prix">
+                                @if(isset($item['original_price']) && $item['price'] < $item['original_price'])
+                                    <span class="line-through text-gray-400">@currency($item['original_price'])</span>
+                                    <span class="text-green-600 font-semibold">@currency($item['price'])</span>
+                                    <svg class="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                    </svg>
+                                @else
+                                    <span>@currency($item['price'])</span>
+                                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                @endif
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Quantité -->
                     <div class="flex items-center gap-1">
-                        <button wire:click="updateQuantity({{ $index }}, -1)"
+                        <button wire:click="decrementQuantity('{{ $index }}')"
                             class="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-indigo-100 rounded transition-all group"
                             {{ $item['quantity'] <= 1 ? 'disabled' : '' }}>
                             <svg class="w-3 h-3 text-gray-600 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,11 +200,11 @@
                             </svg>
                         </button>
                         <input type="number"
-                            wire:change="setQuantity({{ $index }}, $event.target.value)"
+                            wire:change="updateQuantity('{{ $index }}', $event.target.value)"
                             value="{{ $item['quantity'] }}"
                             class="w-10 text-center text-sm font-bold border border-gray-200 rounded py-0.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                             min="1" max="{{ $item['stock'] ?? 999 }}">
-                        <button wire:click="updateQuantity({{ $index }}, 1)"
+                        <button wire:click="incrementQuantity('{{ $index }}')"
                             class="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-indigo-100 rounded transition-all group"
                             {{ ($item['quantity'] >= ($item['stock'] ?? 999)) ? 'disabled' : '' }}>
                             <svg class="w-3 h-3 text-gray-600 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,12 +222,60 @@
                     </div>
 
                     <!-- Supprimer -->
-                    <button wire:click="removeFromCart({{ $index }})"
+                    <button wire:click="removeFromCart('{{ $index }}')"
                         class="p-1 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
+                </div>
+
+                <!-- Zone de négociation du prix (collapsible) -->
+                <div x-show="showPriceEdit" x-collapse x-cloak class="mt-2 pt-2 border-t border-gray-100">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1">
+                            <label class="text-xs text-gray-500 mb-1 block">Prix négocié</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number"
+                                    x-ref="priceInput{{ $index }}"
+                                    value="{{ $item['price'] }}"
+                                    class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                    min="0"
+                                    max="{{ $item['original_price'] ?? $item['price'] }}"
+                                    step="0.01"
+                                    @keydown.enter="$wire.updatePrice('{{ $index }}', $el.value); showPriceEdit = false">
+                                <span class="text-xs text-gray-400">{{ current_currency() }}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 pt-4">
+                            <button @click="$wire.updatePrice('{{ $index }}', $refs['priceInput{{ $index }}'].value); showPriceEdit = false"
+                                class="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                title="Appliquer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </button>
+                            @if(isset($item['original_price']) && $item['price'] < $item['original_price'])
+                                <button wire:click="resetPrice('{{ $index }}')" @click="showPriceEdit = false"
+                                    class="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
+                                    title="Rétablir le prix original">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                </button>
+                            @endif
+                            <button @click="showPriceEdit = false"
+                                class="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors"
+                                title="Annuler">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Prix original: <span class="font-semibold">@currency($item['original_price'] ?? $item['price'])</span>
+                    </p>
                 </div>
             </div>
         @empty

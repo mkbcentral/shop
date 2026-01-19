@@ -7,7 +7,6 @@ use Livewire\Form;
 
 class ProductTypeForm extends Form
 {
-    public ?int $productTypeId = null;
     public string $name = '';
     public ?string $slug = '';
     public string $icon = '📦';
@@ -22,13 +21,10 @@ class ProductTypeForm extends Form
 
     protected function rules(): array
     {
-        $uniqueRule = $this->productTypeId
-            ? "unique:product_types,slug,{$this->productTypeId}"
-            : 'unique:product_types,slug';
+        
 
         return [
             'name' => 'required|string|max:255',
-            'slug' => ['nullable', 'string', 'max:255', $uniqueRule],
             'icon' => 'nullable|string|max:10',
             'description' => 'nullable|string',
             'has_variants' => 'boolean',
@@ -52,9 +48,7 @@ class ProductTypeForm extends Form
 
     public function setProductType(ProductType $productType): void
     {
-        $this->productTypeId = $productType->id;
         $this->name = $productType->name;
-        $this->slug = $productType->slug ?? '';
         $this->icon = $productType->icon ?? '📦';
         $this->description = $productType->description ?? '';
         $this->has_variants = $productType->has_variants ?? false;
@@ -66,26 +60,27 @@ class ProductTypeForm extends Form
         $this->display_order = $productType->display_order ?? 0;
     }
 
-    public function isEditing(): bool
-    {
-        return $this->productTypeId !== null;
-    }
+
 
     public function reset(...$properties): void
     {
-        $this->productTypeId = null;
-        $this->name = '';
-        $this->slug = '';
-        $this->icon = '📦';
-        $this->description = '';
-        $this->has_variants = false;
-        $this->has_expiry_date = false;
-        $this->has_weight = false;
-        $this->has_dimensions = false;
-        $this->has_serial_number = false;
-        $this->is_active = true;
-        $this->display_order = 0;
-
+        if (empty($properties)) {
+            // Reset complet
+            $this->name = '';
+            $this->icon = '📦';
+            $this->description = '';
+            $this->has_variants = false;
+            $this->has_expiry_date = false;
+            $this->has_weight = false;
+            $this->has_dimensions = false;
+            $this->has_serial_number = false;
+            $this->is_active = true;
+            $this->display_order = 0;
+        } else {
+            // Reset partiel
+            parent::reset(...$properties);
+        }
+        
         $this->resetValidation();
     }
 
@@ -93,7 +88,6 @@ class ProductTypeForm extends Form
     {
         return [
             'name' => $this->name,
-            'slug' => $this->slug ?: null,
             'icon' => $this->icon ?: '📦',
             'description' => $this->description ?: null,
             'has_variants' => $this->has_variants,

@@ -74,10 +74,13 @@ class CartService
 
         $this->cart[$key] = [
             'variant_id' => $variantId,
+            'product_id' => $variant->product->id,
             'product_name' => $variant->product->name,
             'variant_size' => $variant->size,
             'variant_color' => $variant->color,
             'price' => $variant->product->price,
+            'original_price' => $variant->product->price,
+            'max_discount_amount' => $variant->product->max_discount_amount,
             'quantity' => 1,
             'stock' => $variant->stock_quantity,
         ];
@@ -126,6 +129,52 @@ class CartService
         return [
             'success' => true,
             'message' => 'Quantité mise à jour.',
+            'cart' => $this->cart
+        ];
+    }
+
+    /**
+     * Met à jour le prix négocié d'un article
+     */
+    public function updatePrice(string $key, float $price): array
+    {
+        if (!isset($this->cart[$key])) {
+            return [
+                'success' => false,
+                'message' => 'Article introuvable.',
+                'cart' => $this->cart
+            ];
+        }
+
+        $price = max(0, $price);
+        $originalPrice = $this->cart[$key]['original_price'] ?? $this->cart[$key]['price'];
+        $maxDiscountAmount = $this->cart[$key]['max_discount_amount'] ?? null;
+
+        // Ne pas permettre un prix supérieur au prix original
+        if ($price > $originalPrice) {
+            $price = $originalPrice;
+        }
+
+        // Vérifier si le produit a une limite de remise
+        if ($maxDiscountAmount !== null && $maxDiscountAmount > 0) {
+            // Calculer le prix minimum autorisé (prix original - remise max)
+            $minAllowedPrice = $originalPrice - $maxDiscountAmount;
+
+            // Ne pas permettre un prix inférieur au prix minimum
+            if ($price < $minAllowedPrice) {
+                return [
+                    'success' => false,
+                    'message' => "Le prix ne peut pas être inférieur à " . number_format($minAllowedPrice, 0, ',', ' ') . " CDF (remise max: " . number_format($maxDiscountAmount, 0, ',', ' ') . " CDF)",
+                    'cart' => $this->cart
+                ];
+            }
+        }
+
+        $this->cart[$key]['price'] = $price;
+
+        return [
+            'success' => true,
+            'message' => 'Prix négocié appliqué.',
             'cart' => $this->cart
         ];
     }

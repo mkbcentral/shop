@@ -3,12 +3,76 @@
 if (!function_exists('current_store_id')) {
     /**
      * Get the current store ID for the authenticated user
+     * Can be overridden by request parameter 'store_id' for API calls
      */
-    function current_store_id(): ?int
+    function current_store_id(?int $overrideStoreId = null): ?int
     {
+        // Si un store_id est passé en override, l'utiliser
+        if ($overrideStoreId !== null) {
+            return $overrideStoreId;
+        }
+
         $user = auth()->user();
 
         return $user?->current_store_id;
+    }
+}
+
+if (!function_exists('get_request_store_id')) {
+    /**
+     * Get the store_id from the current request
+     * Validates that the user has access to the requested store
+     *
+     * @return int|null The validated store_id or null
+     */
+    function get_request_store_id(): ?int
+    {
+        $requestStoreId = request()->input('store_id');
+
+        if (!$requestStoreId) {
+            return null;
+        }
+
+        $storeId = (int) $requestStoreId;
+        $user = auth()->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        // Vérifier que l'utilisateur a accès à ce store
+        if ($user->isAdmin()) {
+            // Admin peut accéder à tous les stores de son organisation
+            $hasAccess = \App\Models\Store::where('id', $storeId)
+                ->where('organization_id', $user->default_organization_id)
+                ->exists();
+        } else {
+            // Utilisateur régulier peut accéder seulement à ses stores assignés
+            $hasAccess = $user->stores()->where('stores.id', $storeId)->exists();
+        }
+
+        return $hasAccess ? $storeId : null;
+    }
+}
+
+if (!function_exists('effective_store_id')) {
+    /**
+     * Get the effective store_id to use for queries
+     * Priority: request store_id > user's current_store_id
+     *
+     * @return int|null
+     */
+    function effective_store_id(): ?int
+    {
+        // D'abord vérifier si un store_id est passé dans la requête
+        $requestStoreId = get_request_store_id();
+
+        if ($requestStoreId !== null) {
+            return $requestStoreId;
+        }
+
+        // Sinon utiliser le current_store_id de l'utilisateur
+        return current_store_id();
     }
 }
 

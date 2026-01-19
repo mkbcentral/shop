@@ -39,6 +39,7 @@ use App\Livewire\Organization\OrganizationEdit;
 use App\Livewire\Organization\OrganizationShow;
 use App\Livewire\Organization\OrganizationMembers;
 use App\Livewire\Organization\OrganizationPayment;
+use App\Livewire\Organization\OrganizationTaxes;
 use App\Livewire\Organization\SubscriptionManager;
 use App\Livewire\ProductType\ProductTypeIndex;
 use App\Livewire\ProductAttribute\AttributeManager;
@@ -172,6 +173,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{organization}', OrganizationShow::class)->name('show');
         Route::get('/{organization}/edit', OrganizationEdit::class)->name('edit');
         Route::get('/{organization}/members', OrganizationMembers::class)->name('members');
+        Route::get('/{organization}/taxes', OrganizationTaxes::class)->name('taxes');
         Route::get('/{organization}/subscription', SubscriptionManager::class)->name('subscription');
     });
 

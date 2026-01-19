@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Forms;
 
+use Livewire\Attributes\Validate;
 use Livewire\Form;
 
 class LoginForm extends Form
 {
+    #[Validate]
     public string $email = '';
-
+    #[Validate]
     public string $password = '';
 
     public bool $remember = false;

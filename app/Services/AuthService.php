@@ -228,7 +228,50 @@ class AuthService
             'email_verified_at' => $user->email_verified_at?->format('Y-m-d H:i:s'),
             'two_factor_enabled' => $user->hasTwoFactorEnabled(),
             'last_login_at' => $user->last_login_at?->format('Y-m-d H:i:s'),
+            'current_store' => $user->currentStore ? [
+                'id' => $user->currentStore->id,
+                'name' => $user->currentStore->name,
+                'code' => $user->currentStore->code,
+            ] : null,
+            'available_stores' => $this->getAvailableStores($user),
         ];
+    }
+
+    /**
+     * Récupérer les magasins disponibles pour l'utilisateur.
+     */
+    private function getAvailableStores(User $user): array
+    {
+        // Super-admin n'a pas de stores ni d'organisation
+        if ($user->hasRole('super-admin')) {
+            return [];
+        }
+
+        $currentOrganization = $user->defaultOrganization;
+
+        // Admin peut accéder à tous les magasins de l'organisation
+        if ($user->isAdmin()) {
+            $query = \App\Models\Store::query()
+                ->where('is_active', true)
+                ->orderBy('name');
+
+            if ($currentOrganization) {
+                $query->where('organization_id', $currentOrganization->id);
+            }
+
+            return $query->get(['id', 'name', 'code', 'address', 'phone'])->toArray();
+        }
+
+        // Utilisateurs réguliers ne peuvent accéder qu'à leurs magasins assignés
+        $query = $user->stores()
+            ->where('is_active', true)
+            ->orderBy('name');
+
+        if ($currentOrganization) {
+            $query->where('organization_id', $currentOrganization->id);
+        }
+
+        return $query->get(['stores.id', 'stores.name', 'stores.code', 'stores.address', 'stores.phone'])->toArray();
     }
 
     /**

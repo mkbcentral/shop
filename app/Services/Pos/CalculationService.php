@@ -15,16 +15,13 @@ class CalculationService
             $subtotal += $item['price'] * $item['quantity'];
         }
 
-        // Calculer automatiquement la TVA à 16% du subtotal après remise
-        $subtotalAfterDiscount = $subtotal - $discount;
-        $calculatedTax = $subtotalAfterDiscount * 0.16;
-
-        $total = $subtotal - $discount + $calculatedTax;
+        // Utiliser la TVA passée en paramètre (saisie manuelle)
+        $total = $subtotal - $discount + $tax;
 
         return [
             'subtotal' => $subtotal,
             'discount' => $discount,
-            'tax' => $calculatedTax,
+            'tax' => $tax,
             'total' => max(0, $total),
         ];
     }

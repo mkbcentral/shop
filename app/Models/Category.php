@@ -6,6 +6,7 @@ use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -231,6 +232,47 @@ class Category extends Model
     public function canBeDeleted(): bool
     {
         return !$this->hasProducts();
+    }
+
+    /**
+     * Check if the category can be modified by the current user/organization.
+     * Une catégorie peut être modifiée si :
+     * - L'utilisateur est super-admin
+     * - L'organisation de l'utilisateur est celle qui a créé la catégorie
+     * - La catégorie n'a pas d'organization_id (catégorie globale) et l'utilisateur est super-admin
+     */
+    public function canBeModifiedBy($user = null): bool
+    {
+        $user = $user ?? auth()->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Super-admin peut tout modifier
+        if ($user->hasRole('super-admin')) {
+            return true;
+        }
+
+        // Si la catégorie n'a pas d'organization_id, seul le super-admin peut la modifier
+        if (!$this->organization_id) {
+            return false;
+        }
+
+        // Récupérer l'organisation courante de l'utilisateur
+        $currentOrgId = null;
+
+        if ($user->current_store_id && $user->currentStore) {
+            $currentOrgId = $user->currentStore->organization_id;
+        } elseif ($user->default_organization_id) {
+            $currentOrgId = $user->default_organization_id;
+        } else {
+            $userOrg = $user->organizations()->first();
+            $currentOrgId = $userOrg?->id;
+        }
+
+        // L'utilisateur peut modifier si c'est son organisation qui a créé la catégorie
+        return $currentOrgId && $this->organization_id === $currentOrgId;
     }
 
     /**

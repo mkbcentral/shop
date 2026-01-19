@@ -1,15 +1,27 @@
 <div>
     <form wire:submit.prevent="nextStep" class="space-y-6">
-        {{-- Organization Name --}}
-        <x-auth.input
-            wire:model.live="organization_name"
-            type="text"
-            name="organization_name"
-            label="Nom de votre organisation"
-            placeholder="Ma Boutique SARL"
-            icon="building"
-            :error="$errors->first('organization_name')"
-        />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {{-- Organization Name --}}
+            <x-auth.input
+                wire:model.live="organization_name"
+                type="text"
+                name="organization_name"
+                label="Nom de votre organisation"
+                placeholder="Ma Boutique SARL"
+                icon="building"
+                :error="$errors->first('organization_name')"
+            />
+            {{-- Organization Name --}}
+            <x-auth.input
+                wire:model.live="organization_phone"
+                type="text"
+                name="organization_phone"
+                label="Téléphone de votre organisation"
+                placeholder="+243 xxx xxx xxx"
+                icon="phone"
+                :error="$errors->first('organization_phone')"
+            />
+        </div>
 
         {{-- Subscription Plans --}}
         <div>

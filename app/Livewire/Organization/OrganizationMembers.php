@@ -15,8 +15,7 @@ class OrganizationMembers extends Component
     public Organization $organization;
     public string $search = '';
 
-    // Modal d'invitation
-    public $showInviteModal = false;
+    // Invitation
     public string $inviteEmail = '';
     public string $inviteRole = 'member';
 
@@ -63,12 +62,13 @@ class OrganizationMembers extends Component
 
         $this->reset(['inviteEmail', 'inviteRole']);
         $this->inviteRole = 'member';
-        $this->showInviteModal = true;
+        
+        $this->dispatch('open-invite-modal');
     }
 
     public function closeInviteModal(): void
     {
-        $this->showInviteModal = false;
+        $this->dispatch('close-invite-modal');
         $this->reset(['inviteEmail', 'inviteRole']);
     }
 

@@ -30,7 +30,7 @@
             label="Mot de passe"
             placeholder="Minimum 8 caractères"
             icon="lock"
-            :showPasswordToggle="false"
+            :showPasswordToggle="true"
             autocomplete="new-password"
             :error="$errors->first('password')"
         />
@@ -42,7 +42,7 @@
             label="Confirmer le mot de passe"
             placeholder="Répétez votre mot de passe"
             icon="lock"
-            :showPasswordToggle="false"
+            :showPasswordToggle="true"
             autocomplete="new-password"
             :error="$errors->first('password_confirmation')"
         />

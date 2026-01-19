@@ -210,7 +210,7 @@ class ReportService
                 'products.name',
                 'product_variants.sku',
                 DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.quantity * sale_items.price) as total_revenue')
+                DB::raw('SUM(sale_items.quantity * sale_items.unit_price) as total_revenue')
             )
             ->groupBy('products.id', 'products.name', 'product_variants.sku')
             ->orderByDesc('total_quantity')
@@ -302,7 +302,7 @@ class ReportService
             ->select(
                 'products.name',
                 DB::raw('SUM(sale_items.quantity) as quantity_sold'),
-                DB::raw('SUM(sale_items.quantity * sale_items.price) as revenue')
+                DB::raw('SUM(sale_items.quantity * sale_items.unit_price) as revenue')
             )
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('quantity_sold')

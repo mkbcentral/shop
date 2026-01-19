@@ -1,18 +1,45 @@
 <div class="border-t-2 border-gray-200 bg-white px-3 py-2 space-y-2">
     <!-- Discount & Tax en ligne compacte -->
     <div class="flex gap-2">
-        <div class="flex-1 flex items-center gap-1">
-            <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">Remise</label>
-            <input type="number" wire:model.blur="discount" placeholder="0"
-                class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
-                min="0" step="100">
+        <div class="flex-1">
+            <div class="flex items-center gap-1">
+                <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">Remise</label>
+                <input type="number" wire:model.blur="discount" placeholder="0"
+                    class="w-full px-2 py-1 text-xs border {{ $discountError ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
+                    min="0" step="100" max="{{ $maxAllowedDiscount > 0 ? $maxAllowedDiscount : $subtotal }}">
+            </div>
+            @if($maxAllowedDiscount > 0 && count($cart) > 0)
+                <p class="text-[10px] text-gray-400 mt-0.5">Max: {{ number_format($maxAllowedDiscount, 0, ',', ' ') }}</p>
+            @endif
+            @if($discountError)
+                <p class="text-[10px] text-red-500 mt-0.5">{{ $discountError }}</p>
+            @endif
         </div>
-        <div class="flex-1 flex items-center gap-1">
-            <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">TVA</label>
-            <input type="number" wire:model.blur="tax" placeholder="0"
-                class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
-                min="0" step="100">
-        </div>
+
+        {{-- Section Taxe : selon si l'organisation a des taxes configurées --}}
+        @if($hasTaxes)
+            {{-- Sélecteur de taxes de l'organisation --}}
+            <div class="flex-1 flex items-center gap-1">
+                <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">Taxe</label>
+                <select wire:change="applyTax($event.target.value)"
+                    class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold bg-white">
+                    <option value="">Sans taxe</option>
+                    @foreach($organizationTaxes as $orgTax)
+                        <option value="{{ $orgTax->id }}" {{ $selectedTaxId == $orgTax->id ? 'selected' : '' }}>
+                            {{ $orgTax->name }} ({{ $orgTax->type === 'percentage' ? $orgTax->rate . '%' : number_format($orgTax->fixed_amount, 0, ',', ' ') }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        @else
+            {{-- Pas de taxes configurées - champ désactivé avec message --}}
+            <div class="flex-1 flex items-center gap-1" title="Aucune taxe configurée pour cette organisation">
+                <label class="text-xs font-semibold text-gray-400 whitespace-nowrap">Taxe</label>
+                <div class="w-full px-2 py-1 text-xs border border-gray-100 rounded bg-gray-50 text-gray-400 cursor-not-allowed">
+                    Non configuré
+                </div>
+            </div>
+        @endif
     </div>
 
     <!-- Totals ultra-compact -->
@@ -28,8 +55,13 @@
             </div>
         @endif
         @if($tax > 0)
+            @php
+                $selectedTaxName = $hasTaxes && $selectedTaxId
+                    ? $organizationTaxes->firstWhere('id', $selectedTaxId)?->name ?? 'Taxe'
+                    : 'Taxe';
+            @endphp
             <div class="flex justify-between text-xs">
-                <span class="text-gray-600">Taxe</span>
+                <span class="text-gray-600">{{ $selectedTaxName }}</span>
                 <span class="font-bold text-gray-900">+{{ number_format($tax, 0, ',', ' ') }}</span>
             </div>
         @endif

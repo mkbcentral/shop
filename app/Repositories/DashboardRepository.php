@@ -15,10 +15,11 @@ class DashboardRepository
 {
     /**
      * Apply store filter to a query builder
+     * Uses effective_store_id() which takes into account request store_id parameter
      */
     private function applyStoreFilter($query, string $storeColumn = 'store_id')
     {
-        $storeId = current_store_id();
+        $storeId = effective_store_id();
 
         if ($storeId) {
             $query->where($storeColumn, $storeId);
@@ -29,10 +30,11 @@ class DashboardRepository
 
     /**
      * Apply store filter to a query with product relationship
+     * Uses effective_store_id() which takes into account request store_id parameter
      */
     private function applyStoreFilterViaProduct($query)
     {
-        $storeId = current_store_id();
+        $storeId = effective_store_id();
 
         if ($storeId) {
             $query->whereHas('product', function($q) use ($storeId) {
@@ -173,7 +175,7 @@ class DashboardRepository
      */
     public function getTopSellingProducts(int $limit = 5, int $days = 30): \Illuminate\Support\Collection
     {
-        $storeId = current_store_id();
+        $storeId = effective_store_id();
 
         $query = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')

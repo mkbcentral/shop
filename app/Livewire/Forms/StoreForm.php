@@ -104,12 +104,12 @@ class StoreForm extends Form
 
     /**
      * Get form data as array for DTO
-     * Note: 'code' is only included for creation (when set), not for updates
      */
     public function toArray(): array
     {
-        $data = [
+        return [
             'name' => $this->name,
+            'code' => $this->code ?: null,
             'address' => $this->address ?: null,
             'phone' => $this->phone ?: null,
             'email' => $this->email ?: null,
@@ -117,7 +117,5 @@ class StoreForm extends Form
             'is_active' => $this->is_active,
             'organization_id' => $this->organization_id,
         ];
-
-        return $data;
     }
 }

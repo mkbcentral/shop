@@ -120,7 +120,15 @@ class AttributeManager extends Component
         $this->name = $attribute->name;
         $this->code = $attribute->code;
         $this->type = $attribute->type;
-        $this->options = $attribute->options ? implode(', ', json_decode($attribute->options, true)) : '';
+
+        // Gérer les options (peut être un array ou une string JSON)
+        if ($attribute->options) {
+            $opts = is_array($attribute->options) ? $attribute->options : json_decode($attribute->options, true);
+            $this->options = implode(', ', $opts ?? []);
+        } else {
+            $this->options = '';
+        }
+
         $this->unit = $attribute->unit ?? '';
         $this->default_value = $attribute->default_value ?? '';
         $this->is_required = (bool) $attribute->is_required;

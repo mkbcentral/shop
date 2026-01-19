@@ -14,7 +14,6 @@ class OrganizationShow extends Component
 {
     public Organization $organization;
     public array $statistics = [];
-    public bool $showStoreModal = false;
 
     public StoreForm $storeForm;
 
@@ -61,12 +60,13 @@ class OrganizationShow extends Component
         $this->storeForm->reset();
         $this->storeForm->code = $repository->generateNextCode($this->organization->id);
         $this->storeForm->organization_id = $this->organization->id;
-        $this->showStoreModal = true;
+
+        $this->dispatch('open-store-modal');
     }
 
     public function closeStoreModal(): void
     {
-        $this->showStoreModal = false;
+        $this->dispatch('close-store-modal');
         $this->storeForm->reset();
     }
 

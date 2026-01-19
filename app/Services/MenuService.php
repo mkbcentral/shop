@@ -37,11 +37,47 @@ class MenuService
     }
 
     /**
+     * Menus réservés exclusivement au super-admin
+     */
+    private const SUPER_ADMIN_MENU_CODES = [
+        'admin-dashboard',
+        'menu-permissions',
+        'subscriptions',
+        'subscription-settings',
+        'roles',
+        'roles.index',
+        'users',
+        'users.index',
+        'organizations',
+        'organizations.index',
+        'organizations.create',
+        'printer-config',
+    ];
+
+    /**
      * Construit la structure complète des menus
      */
     private function buildMenuStructure(User $user): Collection
     {
-        // Récupérer les IDs des rôles de l'utilisateur
+        // Super-admin a accès uniquement à ses menus dédiés
+        if ($user->hasRole('super-admin')) {
+            $menuItems = MenuItem::with(['children' => function ($query) {
+                $query->active()
+                      ->whereIn('code', self::SUPER_ADMIN_MENU_CODES)
+                      ->orderBy('order');
+            }])
+            ->active()
+            ->whereNull('parent_id')
+            ->whereIn('code', self::SUPER_ADMIN_MENU_CODES)
+            ->orderBy('order')
+            ->get();
+
+            return $menuItems->groupBy(function ($item) {
+                return $item->section ?? 'no_section';
+            });
+        }
+
+        // Pour les autres utilisateurs, filtrer par rôles
         $userRoleIds = $user->roles->pluck('id')->toArray();
 
         // Récupérer tous les menus racines actifs accessibles par l'utilisateur
@@ -71,6 +107,12 @@ class MenuService
      */
     public function hasAccessToMenu(User $user, string $menuCode): bool
     {
+        // Super-admin a accès uniquement à ses menus dédiés
+        if ($user->hasRole('super-admin')) {
+            return in_array($menuCode, self::SUPER_ADMIN_MENU_CODES) 
+                && MenuItem::where('code', $menuCode)->active()->exists();
+        }
+
         $cacheKey = "user_menu_access_{$user->id}_{$menuCode}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $menuCode) {

@@ -60,6 +60,21 @@ class ProductTypeService
                 $data['slug'] = Str::slug($data['name']);
             }
 
+            // Assigner automatiquement l'organization_id si non fourni
+            if (empty($data['organization_id'])) {
+                $user = auth()->user();
+                if ($user) {
+                    if ($user->current_store_id && $user->currentStore) {
+                        $data['organization_id'] = $user->currentStore->organization_id;
+                    } elseif ($user->default_organization_id) {
+                        $data['organization_id'] = $user->default_organization_id;
+                    } else {
+                        $userOrg = $user->organizations()->first();
+                        $data['organization_id'] = $userOrg?->id;
+                    }
+                }
+            }
+
             // Extract attributes data
             $attributesData = $data['attributes'] ?? [];
             unset($data['attributes']);

@@ -161,6 +161,38 @@ class Organization extends Model
             ->where('expires_at', '>', now());
     }
 
+    /**
+     * Get all taxes for this organization
+     */
+    public function taxes(): HasMany
+    {
+        return $this->hasMany(OrganizationTax::class);
+    }
+
+    /**
+     * Get active taxes only
+     */
+    public function activeTaxes(): HasMany
+    {
+        return $this->taxes()->where('is_active', true)->ordered();
+    }
+
+    /**
+     * Get the default tax
+     */
+    public function defaultTax(): HasMany
+    {
+        return $this->taxes()->where('is_default', true);
+    }
+
+    /**
+     * Get valid taxes at current date
+     */
+    public function validTaxes(): HasMany
+    {
+        return $this->taxes()->active()->validAt()->ordered();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Accessors & Helpers
@@ -221,7 +253,7 @@ class Organization extends Model
      */
     public function canAddProduct(): bool
     {
-        $currentProductCount = \App\Models\Product::whereIn('store_id', $this->stores()->pluck('id'))->count();
+        $currentProductCount = Product::whereIn('store_id', $this->stores()->pluck('id'))->count();
         return $currentProductCount < $this->max_products;
     }
 
@@ -230,7 +262,7 @@ class Organization extends Model
      */
     public function getProductsCount(): int
     {
-        return \App\Models\Product::whereIn('store_id', $this->stores()->pluck('id'))->count();
+        return Product::whereIn('store_id', $this->stores()->pluck('id'))->count();
     }
 
     /**
@@ -464,29 +496,32 @@ class Organization extends Model
         // Assigner les rôles admin et manager
         $owner->syncRoles(['admin', 'manager']);
 
-        // Menus réservés exclusivement au super-admin (à exclure pour les utilisateurs normaux)
+        // Menus réservés EXCLUSIVEMENT au super-admin (plateforme)
+        // Ces menus sont pour la gestion globale de la plateforme, pas pour les organisations
         $superAdminOnlyMenuCodes = [
-            'admin-dashboard',     // Tableau de bord Super Admin
-            'users',               // Gestion des utilisateurs
-            'users.index',         // Liste des utilisateurs
-            'users.create',        // Création utilisateur
-            'users.edit',          // Édition utilisateur
-            'roles',               // Rôles
-            'roles.index',         // Liste des rôles
-            'roles.create',        // Création rôle
-            'roles.edit',          // Édition rôle
-            'menu-permissions',    // Gestion des menus
-            'subscriptions',       // Paramètres d'abonnement
-            'organizations',       // Organisations
-            'organizations.index', // Liste des organisations
-            'organizations.create',// Création d'organisation
+            'admin-dashboard',        // Tableau de bord Super Admin (gestion plateforme)
+            'menu-permissions',       // Gestion des menus (configuration plateforme)
+            'subscriptions',          // Paramètres d'abonnement (configuration plateforme)
+            'subscription-settings',  // Paramètres d'abonnement (autre code)
+            'roles',                  // Rôles (gestion plateforme)
+            'roles.index',            // Liste des rôles
+            'roles.create',           // Création rôle
+            'roles.edit',             // Édition rôle
         ];
 
         // Récupérer les IDs des rôles admin et manager
         $adminRole = \App\Models\Role::where('slug', 'admin')->first();
         $managerRole = \App\Models\Role::where('slug', 'manager')->first();
 
+        // Récupérer les IDs des menus réservés au super-admin (pour les détacher)
+        $superAdminMenuIds = \App\Models\MenuItem::whereIn('code', $superAdminOnlyMenuCodes)
+            ->pluck('id')
+            ->toArray();
+
         if ($adminRole) {
+            // D'abord, détacher explicitement les menus super-admin du rôle admin
+            $adminRole->menus()->detach($superAdminMenuIds);
+
             // Récupérer tous les menus actifs SAUF ceux réservés au super-admin
             $accessibleMenus = \App\Models\MenuItem::active()
                 ->whereNotIn('code', $superAdminOnlyMenuCodes)
@@ -494,13 +529,23 @@ class Organization extends Model
 
             $menuIds = $accessibleMenus->pluck('id')->toArray();
 
-            // Synchroniser les menus pour le rôle admin (sans détacher les existants)
+            // Synchroniser les menus pour le rôle admin
             $adminRole->menus()->syncWithoutDetaching($menuIds);
+        }
 
-            // Synchroniser également pour le rôle manager
-            if ($managerRole) {
-                $managerRole->menus()->syncWithoutDetaching($menuIds);
-            }
+        if ($managerRole) {
+            // Détacher les menus super-admin du rôle manager également
+            $managerRole->menus()->detach($superAdminMenuIds);
+
+            // Récupérer les menus accessibles au manager (même liste)
+            $accessibleMenus = \App\Models\MenuItem::active()
+                ->whereNotIn('code', $superAdminOnlyMenuCodes)
+                ->get();
+
+            $menuIds = $accessibleMenus->pluck('id')->toArray();
+
+            // Synchroniser les menus pour le rôle manager
+            $managerRole->menus()->syncWithoutDetaching($menuIds);
         }
 
         // Vider le cache des menus pour cet utilisateur

@@ -9,6 +9,7 @@ use Livewire\Component;
 class StepTwo extends Component
 {
     public string $organization_name = '';
+    public string $organization_phone = '';
     public string $subscription_plan = 'free';
     public array $plans = [];
     public string $currency = '€';
@@ -23,6 +24,7 @@ class StepTwo extends Component
 
         return [
             'organization_name' => ['required', 'string', 'max:255'],
+            'organization_phone' => ['required', 'string', 'max:20'],
             'subscription_plan' => ['required', Rule::in($planSlugs)],
         ];
     }
@@ -35,6 +37,8 @@ class StepTwo extends Component
         return [
             'organization_name.required' => 'Le nom de l\'organisation est obligatoire.',
             'organization_name.max' => 'Le nom de l\'organisation ne doit pas dépasser 255 caractères.',
+            'organization_phone.required' => 'Le téléphone de l\'organisation est obligatoire.',
+            'organization_phone.max' => 'Le téléphone de l\'organisation ne doit pas dépasser 20 caractères.',
             'subscription_plan.required' => 'Vous devez choisir un plan.',
             'subscription_plan.in' => 'Le plan sélectionné n\'est pas valide.',
         ];

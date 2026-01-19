@@ -25,8 +25,10 @@ class ReferenceGeneratorService
         // Generate prefix from category name (first 3 letters, uppercase)
         $prefix = strtoupper(substr($category->name, 0, 3));
 
-        // Count existing products in this category
-        $counter = Product::where('category_id', $categoryId)->count() + 1;
+        // Count existing products in this category (all organizations for unique reference)
+        $counter = Product::withoutGlobalScope('organization')
+            ->where('category_id', $categoryId)
+            ->count() + 1;
 
         // Generate reference and ensure uniqueness
         $attempts = 0;
@@ -37,7 +39,9 @@ class ReferenceGeneratorService
             $randomSuffix = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 2));
             $reference = $prefix . '-' . str_pad($counter, 4, '0', STR_PAD_LEFT) . $randomSuffix;
 
-            $exists = Product::where('reference', $reference)->exists();
+            $exists = Product::withoutGlobalScope('organization')
+                ->where('reference', $reference)
+                ->exists();
 
             if ($exists) {
                 $counter++;
@@ -46,7 +50,9 @@ class ReferenceGeneratorService
                 // If too many attempts, use timestamp-based approach
                 if ($attempts >= $maxAttempts) {
                     $reference = $prefix . '-' . strtoupper(substr(md5(microtime()), 0, 8));
-                    $exists = Product::where('reference', $reference)->exists();
+                    $exists = Product::withoutGlobalScope('organization')
+                        ->where('reference', $reference)
+                        ->exists();
                 }
             }
         } while ($exists && $attempts < ($maxAttempts + 10));

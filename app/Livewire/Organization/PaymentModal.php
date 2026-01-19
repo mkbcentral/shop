@@ -13,20 +13,20 @@ class PaymentModal extends Component
 {
     public ?Organization $organization = null;
     public bool $showModal = false;
-    public string $paymentMethod = 'stripe';
+    public string $paymentMethod = 'mobile_money';
     public array $planData = [];
     public string $currency = '€';
 
     public function mount()
     {
         $user = Auth::user();
-        
+
         if (!$user) {
             return;
         }
 
         $this->organization = $user->defaultOrganization;
-        
+
         if (!$this->organization) {
             return;
         }
@@ -34,7 +34,7 @@ class PaymentModal extends Component
         // Check if payment is needed
         if (!$this->organization->isAccessible()) {
             $this->showModal = true;
-            
+
             // Load plan data from cache
             $allPlans = SubscriptionService::getPlansFromCache();
             $planSlug = $this->organization->subscription_plan->value;

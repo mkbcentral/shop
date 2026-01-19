@@ -21,6 +21,11 @@ class DynamicAttributes extends Component
         if ($productTypeId) {
             $this->loadAttributes();
         }
+
+        // Émettre les valeurs existantes au parent pour synchronisation
+        if (!empty($this->attributeValues)) {
+            $this->dispatch('attributesUpdated', $this->attributeValues);
+        }
     }
 
     public function loadAttributes()

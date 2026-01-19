@@ -35,9 +35,7 @@ class VerifyEmailResponse implements VerifyEmailResponseContract
 
         // Vérifier si l'organisation nécessite un paiement
         if (!$organization->isAccessible()) {
-            // Rediriger vers la page de paiement
-            return redirect()->route('organization.payment', ['organization' => $organization->id])
-                ->with('success', 'Email vérifié avec succès ! Veuillez maintenant compléter votre paiement pour accéder à votre organisation.');
+            return redirect()->route('dashboard');
         }
 
         // Plan gratuit ou paiement déjà effectué - rediriger vers le dashboard

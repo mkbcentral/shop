@@ -16,7 +16,7 @@
                 </div>
 
                 {{-- Reset Password Form --}}
-                <form wire:submit.prevent="resetPassword" class="space-y-4" autocomplete="on">
+                <form wire:submit="resetPassword" class="space-y-4" autocomplete="on">
                     {{-- Email Input --}}
                     <x-auth.input
                         wire:model="email"

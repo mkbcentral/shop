@@ -1,6 +1,7 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 relative overflow-hidden">
     {{-- Background Elements --}}
     <x-auth.background />
+    <x-toast/>  
 
     <div class="relative z-10 grid lg:grid-cols-2 gap-0 min-h-screen">
         {{-- Left Column - Form --}}
@@ -48,10 +49,10 @@
                 @endif
 
                 {{-- Login Form --}}
-                <form wire:submit.prevent="login" class="space-y-4" autocomplete="on">
+                <form wire:submit="login" class="space-y-4" autocomplete="on">
                     {{-- Email Input --}}
                     <x-auth.input
-                        wire:model.live="email"
+                        wire:model.blur="form.email"
                         type="email"
                         name="email"
                         label="Adresse e-mail"
@@ -59,20 +60,20 @@
                         icon="email"
                         autocomplete="email"
                         autofocus
-                        :error="$errors->first('email')"
+                        :error="$errors->first('form.email')"
                     />
 
                     {{-- Password Input --}}
                     <x-auth.input
-                        wire:model.live="password"
+                        wire:model.blur="form.password"
                         type="password"
                         name="password"
                         label="Mot de passe"
                         placeholder="Votre mot de passe"
                         icon="lock"
-                        :showPasswordToggle="false"
+                        :showPasswordToggle="true"
                         autocomplete="current-password"
-                        :error="$errors->first('password')"
+                        :error="$errors->first('form.password')"
                     />
 
                     {{-- Remember Me & Forgot Password --}}
@@ -88,7 +89,7 @@
 
                     {{-- Submit Button --}}
                     <x-auth.submit-button
-                        :disabled="$isLocked"
+                        
                         text="Se connecter"
                         loadingText="Connexion..."
                         lockedText="Bloqué"

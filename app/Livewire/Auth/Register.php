@@ -86,19 +86,20 @@ class Register extends Component
             // 4. Create the organization
             $organization = Organization::create([
                 'name' => $step2['organization_name'],
-                'slug' => Str::slug($step2['organization_name']),
+                'phone' => $step2['organization_phone'],
+                'slug' => Str::slug(title: $step2['organization_name']),
                 'owner_id' => $user->id,
                 'subscription_plan' => $plan,
                 'payment_status' => $paymentStatus,
                 'subscription_starts_at' => now(),
-                'subscription_ends_at' => now()->addYear(),
+                'subscription_ends_at' => now()->addMonth(),
                 'is_trial' => false,
                 'trial_days' => 0,
                 'max_stores' => $planData['max_stores'] ?? 1,
                 'max_users' => $planData['max_users'] ?? 3,
                 'max_products' => $planData['max_products'] ?? 100,
-                'currency' => 'EUR',
-                'timezone' => 'Europe/Paris',
+                'currency' => 'CDF',
+                'timezone' => config('app.timezone', 'UTC'),
                 'is_active' => $isFree, // Active immediately for free plan
                 'is_verified' => false,
             ]);
@@ -123,8 +124,8 @@ class Register extends Component
                 'code' => 'MAIN-' . $organization->id,
                 'address' => '',
                 'city' => '',
-                'country' => 'France',
-                'phone' => '',
+                'country' => 'RD Congo',
+                'phone' => $organization->phone,
                 'email' => $organization->email ?? $user->email,
                 'is_active' => true,
                 'is_main' => true,
@@ -138,6 +139,7 @@ class Register extends Component
 
             // 9. Set as current store for user
             $user->update([
+                'role' => 'admin',
                 'current_store_id' => $store->id,
             ]);
 

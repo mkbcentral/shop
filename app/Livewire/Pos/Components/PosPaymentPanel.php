@@ -9,12 +9,14 @@ use App\Exceptions\Pos\InsufficientPaymentException;
 use App\Exceptions\Pos\InsufficientStockException;
 use App\Models\Sale;
 use App\Models\Invoice;
+use App\Models\OrganizationTax;
 use App\Services\Pos\CartStateManager;
 use App\Services\Pos\CalculationService;
 use App\Services\Pos\PaymentService;
 use App\Services\Pos\PaymentData;
 use App\Services\Pos\PrinterService;
 use App\Services\Pos\StatsService;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\Attributes\On;
 
@@ -31,6 +33,15 @@ class PosPaymentPanel extends Component
     public float $discount = 0;
     public float $tax = 0;
     public ?int $clientId = null;
+
+    // Remise max autorisée (calculée depuis le panier)
+    public float $maxAllowedDiscount = 0;
+    public string $discountError = '';
+
+    // Taxes de l'organisation
+    public Collection $organizationTaxes;
+    public ?int $selectedTaxId = null;
+    public bool $hasTaxes = false;
 
     // Paiement
     public string $paymentMethod = 'cash';
@@ -58,6 +69,11 @@ class PosPaymentPanel extends Component
     private PrinterService $printerService;
     private StatsService $statsService;
 
+    public function __construct()
+    {
+        $this->organizationTaxes = collect();
+    }
+
     public function boot(
         CartStateManager $cartManager,
         CalculationService $calculationService,
@@ -74,6 +90,8 @@ class PosPaymentPanel extends Component
 
     public function mount(): void
     {
+        $this->organizationTaxes = collect();
+        $this->loadOrganizationTaxes();
         $this->syncCartFromSession();
         $this->recalculateTotals();
     }
@@ -81,6 +99,84 @@ class PosPaymentPanel extends Component
     public function hydrate(): void
     {
         $this->syncCartFromSession();
+        $this->loadOrganizationTaxes();
+    }
+
+    /**
+     * Charge les taxes actives de l'organisation courante
+     */
+    private function loadOrganizationTaxes(): void
+    {
+        $organization = app()->bound('current_organization') ? app('current_organization') : null;
+
+        if (!$organization) {
+            $this->organizationTaxes = collect();
+            $this->hasTaxes = false;
+            return;
+        }
+
+        $this->organizationTaxes = OrganizationTax::where('organization_id', $organization->id)
+            ->active()
+            ->validAt(now())
+            ->ordered()
+            ->get();
+
+        $this->hasTaxes = $this->organizationTaxes->isNotEmpty();
+
+        // Sélectionner la taxe par défaut si pas encore sélectionnée
+        if ($this->hasTaxes && !$this->selectedTaxId) {
+            $defaultTax = $this->organizationTaxes->firstWhere('is_default', true);
+            $this->selectedTaxId = $defaultTax?->id ?? $this->organizationTaxes->first()?->id;
+        }
+    }
+
+    /**
+     * Applique une taxe de l'organisation
+     */
+    public function applyTax(mixed $taxId): void
+    {
+        // Convertir la valeur en int ou null
+        $taxId = $taxId ? (int) $taxId : null;
+        $this->selectedTaxId = $taxId;
+
+        if (!$taxId) {
+            $this->tax = 0;
+            $this->recalculateTotals();
+            $this->dispatch('cart-state-changed', [
+                'cart' => $this->cart,
+                'subtotal' => $this->subtotal,
+                'tax' => $this->tax,
+                'total' => $this->total,
+                'discount' => $this->discount,
+                'clientId' => $this->clientId,
+            ]);
+            return;
+        }
+
+        $tax = $this->organizationTaxes->firstWhere('id', $taxId);
+
+        if (!$tax) {
+            return;
+        }
+
+        // Calculer la taxe selon le type
+        if ($tax->type === 'percentage') {
+            $this->tax = round(($this->subtotal - $this->discount) * ($tax->rate / 100), 0);
+        } else {
+            $this->tax = (float) $tax->fixed_amount;
+        }
+
+        $this->recalculateTotals();
+
+        // Notifier les autres composants
+        $this->dispatch('cart-state-changed', [
+            'cart' => $this->cart,
+            'subtotal' => $this->subtotal,
+            'tax' => $this->tax,
+            'total' => $this->total,
+            'discount' => $this->discount,
+            'clientId' => $this->clientId,
+        ]);
     }
 
     /**
@@ -100,12 +196,26 @@ class PosPaymentPanel extends Component
     {
         $this->cart = $state['cart'] ?? [];
         $this->subtotal = $state['subtotal'] ?? 0;
-        $this->tax = $state['tax'] ?? 0;
-        $this->total = $state['total'] ?? 0;
         $this->discount = $state['discount'] ?? 0;
         $this->clientId = $state['clientId'] ?? null;
 
         $this->cartManager->initialize($this->cart);
+
+        // Recalculer la taxe si une taxe est sélectionnée
+        if ($this->hasTaxes && $this->selectedTaxId) {
+            $tax = $this->organizationTaxes->firstWhere('id', $this->selectedTaxId);
+            if ($tax) {
+                if ($tax->type === 'percentage') {
+                    $this->tax = round(($this->subtotal - $this->discount) * ($tax->rate / 100), 0);
+                } else {
+                    $this->tax = (float) $tax->fixed_amount;
+                }
+            }
+        } else {
+            $this->tax = $state['tax'] ?? 0;
+        }
+
+        $this->total = $this->subtotal - $this->discount + $this->tax;
         $this->paidAmount = $this->total;
         $this->calculateChange();
         $this->calculateSuggestedAmounts();
@@ -126,6 +236,9 @@ class PosPaymentPanel extends Component
      */
     private function recalculateTotals(): void
     {
+        // Calculer la remise max autorisée depuis le panier
+        $this->calculateMaxAllowedDiscount();
+
         $totals = $this->calculationService->calculateTotals(
             $this->cart,
             $this->discount,
@@ -139,6 +252,72 @@ class PosPaymentPanel extends Component
 
         $this->calculateChange();
         $this->calculateSuggestedAmounts();
+    }
+
+    /**
+     * Calcule la remise maximum autorisée en fonction des produits du panier
+     */
+    private function calculateMaxAllowedDiscount(): void
+    {
+        $totalMaxDiscount = 0;
+        $hasLimitedProducts = false;
+
+        foreach ($this->cart as $item) {
+            $maxDiscountPerUnit = $item['max_discount_amount'] ?? null;
+            $quantity = $item['quantity'] ?? 1;
+            $price = $item['original_price'] ?? $item['price'];
+
+            if ($maxDiscountPerUnit !== null && $maxDiscountPerUnit > 0) {
+                // Produit avec limite définie
+                $hasLimitedProducts = true;
+                $maxPerUnit = min((float) $maxDiscountPerUnit, (float) $price);
+                $totalMaxDiscount += $maxPerUnit * $quantity;
+            } else {
+                // Produit sans limite - on autorise jusqu'au prix total
+                $totalMaxDiscount += $price * $quantity;
+            }
+        }
+
+        // Si au moins un produit a une limite, on utilise le total calculé
+        // Sinon, maxAllowedDiscount reste 0 (pas de limite globale)
+        $this->maxAllowedDiscount = $hasLimitedProducts ? $totalMaxDiscount : 0;
+    }
+
+    /**
+     * Valide et applique la remise
+     */
+    public function updatedDiscount(): void
+    {
+        $this->discountError = '';
+
+        // Calculer d'abord la remise max autorisée
+        $this->calculateMaxAllowedDiscount();
+
+        // Vérifier si la remise dépasse le maximum autorisé (si une limite existe)
+        if ($this->maxAllowedDiscount > 0 && $this->discount > $this->maxAllowedDiscount) {
+            $this->discountError = "La remise ne peut pas dépasser " . number_format($this->maxAllowedDiscount, 0, ',', ' ') . " CDF (limite configurée sur les produits)";
+            $this->discount = $this->maxAllowedDiscount;
+            $this->dispatch('show-toast', message: $this->discountError, type: 'warning');
+        }
+
+        // Vérifier que la remise ne dépasse pas le sous-total
+        if ($this->discount > $this->subtotal) {
+            $this->discountError = "La remise ne peut pas dépasser le sous-total";
+            $this->discount = $this->subtotal;
+            $this->dispatch('show-toast', message: $this->discountError, type: 'error');
+        }
+
+        $this->recalculateTotals();
+
+        // Notifier les autres composants
+        $this->dispatch('cart-state-changed', [
+            'cart' => $this->cart,
+            'subtotal' => $this->subtotal,
+            'tax' => $this->tax,
+            'total' => $this->total,
+            'discount' => $this->discount,
+            'clientId' => $this->clientId,
+        ]);
     }
 
     /**

@@ -245,6 +245,59 @@
                                     </div>
                                 </div>
 
+                                <!-- Remise maximum autorisée -->
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="form.max_discount_amount"
+                                            class="block text-sm font-medium text-gray-700 mb-2">
+                                            Remise max autorisée (CDF)
+                                            <span class="text-gray-400 font-normal text-xs ml-1">(optionnel)</span>
+                                        </label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                            <input type="number" id="form.max_discount_amount"
+                                                wire:model="form.max_discount_amount"
+                                                step="1" min="0"
+                                                placeholder="Aucune limite"
+                                                max="{{ $form->price ?: '' }}"
+                                                class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition" />
+                                        </div>
+                                        <p class="mt-1 text-xs text-gray-500">
+                                            Montant maximum qu'on peut réduire sur ce produit au POS. Laissez vide pour aucune limite.
+                                        </p>
+                                        @error('form.max_discount_amount')
+                                            <p class="mt-2 text-sm text-red-600 flex items-center">
+                                                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd"
+                                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                    @if($form->max_discount_amount && $form->price)
+                                        <div class="flex items-center">
+                                            <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 w-full">
+                                                <div class="flex items-center space-x-2">
+                                                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span class="text-sm text-amber-700">
+                                                        Prix minimum de vente:
+                                                        <strong>{{ number_format(max(0, $form->price - $form->max_discount_amount), 0, ',', ' ') }} CDF</strong>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+
                                 @if ($form->price && $form->cost_price && floatval($form->cost_price) > 0)
                                     <div
                                         class="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
@@ -444,7 +497,7 @@
 
                             <!-- Dynamic Attributes (Based on Product Type) -->
                             @if ($form->product_type_id)
-                                @livewire('product.dynamic-attributes', ['productTypeId' => $form->product_type_id], key('dynamic-attrs-' . $form->product_type_id))
+                                @livewire('product.dynamic-attributes', ['productTypeId' => $form->product_type_id, 'attributeValues' => $attributeValues], key('dynamic-attrs-' . $form->product_type_id . '-' . ($productId ?? 'new')))
                             @endif
 
                             <!-- Variant Preview -->

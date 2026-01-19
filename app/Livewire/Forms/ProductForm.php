@@ -62,6 +62,11 @@ class ProductForm extends Form
     #[Validate('min:0', message: "Le seuil d'alerte doit être supérieur ou égal à 0")]
     public $stock_alert_threshold = 10;
 
+    #[Validate('nullable')]
+    #[Validate('numeric', message: "Le montant maximum de remise doit être un nombre")]
+    #[Validate('min:0', message: "Le montant maximum de remise doit être supérieur ou égal à 0")]
+    public $max_discount_amount = null;
+
     /**
      * Set the product data for editing
      */
@@ -77,6 +82,7 @@ class ProductForm extends Form
         $this->product_type_id = $product->product_type_id;
         $this->status = $product->status;
         $this->stock_alert_threshold = $product->stock_alert_threshold ?? 10;
+        $this->max_discount_amount = $product->max_discount_amount;
     }
 
     /**
@@ -96,6 +102,7 @@ class ProductForm extends Form
             $this->image = null;
             $this->status = 'active';
             $this->stock_alert_threshold = 10;
+            $this->max_discount_amount = null;
         } else {
             parent::reset(...$properties);
         }
@@ -118,6 +125,7 @@ class ProductForm extends Form
             'image' => 'nullable|image|max:2048',
             'status' => 'required|in:active,inactive',
             'stock_alert_threshold' => 'nullable|integer|min:0',
+            'max_discount_amount' => 'nullable|numeric|min:0',
         ];
     }
 }

@@ -146,58 +146,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    <div
-        x-data="{
-            successMessage: '',
-            errorMessage: '',
-            showSuccess: false,
-            showError: false
-        }"
-        x-on:show-toast.window="
-            if ($event.detail.type === 'success') {
-                successMessage = $event.detail.message;
-                showSuccess = true;
-                setTimeout(() => { showSuccess = false }, 8000);
-            } else if ($event.detail.type === 'error' || $event.detail.type === 'warning') {
-                errorMessage = $event.detail.message;
-                showError = true;
-                setTimeout(() => { showError = false }, 10000);
-            }
-        "
-        class="fixed bottom-6 right-6 z-50 space-y-2"
-    >
-        <!-- Success Message -->
-        <div x-show="showSuccess" x-cloak
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform translate-x-full"
-            x-transition:enter-end="opacity-100 transform translate-x-0"
-            x-transition:leave="transition ease-in duration-300"
-            x-transition:leave-start="opacity-100 transform translate-x-0"
-            x-transition:leave-end="opacity-0 transform translate-x-full"
-            class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
-            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="font-bold" x-text="successMessage"></span>
-        </div>
-
-        <!-- Error Message -->
-        <div x-show="showError" x-cloak
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="opacity-0 transform translate-x-full"
-            x-transition:enter-end="opacity-100 transform translate-x-0"
-            x-transition:leave="transition ease-in duration-300"
-            x-transition:leave-start="opacity-100 transform translate-x-0"
-            x-transition:leave-end="opacity-0 transform translate-x-full"
-            class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
-            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="font-bold" x-text="errorMessage"></span>
-        </div>
-    </div>
-
     <!-- Keyboard Shortcuts Handler -->
     <div x-data @keydown.window="handleKeyboard($event)"></div>
 

@@ -2,9 +2,6 @@
     x-data="cashRegister"
     wire:ignore.self>
 
-    <!-- Toast Notifications -->
-    <x-toast />
-
     <!-- Top Bar -->
     @include('livewire.pos.partials.top-bar')
 

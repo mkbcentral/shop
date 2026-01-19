@@ -196,9 +196,9 @@
                     </button>
                 </div>
 
-                <form wire:submit.prevent="save">
+                <form wire:submit.prevent="save" class="flex flex-col flex-1 min-h-0">
                     <!-- Modal Body -->
-                    <div class="flex-1 overflow-y-auto p-6">
+                    <div class="flex-1 overflow-y-auto p-6 min-h-0">
                         <div class="space-y-5">
                             <!-- Name Field -->
                             <x-form.form-group label="Nom du client" for="name" required>
