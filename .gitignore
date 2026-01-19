@@ -44,3 +44,7 @@ clear-*.php
 !resources/**/*.png
 !resources/**/*.jpg
 !resources/**/*.jpeg
+
+# Laravel compiled views cache
+/storage/framework/views/*.php
+!/storage/framework/views/.gitignore
