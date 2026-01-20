@@ -32,7 +32,17 @@ jobs:
       - name: � Install dependencies
         run: composer install --no-dev --optimize-autoloader
         # Installe les dépendances PHP sans les dépendances de développement
-
+      - name: 📂 Prepare deployment directory on server
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            mkdir -p ${{ secrets.DEPLOY_PATH }}
+            chmod 755 ${{ secrets.DEPLOY_PATH }}
+        # Crée le répertoire de déploiement si nécessaire
       - name: 🚀 Deploy to Hostinger via SSH
         uses: appleboy/scp-action@v0.1.4
         with:
