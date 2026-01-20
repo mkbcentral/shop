@@ -39,23 +39,22 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          script_stop: false
           script: |
             mkdir -p ${{ secrets.DEPLOY_PATH }}
             chmod 755 ${{ secrets.DEPLOY_PATH }}
         # Crée le répertoire de déploiement si nécessaire
-      - name: 🚀 Deploy to Hostinger via SSH
-        uses: appleboy/scp-action@v0.1.4
+      - name: 🚀 Deploy to Hostinger via rsync
+        uses: burnett01/rsync-deployments@7.0.1
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "./"
-          target: ${{ secrets.DEPLOY_PATH }}
-          rm: false
-          overwrite: true
-          strip_components: 0
-        # Transfère tous les fichiers du projet vers le serveur distant via SCP
+          switches: -avzr --delete --exclude='.git*' --exclude='node_modules' --exclude='.env'
+          path: ./
+          remote_path: ${{ secrets.DEPLOY_PATH }}
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_port: ${{ secrets.SSH_PORT }}
+          remote_user: ${{ secrets.SSH_USERNAME }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+        # Transfère tous les fichiers du projet vers le serveur distant via rsync
 
       - name: 🔧 Run artisan commands remotely
         uses: appleboy/ssh-action@v1.1.0
@@ -64,11 +63,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          script_stop: false
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
-            php artisan migrate
-            php artisan db:seed --force
-            php artisan key:generate
+            php artisan migrate --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
@@ -82,6 +80,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          script_stop: false
           script: |
             [ -f ${{ secrets.DEPLOY_PATH }}/index.php ] || cp ${{ secrets.DEPLOY_PATH }}/public/index.php ${{ secrets.DEPLOY_PATH }}/index.php
             [ -f ${{ secrets.DEPLOY_PATH }}/robots.txt ] || cp ${{ secrets.DEPLOY_PATH }}/public/robots.txt ${{ secrets.DEPLOY_PATH }}/robots.txt
