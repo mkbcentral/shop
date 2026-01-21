@@ -1,7 +1,7 @@
 <div>
     <!-- Modal Contact -->
     @if($showModal)
-    <div 
+    <div
         x-data="{ show: @entangle('showModal') }"
         x-show="show"
         x-cloak
@@ -45,8 +45,8 @@
                     <p class="text-gray-600 mb-6">
                         Merci de nous avoir contacté. Nous vous répondrons dans les plus brefs délais.
                     </p>
-                    <button 
-                        wire:click="closeModal" 
+                    <button
+                        wire:click="closeModal"
                         class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all"
                     >
                         Fermer
@@ -95,8 +95,8 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                         </svg>
                                     </div>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         id="name"
                                         wire:model.blur="name"
                                         class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition @error('name') border-red-500 @enderror"
@@ -124,8 +124,8 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                         </svg>
                                     </div>
-                                    <input 
-                                        type="email" 
+                                    <input
+                                        type="email"
                                         id="email"
                                         wire:model.blur="email"
                                         class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition @error('email') border-red-500 @enderror"
@@ -154,8 +154,8 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
                                     </svg>
                                 </div>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     id="subject"
                                     wire:model.blur="subject"
                                     class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition @error('subject') border-red-500 @enderror"
@@ -177,7 +177,7 @@
                             <label for="messageContent" class="block text-sm font-medium text-gray-700 mb-2">
                                 Message <span class="text-red-500">*</span>
                             </label>
-                            <textarea 
+                            <textarea
                                 id="messageContent"
                                 wire:model.blur="messageContent"
                                 rows="4"
@@ -218,14 +218,14 @@
 
                     <!-- Actions -->
                     <div class="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <button 
+                        <button
                             type="button"
                             wire:click="closeModal"
                             class="px-5 py-2.5 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-all"
                         >
                             Annuler
                         </button>
-                        <button 
+                        <button
                             type="submit"
                             class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             wire:loading.attr="disabled"
