@@ -21,12 +21,20 @@
                     Configurez les plans, prix et limites des abonnements
                 </p>
             </div>
-            <button wire:click="resetToDefaults" wire:confirm="Êtes-vous sûr de vouloir réinitialiser tous les paramètres ?"
-                class="group inline-flex items-center px-4 py-2.5 text-sm font-semibold text-red-600 bg-white hover:bg-red-50 border-2 border-red-200 hover:border-red-300 rounded-xl transition-all shadow-sm hover:shadow-md">
-                <svg class="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button wire:click="resetToDefaults" 
+                wire:confirm="Êtes-vous sûr de vouloir réinitialiser tous les paramètres ?"
+                wire:loading.attr="disabled"
+                wire:target="resetToDefaults"
+                class="group inline-flex items-center px-4 py-2.5 text-sm font-semibold text-red-600 bg-white hover:bg-red-50 border-2 border-red-200 hover:border-red-300 rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg wire:loading.remove wire:target="resetToDefaults" class="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                Réinitialiser par défaut
+                <svg wire:loading wire:target="resetToDefaults" class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span wire:loading.remove wire:target="resetToDefaults">Réinitialiser par défaut</span>
+                <span wire:loading wire:target="resetToDefaults">Réinitialisation...</span>
             </button>
         </div>
 
@@ -176,12 +184,33 @@
                         </div>
 
                         <div class="flex space-x-2">
-                            <button wire:click="openEditModal({{ $plan['id'] }})" class="flex-1 px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg">
-                                Modifier
+                            <button wire:click="openEditModal({{ $plan['id'] }})" 
+                                wire:loading.attr="disabled" 
+                                wire:target="openEditModal({{ $plan['id'] }})"
+                                class="flex-1 px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span wire:loading.remove wire:target="openEditModal({{ $plan['id'] }})">
+                                    Modifier
+                                </span>
+                                <span wire:loading wire:target="openEditModal({{ $plan['id'] }})" class="inline-flex items-center">
+                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Chargement...
+                                </span>
                             </button>
-                            <button wire:click="togglePopular({{ $plan['id'] }})" class="px-3 py-2.5 text-sm border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 rounded-xl transition-all"
+                            <button wire:click="togglePopular({{ $plan['id'] }})" 
+                                wire:loading.attr="disabled"
+                                wire:target="togglePopular({{ $plan['id'] }})"
+                                class="px-3 py-2.5 text-sm border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 rounded-xl transition-all disabled:opacity-50"
                                 title="Marquer comme populaire">
-                                ⭐
+                                <span wire:loading.remove wire:target="togglePopular({{ $plan['id'] }})">⭐</span>
+                                <span wire:loading wire:target="togglePopular({{ $plan['id'] }})" class="inline-flex">
+                                    <svg class="animate-spin h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
                             </button>
                         </div>
                     </div>
