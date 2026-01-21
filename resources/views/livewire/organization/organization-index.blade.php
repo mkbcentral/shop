@@ -72,14 +72,16 @@
                             <div>
                                 <div class="flex items-center space-x-2">
                                     <h3 class="text-lg font-bold text-gray-900">{{ $organization->name }}</h3>
-                                    @if($organization->pivot->role === 'owner')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                            Propriétaire
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                            {{ ucfirst($organization->pivot->role) }}
-                                        </span>
+                                    @if($organization->pivot)
+                                        @if($organization->pivot->role === 'owner')
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                Propriétaire
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                {{ ucfirst($organization->pivot->role) }}
+                                            </span>
+                                        @endif
                                     @endif
                                     @if($currentOrganization?->id === $organization->id)
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
