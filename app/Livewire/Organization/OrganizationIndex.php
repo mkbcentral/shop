@@ -38,12 +38,18 @@ class OrganizationIndex extends Component
     {
         $user = auth()->user();
 
-        if (!$user->belongsToOrganization($organizationId)) {
+        // Super admin peut switcher vers n'importe quelle organisation
+        if (!$user->isSuperAdmin() && !$user->belongsToOrganization($organizationId)) {
             session()->flash('error', 'Accès non autorisé à cette organisation.');
             return null;
         }
 
         $organization = Organization::find($organizationId);
+
+        if (!$organization) {
+            session()->flash('error', 'Organisation introuvable.');
+            return null;
+        }
 
         session(['current_organization_id' => $organization->id]);
         $user->update(['default_organization_id' => $organization->id]);
@@ -97,13 +103,25 @@ class OrganizationIndex extends Component
 
     public function render()
     {
-        $organizations = auth()->user()
-            ->organizations()
-            ->with(['stores', 'owner', 'members'])
-            ->when($this->search, fn($q) => $q->where('organizations.name', 'like', "%{$this->search}%"))
-            ->when($this->type, fn($q) => $q->where('organizations.type', $this->type))
-            ->orderBy("organizations.{$this->sortBy}", $this->sortDirection)
-            ->paginate(10);
+        $user = auth()->user();
+        
+        // Si super admin, afficher toutes les organisations
+        if ($user->isSuperAdmin()) {
+            $organizations = Organization::query()
+                ->with(['stores', 'owner', 'members'])
+                ->when($this->search, fn($q) => $q->where('name', 'like', "%{$this->search}%"))
+                ->when($this->type, fn($q) => $q->where('type', $this->type))
+                ->orderBy($this->sortBy, $this->sortDirection)
+                ->paginate(10);
+        } else {
+            // Sinon, afficher uniquement les organisations de l'utilisateur
+            $organizations = $user->organizations()
+                ->with(['stores', 'owner', 'members'])
+                ->when($this->search, fn($q) => $q->where('organizations.name', 'like', "%{$this->search}%"))
+                ->when($this->type, fn($q) => $q->where('organizations.type', $this->type))
+                ->orderBy("organizations.{$this->sortBy}", $this->sortDirection)
+                ->paginate(10);
+        }
 
         $types = [
             'individual' => 'Entrepreneur individuel',
