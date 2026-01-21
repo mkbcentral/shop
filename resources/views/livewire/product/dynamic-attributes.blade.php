@@ -11,9 +11,6 @@
                     <div>
                         <label for="attr_{{ $attribute['id'] }}" class="block text-sm font-semibold text-gray-700 mb-2">
                             {{ $attribute['name'] }}
-                            @if($attribute['is_required'])
-                                <span class="text-red-500">*</span>
-                            @endif
                             @if($attribute['is_variant_attribute'])
                                 <span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Variant</span>
                             @endif
@@ -25,7 +22,6 @@
                                 id="attr_{{ $attribute['id'] }}"
                                 wire:model="attributeValues.{{ $attribute['id'] }}"
                                 placeholder="{{ $attribute['default_value'] ?? '' }}"
-                                @if($attribute['is_required']) required @endif
                                 class="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200">
 
                         @elseif($attribute['type'] === 'number')
@@ -36,7 +32,6 @@
                                     wire:model="attributeValues.{{ $attribute['id'] }}"
                                     placeholder="{{ $attribute['default_value'] ?? '0' }}"
                                     step="0.01"
-                                    @if($attribute['is_required']) required @endif
                                     class="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200">
                                 @if($attribute['unit'])
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{{ $attribute['unit'] }}</span>
@@ -66,7 +61,6 @@
                                 <select
                                     id="attr_{{ $attribute['id'] }}"
                                     wire:model="attributeValues.{{ $attribute['id'] }}"
-                                    @if($attribute['is_required']) required @endif
                                     class="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200">
                                     <option value="">Sélectionner...</option>
                                     @foreach($attribute['options'] ?? [] as $option)
@@ -91,7 +85,6 @@
                                 type="date"
                                 id="attr_{{ $attribute['id'] }}"
                                 wire:model="attributeValues.{{ $attribute['id'] }}"
-                                @if($attribute['is_required']) required @endif
                                 class="w-full px-4 py-2.5 rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200">
 
                         @elseif($attribute['type'] === 'color')
@@ -106,7 +99,6 @@
                                     id="attr_{{ $attribute['id'] }}"
                                     wire:model="attributeValues.{{ $attribute['id'] }}"
                                     placeholder="#000000"
-                                    @if($attribute['is_required']) required @endif
                                     class="flex-1 px-4 py-2.5 rounded-lg border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200">
                             </div>
                         @endif
