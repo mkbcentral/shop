@@ -39,10 +39,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 10m
           script_stop: false
-          script: |
-            mkdir -p ${{ secrets.DEPLOY_PATH }}
-            chmod 755 ${{ secrets.DEPLOY_PATH }}
+          use_insecure_cipher: false
+
         # Crée le répertoire de déploiement si nécessaire
       - name: 🚀 Deploy to Hostinger via rsync
         uses: burnett01/rsync-deployments@7.0.1
@@ -63,7 +63,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 10m
           script_stop: false
+          use_insecure_cipher: false
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             php artisan migrate --force
@@ -80,7 +82,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 10m
           script_stop: false
+          use_insecure_cipher: false
           script: |
             [ -f ${{ secrets.DEPLOY_PATH }}/index.php ] || cp ${{ secrets.DEPLOY_PATH }}/public/index.php ${{ secrets.DEPLOY_PATH }}/index.php
             [ -f ${{ secrets.DEPLOY_PATH }}/robots.txt ] || cp ${{ secrets.DEPLOY_PATH }}/public/robots.txt ${{ secrets.DEPLOY_PATH }}/robots.txt
