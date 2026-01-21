@@ -40,145 +40,119 @@
 
     <!-- Roles Table -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th wire:click="sortBy('name')"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition">
-                            <div class="flex items-center space-x-1">
-                                <span>Nom</span>
-                                @if ($sortBy === 'name')
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        @if ($sortDirection === 'asc')
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M5 15l7-7 7 7" />
-                                        @else
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M19 9l-7 7-7-7" />
-                                        @endif
+        <x-table.table>
+            <x-table.head>
+                <tr>
+                    <x-table.header wire:click="sortBy('name')" sortable :active="$sortBy === 'name'" :direction="$sortDirection">
+                        Nom
+                    </x-table.header>
+                    <x-table.header>Slug</x-table.header>
+                    <x-table.header>Permissions</x-table.header>
+                    <x-table.header>Utilisateurs</x-table.header>
+                    <x-table.header>Statut</x-table.header>
+                    <x-table.header align="right">Actions</x-table.header>
+                </tr>
+            </x-table.head>
+
+            <x-table.body>
+                @forelse ($roles as $role)
+                    <x-table.row wire:key="role-{{ $role->id }}">
+                        <x-table.cell>
+                            <div class="flex items-center">
+                                <div
+                                    class="flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                     </svg>
-                                @endif
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ $role->name }}</div>
+                                </div>
                             </div>
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Slug
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Description
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Permissions
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Utilisateurs
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Statut
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse ($roles as $role)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div
-                                        class="flex-shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                    </div>
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900">{{ $role->name }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    {{ $role->slug }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm text-gray-500 max-w-xs truncate" title="{{ $role->description }}">
-                                    {{ $role->description ?? '-' }}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-800">
-                                    {{ count($role->permissions ?? []) }} permissions
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-800">
-                                    {{ $role->users_count }} utilisateurs
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button wire:click="toggleStatus({{ $role->id }})"
-                                    class="relative inline-flex items-center {{ $role->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }} rounded-full px-3 py-1 text-xs font-medium transition hover:opacity-80"
-                                    @if ($role->slug === 'super-admin') disabled title="Ne peut pas être modifié" @endif>
-                                    @if ($role->is_active)
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Actif
-                                    @else
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                        Inactif
-                                    @endif
-                                </button>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex items-center justify-end space-x-2">
-                                    <a href="{{ route('roles.edit', $role->id) }}" wire:navigate
-                                        class="text-indigo-600 hover:text-indigo-900 transition p-2 hover:bg-indigo-50 rounded-lg"
-                                        title="Modifier">
+                        </x-table.cell>
+
+                        <x-table.cell>
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {{ $role->slug }}
+                            </span>
+                        </x-table.cell>
+                        <x-table.cell>
+                            <span
+                                class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-800">
+                                {{ count($role->permissions ?? []) }} permissions
+                            </span>
+                        </x-table.cell>
+
+                        <x-table.cell>
+                            <span
+                                class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-800">
+                                {{ $role->users_count }} utilisateurs
+                            </span>
+                        </x-table.cell>
+
+                        <x-table.cell>
+                            <button wire:click="toggleStatus({{ $role->id }})"
+                                class="relative inline-flex items-center {{ $role->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }} rounded-full px-3 py-1 text-xs font-medium transition hover:opacity-80"
+                                @if ($role->slug === 'super-admin') disabled title="Ne peut pas être modifié" @endif>
+                                @if ($role->is_active)
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Actif
+                                @else
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Inactif
+                                @endif
+                            </button>
+                        </x-table.cell>
+
+                        <x-table.cell align="right">
+                            <div class="flex items-center justify-end space-x-2">
+                                <a href="{{ route('roles.edit', $role->id) }}" wire:navigate
+                                    class="text-indigo-600 hover:text-indigo-900 transition p-2 hover:bg-indigo-50 rounded-lg"
+                                    title="Modifier">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </a>
+                                @if ($role->slug !== 'super-admin')
+                                    <button wire:click="openDeleteModal({{ $role->id }})"
+                                        class="text-red-600 hover:text-red-900 transition p-2 hover:bg-red-50 rounded-lg"
+                                        title="Supprimer">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
-                                    </a>
-                                    @if ($role->slug !== 'super-admin')
-                                        <button wire:click="openDeleteModal({{ $role->id }})"
-                                            class="text-red-600 hover:text-red-900 transition p-2 hover:bg-red-50 rounded-lg"
-                                            title="Supprimer">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor"
+                                    </button>
+                                @endif
+                            </div>
+                        </x-table.cell>
+                    </x-table.row>
+                @empty
+                    <x-table.empty-state colspan="7" title="Aucun rôle trouvé"
+                        description="Commencez par créer votre premier rôle.">
+                        <x-slot name="action">
+                            <x-form.button href="{{ route('roles.create') }}" size="sm">
+                                <svg class="w-4 h-4 mr-2 inline-block" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                        d="M12 4v16m8-8H4" />
                                 </svg>
-                                <p class="mt-4 text-sm text-gray-500">Aucun rôle trouvé.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                                Créer un rôle
+                            </x-form.button>
+                        </x-slot>
+                    </x-table.empty-state>
+                @endforelse
+            </x-table.body>
+        </x-table.table>
 
         <!-- Pagination -->
         <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
