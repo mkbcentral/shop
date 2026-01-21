@@ -276,6 +276,7 @@ class SubscriptionSettings extends Component
         $stats = \App\Models\Organization::query()
             ->selectRaw('subscription_plan, COUNT(*) as count')
             ->groupBy('subscription_plan')
+            ->orderBy('subscription_plan')
             ->pluck('count', 'subscription_plan')
             ->toArray();
 
