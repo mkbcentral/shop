@@ -102,7 +102,7 @@ class CategoryRepository
         return Category::query()
             ->withoutOrganizationScope() // Afficher toutes les catégories
             ->withCount('products')
-            ->with('organization') // Charger l'organisation pour afficher le propriétaire
+            ->with(['organization', 'productType']) // Charger l'organisation et le type de produit
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', '%' . $search . '%')
                     ->orWhere('description', 'like', '%' . $search . '%');

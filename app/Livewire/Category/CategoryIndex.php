@@ -8,6 +8,7 @@ use App\Actions\Category\DeleteCategoryAction;
 use App\Exceptions\Category\CategoryHasProductsException;
 use App\Exceptions\Category\CategoryNotFoundException;
 use App\Livewire\Forms\CategoryForm;
+use App\Models\ProductType;
 use App\Repositories\CategoryRepository;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -29,9 +30,15 @@ class CategoryIndex extends Component
     public function render(CategoryRepository $categoryRepository)
     {
         $categories = $categoryRepository->paginate($this->search, $this->perPage);
+        
+        // Charger les types de produits actifs
+        $productTypes = ProductType::active()
+            ->ordered()
+            ->get(['id', 'name', 'icon']);
 
         return view('livewire.category.index', [
             'categories' => $categories,
+            'productTypes' => $productTypes,
         ]);
     }
 

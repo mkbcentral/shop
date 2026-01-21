@@ -62,6 +62,7 @@
             <x-table.head>
                 <tr>
                     <x-table.header>Nom</x-table.header>
+                    <x-table.header>Type de produit</x-table.header>
                     <x-table.header>Nombre de Produits</x-table.header>
                     <x-table.header>Date de création</x-table.header>
                     <x-table.header align="center">Actions</x-table.header>
@@ -83,6 +84,19 @@
                                     <div class="text-xs text-gray-500">{{ $category->slug }}</div>
                                 </div>
                             </div>
+                        </x-table.cell>
+                        
+                        <x-table.cell>
+                            @if($category->productType)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    @if($category->productType->icon)
+                                        <span class="mr-1">{{ $category->productType->icon }}</span>
+                                    @endif
+                                    {{ $category->productType->name }}
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-400 italic">Aucun type</span>
+                            @endif
                         </x-table.cell>
                         
                         <x-table.cell>
@@ -130,7 +144,7 @@
                         </x-table.cell>
                     </x-table.row>
                 @empty
-                    <x-table.empty-state colspan="6" title="Aucune catégorie trouvée"
+                    <x-table.empty-state colspan="5" title="Aucune catégorie trouvée"
                         description="Commencez par créer votre première catégorie de produits.">
                         <x-slot name="action">
                             <x-form.button @click="isEditing = false; showModal = true; $wire.openCreateModal()" size="sm">
@@ -188,6 +202,43 @@
         <form wire:submit.prevent="save" wire:key="category-form-{{ $form->categoryId ?? 'new' }}">
             <x-ui.alpine-modal-body>
                 <div class="space-y-5">
+                    <!-- Product Type -->
+                    <div>
+                        <label for="product_type_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Type de produit
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                            </div>
+                            <select id="product_type_id" wire:model="form.product_type_id"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <option value="">Aucun type (catégorie générale)</option>
+                                @foreach($productTypes as $type)
+                                    <option value="{{ $type->id }}">
+                                        {{ $type->icon ? $type->icon . ' ' : '' }}{{ $type->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @error('form.product_type_id')
+                            <p class="mt-2 text-sm text-red-600 flex items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                        <p class="mt-1.5 text-xs text-gray-500">
+                            Associez cette catégorie à un type de produit spécifique (ex: Vêtement Homme pour le type Vêtement)
+                        </p>
+                    </div>
+
                     <!-- Name -->
                     <div>
                         <label for="name" class="block text-sm font-medium text-gray-700 mb-2">

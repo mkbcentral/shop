@@ -10,6 +10,11 @@ class CategoryForm extends Form
 {
     public ?int $categoryId = null;
 
+    #[Validate('nullable')]
+    #[Validate('integer', message: 'Le type de produit doit être un entier.')]
+    #[Validate('exists:product_types,id', message: 'Le type de produit sélectionné est invalide.')]
+    public ?int $product_type_id = null;
+
     #[Validate('required', message: 'Le nom de la catégorie est obligatoire.')]
     #[Validate('string', message: 'Le nom de la catégorie doit être une chaîne de caractères.')]
     #[Validate('max:255', message: 'Le nom ne peut pas dépasser 255 caractères.')]
@@ -26,6 +31,7 @@ class CategoryForm extends Form
     public function setCategory(Category $category): void
     {
         $this->categoryId = $category->id;
+        $this->product_type_id = $category->product_type_id;
         $this->name = $category->name;
         $this->description = $category->description;
     }
@@ -36,6 +42,7 @@ class CategoryForm extends Form
     public function toArray(): array
     {
         return [
+            'product_type_id' => $this->product_type_id,
             'name' => $this->name,
             'description' => $this->description ?: null,
         ];
@@ -48,6 +55,7 @@ class CategoryForm extends Form
     {
         if (empty($properties)) {
             $this->categoryId = null;
+            $this->product_type_id = null;
             $this->name = '';
             $this->description = null;
         } else {
