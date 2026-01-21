@@ -120,7 +120,16 @@ class MenuPermissionManager extends Component
 
         $this->showSuccessMessage = true;
 
+        // Vider tout le cache pour forcer le rechargement immédiat
+        $this->menuService->clearAllCache();
+
         $this->dispatch('menu-permissions-updated');
+        
+        // Afficher un message de succès avec notification
+        $this->dispatch('show-toast', 
+            message: 'Permissions de menu mises à jour avec succès. Les changements seront visibles immédiatement.', 
+            type: 'success'
+        );
     }
 
     public function render()
