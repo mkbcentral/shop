@@ -933,4 +933,56 @@ class SubscriptionService
             'remaining_days' => $remainingDays,
         ];
     }
+
+    /**
+     * Récupérer un plan par son ID
+     */
+    public static function getPlanById(int $planId): ?SubscriptionPlan
+    {
+        return SubscriptionPlan::find($planId);
+    }
+
+    /**
+     * Mettre à jour un plan
+     */
+    public static function updatePlan(int $planId, array $data): bool
+    {
+        $plan = SubscriptionPlan::findOrFail($planId);
+        
+        return $plan->update($data);
+    }
+
+    /**
+     * Basculer le statut "populaire" d'un plan
+     */
+    public static function togglePlanPopularity(int $planId): void
+    {
+        // Désactiver "populaire" sur tous les plans
+        SubscriptionPlan::query()->update(['is_popular' => false]);
+
+        // Activer sur le plan sélectionné
+        $plan = SubscriptionPlan::findOrFail($planId);
+        $plan->update(['is_popular' => true]);
+    }
+
+    /**
+     * Obtenir les statistiques des revenus d'abonnements
+     */
+    public static function getRevenueStats(): array
+    {
+        $totalRevenue = SubscriptionPayment::query()
+            ->where('status', 'completed')
+            ->sum('total');
+
+        $monthlyRevenue = SubscriptionPayment::query()
+            ->where('status', 'completed')
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->sum('total');
+
+        return [
+            'total_revenue' => $totalRevenue,
+            'monthly_revenue' => $monthlyRevenue,
+        ];
+    }
 }

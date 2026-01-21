@@ -2,8 +2,6 @@
 
 namespace App\Livewire\Admin;
 
-use App\Models\SubscriptionPayment;
-use App\Models\SubscriptionPlan;
 use App\Services\SubscriptionService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Cache;
@@ -36,7 +34,12 @@ class SubscriptionSettings extends Component
 
     public function openEditModal(int $planId): void
     {
-        $plan = SubscriptionPlan::findOrFail($planId);
+        $plan = SubscriptionService::getPlanById($planId);
+
+        if (!$plan) {
+            $this->dispatch('show-toast', message: 'Plan introuvable', type: 'error');
+            return;
+        }
 
         $this->editingPlanId = $planId;
         $this->editForm = [
@@ -63,15 +66,13 @@ class SubscriptionSettings extends Component
             'editForm.features_text' => 'nullable|string',
         ]);
 
-        $plan = SubscriptionPlan::findOrFail($this->editingPlanId);
-
         // Convertir le texte des fonctionnalités en tableau
         $features = array_filter(
             array_map('trim', explode("\n", $this->editForm['features_text'] ?? '')),
             fn($f) => !empty($f)
         );
 
-        $plan->update([
+        SubscriptionService::updatePlan($this->editingPlanId, [
             'name' => $this->editForm['name'],
             'price' => (int) $this->editForm['price'],
             'max_stores' => (int) $this->editForm['max_stores'],
@@ -86,13 +87,7 @@ class SubscriptionSettings extends Component
 
     public function togglePopular(int $planId): void
     {
-        // Désactiver "populaire" sur tous les plans
-        SubscriptionPlan::query()->update(['is_popular' => false]);
-
-        // Activer sur le plan sélectionné
-        $plan = SubscriptionPlan::findOrFail($planId);
-        $plan->update(['is_popular' => !$plan->is_popular]);
-
+        SubscriptionService::togglePlanPopularity($planId);
         $this->dispatch('show-toast', message: 'Plan mis en avant !', type: 'success');
     }
 
@@ -119,21 +114,13 @@ class SubscriptionSettings extends Component
             ->pluck('count', 'subscription_plan')
             ->toArray();
 
-        $totalRevenue = SubscriptionPayment::query()
-            ->where('status', 'completed')
-            ->sum('total');
-
-        $monthlyRevenue = SubscriptionPayment::query()
-            ->where('status', 'completed')
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
-            ->sum('total');
+        $revenueStats = SubscriptionService::getRevenueStats();
 
         return [
             'by_plan' => $stats,
             'total_organizations' => array_sum($stats),
-            'total_revenue' => $totalRevenue,
-            'monthly_revenue' => $monthlyRevenue,
+            'total_revenue' => $revenueStats['total_revenue'],
+            'monthly_revenue' => $revenueStats['monthly_revenue'],
         ];
     }
 
