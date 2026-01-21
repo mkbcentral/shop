@@ -264,11 +264,8 @@ class ProductModal extends Component
             // Si aucun type n'est sélectionné, afficher toutes les catégories
             $this->filteredCategories = $categoryRepository->all()->toArray();
         } else {
-            // Filtrer les catégories par type de produit
-            $this->filteredCategories = \App\Models\Category::where('product_type_id', $this->form->product_type_id)
-                ->orderBy('name')
-                ->get()
-                ->toArray();
+            // Utiliser la méthode du repository pour filtrer par type
+            $this->filteredCategories = $categoryRepository->getByProductType($this->form->product_type_id)->toArray();
         }
     }
 

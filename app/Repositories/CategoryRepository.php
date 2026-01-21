@@ -19,6 +19,16 @@ class CategoryRepository
     }
 
     /**
+     * Get categories for a specific product type.
+     */
+    public function getByProductType(int $productTypeId): Collection
+    {
+        return Category::where('product_type_id', $productTypeId)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
      * Get categories for current organization only.
      * Utilisé quand on veut filtrer par l'organisation courante.
      */
