@@ -3,18 +3,16 @@
 namespace App\Livewire\Admin;
 
 use App\Models\SubscriptionPayment;
+use App\Models\SubscriptionPlan;
 use App\Services\SubscriptionService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Cache;
 
 class SubscriptionSettings extends Component
 {
-    // Plans configuration
-    public array $plans = [];
-    
     // Edit modal
     public bool $showEditModal = false;
-    public string $editingPlan = '';
+    public ?int $editingPlanId = null;
     public array $editForm = [
         'name' => '',
         'price' => 0,
@@ -44,10 +42,6 @@ class SubscriptionSettings extends Component
     public function loadSettings(): void
     {
         // Charger les paramètres depuis le cache ou utiliser les valeurs par défaut
-        // Convertir en array pour éviter les problèmes avec stdClass
-        $cachedPlans = Cache::get('subscription_plans');
-        $this->plans = $cachedPlans ? $this->ensureArray($cachedPlans) : $this->getDefaultPlans();
-        
         $cachedDiscounts = Cache::get('subscription_discounts');
         $this->discounts = $cachedDiscounts ? $this->ensureArray($cachedDiscounts) : [
             '3_months' => 5,
@@ -81,99 +75,26 @@ class SubscriptionSettings extends Component
         return $data;
     }
 
-    public function getDefaultPlans(): array
+    public function openEditModal(int $planId): void
     {
-        return [
-            'free' => [
-                'name' => 'Gratuit',
-                'slug' => 'free',
-                'price' => 0,
-                'max_stores' => 1,
-                'max_users' => 3,
-                'max_products' => 100,
-                'features' => [
-                    'Jusqu\'à 1 magasin',
-                    'Jusqu\'à 3 utilisateurs',
-                    'Jusqu\'à 100 produits',
-                    'Rapports de base',
-                    'Support par email',
-                ],
-                'is_popular' => false,
-                'color' => 'gray',
-            ],
-            'starter' => [
-                'name' => 'Starter',
-                'slug' => 'starter',
-                'price' => 9900,
-                'max_stores' => 3,
-                'max_users' => 10,
-                'max_products' => 1000,
-                'features' => [
-                    'Jusqu\'à 3 magasins',
-                    'Jusqu\'à 10 utilisateurs',
-                    'Jusqu\'à 1 000 produits',
-                    'Rapports avancés',
-                    'Support prioritaire',
-                    'Exportation des données',
-                ],
-                'is_popular' => false,
-                'color' => 'blue',
-            ],
-            'professional' => [
-                'name' => 'Professionnel',
-                'slug' => 'professional',
-                'price' => 24900,
-                'max_stores' => 10,
-                'max_users' => 50,
-                'max_products' => 10000,
-                'features' => [
-                    'Jusqu\'à 10 magasins',
-                    'Jusqu\'à 50 utilisateurs',
-                    'Jusqu\'à 10 000 produits',
-                    'Rapports personnalisés',
-                    'Support téléphonique',
-                    'API access',
-                    'Multi-devises',
-                ],
-                'is_popular' => true,
-                'color' => 'purple',
-            ],
-            'enterprise' => [
-                'name' => 'Entreprise',
-                'slug' => 'enterprise',
-                'price' => 49900,
-                'max_stores' => 100,
-                'max_users' => 500,
-                'max_products' => 100000,
-                'features' => [
-                    'Jusqu\'à 100 magasins',
-                    'Jusqu\'à 500 utilisateurs',
-                    'Jusqu\'à 100 000 produits',
-                    'Rapports sur mesure',
-                    'Support dédié 24/7',
-                    'API illimité',
-                    'Multi-devises',
-                    'Formation personnalisée',
-                    'SLA garanti',
-                ],
-                'is_popular' => false,
-                'color' => 'amber',
-            ],
+        $plan = SubscriptionPlan::findOrFail($planId);
+        
+        $this->editingPlanId = $planId;
+        $this->editForm = [
+            'name' => $plan->name,
+            'price' => $plan->price,
+            'max_stores' => $plan->max_stores,
+            'max_users' => $plan->max_users,
+            'max_products' => $plan->max_products,
+            'features_text' => implode("\n", $plan->features ?? []),
         ];
-    }
-
-    public function openEditModal(string $plan): void
-    {
-        $this->editingPlan = $plan;
-        $this->editForm = $this->plans[$plan];
-        $this->editForm['features_text'] = implode("\n", $this->editForm['features'] ?? []);
         $this->showEditModal = true;
     }
 
     public function closeEditModal(): void
     {
         $this->showEditModal = false;
-        $this->editingPlan = '';
+        $this->editingPlanId = null;
         $this->editForm = [];
     }
 
@@ -188,26 +109,22 @@ class SubscriptionSettings extends Component
             'editForm.features_text' => 'nullable|string',
         ]);
 
+        $plan = SubscriptionPlan::findOrFail($this->editingPlanId);
+
         // Convertir le texte des fonctionnalités en tableau
         $features = array_filter(
             array_map('trim', explode("\n", $this->editForm['features_text'] ?? '')),
             fn($f) => !empty($f)
         );
 
-        $this->plans[$this->editingPlan] = [
+        $plan->update([
             'name' => $this->editForm['name'],
-            'slug' => $this->editingPlan,
             'price' => (int) $this->editForm['price'],
             'max_stores' => (int) $this->editForm['max_stores'],
             'max_users' => (int) $this->editForm['max_users'],
             'max_products' => (int) $this->editForm['max_products'],
             'features' => array_values($features),
-            'is_popular' => $this->plans[$this->editingPlan]['is_popular'] ?? false,
-            'color' => $this->plans[$this->editingPlan]['color'] ?? 'gray',
-        ];
-
-        // Sauvegarder dans le cache (persistant)
-        Cache::forever('subscription_plans', $this->plans);
+        ]);
 
         $this->closeEditModal();
         $this->dispatch('show-toast', message: 'Plan mis à jour avec succès !', type: 'success');
@@ -238,20 +155,23 @@ class SubscriptionSettings extends Component
         $this->dispatch('show-toast', message: 'Paramètres généraux mis à jour !', type: 'success');
     }
 
-    public function togglePopular(string $plan): void
+    public function togglePopular(int $planId): void
     {
         // Désactiver "populaire" sur tous les plans
-        foreach ($this->plans as $key => $p) {
-            $this->plans[$key]['is_popular'] = ($key === $plan) ? !$p['is_popular'] : false;
-        }
+        SubscriptionPlan::query()->update(['is_popular' => false]);
         
-        Cache::forever('subscription_plans', $this->plans);
+        // Activer sur le plan sélectionné
+        $plan = SubscriptionPlan::findOrFail($planId);
+        $plan->update(['is_popular' => !$plan->is_popular]);
+        
         $this->dispatch('show-toast', message: 'Plan mis en avant !', type: 'success');
     }
 
     public function resetToDefaults(): void
     {
-        $this->plans = $this->getDefaultPlans();
+        // Réexécuter le seeder pour réinitialiser les plans
+        \Artisan::call('db:seed', ['--class' => 'SubscriptionPlanSeeder']);
+        
         $this->discounts = [
             '3_months' => 5,
             '6_months' => 10,
@@ -260,7 +180,6 @@ class SubscriptionSettings extends Component
         $this->trialDays = 14;
         $this->currency = 'CDF';
 
-        Cache::forget('subscription_plans');
         Cache::forget('subscription_discounts');
         Cache::forget('subscription_trial_days');
         Cache::forget('subscription_currency');
@@ -300,7 +219,10 @@ class SubscriptionSettings extends Component
 
     public function render()
     {
+        $plans = SubscriptionPlan::active()->ordered()->get();
+        
         return view('livewire.admin.subscription-settings', [
+            'plans' => $plans,
             'stats' => $this->stats,
         ]);
     }
