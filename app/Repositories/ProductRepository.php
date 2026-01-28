@@ -253,16 +253,22 @@ class ProductRepository
 
                 switch ($stockLevel) {
                     case 'low':
-                        // Stock faible: 0-10
-                        $subQuery->havingRaw('SUM(stock_quantity) <= 10');
+                    case 'low_stock':
+                        // Stock faible: entre 1 et le seuil d'alerte (ou 10 par défaut)
+                        $subQuery->havingRaw('SUM(stock_quantity) > 0 AND SUM(stock_quantity) <= 10');
                         break;
                     case 'medium':
                         // Stock moyen: 11-50
                         $subQuery->havingRaw('SUM(stock_quantity) > 10 AND SUM(stock_quantity) <= 50');
                         break;
                     case 'high':
-                        // Stock élevé: > 50
-                        $subQuery->havingRaw('SUM(stock_quantity) > 50');
+                    case 'in_stock':
+                        // Stock élevé/en stock: > 10
+                        $subQuery->havingRaw('SUM(stock_quantity) > 10');
+                        break;
+                    case 'out_of_stock':
+                        // Rupture de stock: = 0
+                        $subQuery->havingRaw('SUM(stock_quantity) <= 0');
                         break;
                 }
             });

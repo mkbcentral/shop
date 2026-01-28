@@ -443,12 +443,22 @@ class MobileSalesController extends Controller
                 $query->where('store_id', $storeId);
             }
 
-            // Filtrer par date si fournie
-            if ($request->has('date_from')) {
-                $query->whereDate('sale_date', '>=', $request->input('date_from'));
+            // Appliquer filtre de période prédéfini
+            if ($request->has('period')) {
+                $this->applyPeriodFilter($query, $request->input('period'));
+            } else {
+                // Filtrer par date si fournie
+                if ($request->has('date_from')) {
+                    $query->whereDate('sale_date', '>=', $request->input('date_from'));
+                }
+                if ($request->has('date_to')) {
+                    $query->whereDate('sale_date', '<=', $request->input('date_to'));
+                }
             }
-            if ($request->has('date_to')) {
-                $query->whereDate('sale_date', '<=', $request->input('date_to'));
+
+            // Filtrer par client
+            if ($request->has('client_id')) {
+                $query->where('client_id', (int) $request->input('client_id'));
             }
 
             // Filtrer par méthode de paiement
@@ -459,6 +469,11 @@ class MobileSalesController extends Controller
             // Filtrer par statut
             if ($request->has('status')) {
                 $query->where('status', $request->input('status'));
+            }
+
+            // Filtrer par statut de paiement
+            if ($request->has('payment_status')) {
+                $query->where('payment_status', $request->input('payment_status'));
             }
 
             $sales = $query->paginate($perPage);
@@ -578,5 +593,149 @@ class MobileSalesController extends Controller
                 'status' => $sale->invoice->status,
             ] : null,
         ];
+    }
+
+    /**
+     * Statistiques des ventes (cohérent avec Livewire SaleIndex)
+     *
+     * GET /api/mobile/sales/statistics
+     */
+    public function statistics(Request $request): JsonResponse
+    {
+        try {
+            $query = \App\Models\Sale::query();
+
+            // Filtrer par store si nécessaire
+            $storeId = effective_store_id();
+            if ($storeId && !user_can_access_all_stores()) {
+                $query->where('store_id', $storeId);
+            }
+
+            // Appliquer filtre de période
+            if ($request->has('period')) {
+                $this->applyPeriodFilter($query, $request->input('period'));
+            } else {
+                if ($request->has('date_from')) {
+                    $query->whereDate('sale_date', '>=', $request->input('date_from'));
+                }
+                if ($request->has('date_to')) {
+                    $query->whereDate('sale_date', '<=', $request->input('date_to'));
+                }
+            }
+
+            // Calculer les statistiques
+            $completed = (clone $query)->where('status', 'completed')->get();
+            $pending = (clone $query)->where('status', 'pending')->get();
+            $cancelled = (clone $query)->where('status', 'cancelled')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'completed' => [
+                        'count' => $completed->count(),
+                        'amount' => $completed->sum('total'),
+                        'amount_formatted' => number_format($completed->sum('total'), 2, ',', ' '),
+                    ],
+                    'pending' => [
+                        'count' => $pending->count(),
+                        'amount' => $pending->sum('total'),
+                        'amount_formatted' => number_format($pending->sum('total'), 2, ',', ' '),
+                    ],
+                    'cancelled' => [
+                        'count' => $cancelled->count(),
+                        'amount' => $cancelled->sum('total'),
+                    ],
+                    'totals' => [
+                        'total_sales' => $completed->count(),
+                        'total_amount' => $completed->sum('total'),
+                        'pending_sales' => $pending->count(),
+                        'pending_amount' => $pending->sum('total'),
+                        'average_ticket' => $completed->count() > 0 
+                            ? round($completed->sum('total') / $completed->count(), 2) 
+                            : 0,
+                    ],
+                    'payment_methods' => $this->getPaymentMethodStats($completed),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des statistiques',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Appliquer un filtre de période prédéfini
+     */
+    private function applyPeriodFilter($query, string $period): void
+    {
+        $now = now();
+
+        switch ($period) {
+            case 'today':
+                $query->whereDate('sale_date', $now->format('Y-m-d'));
+                break;
+            case 'yesterday':
+                $query->whereDate('sale_date', $now->copy()->subDay()->format('Y-m-d'));
+                break;
+            case 'this_week':
+                $query->whereDate('sale_date', '>=', $now->copy()->startOfWeek()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->format('Y-m-d'));
+                break;
+            case 'last_week':
+                $query->whereDate('sale_date', '>=', $now->copy()->subWeek()->startOfWeek()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->copy()->subWeek()->endOfWeek()->format('Y-m-d'));
+                break;
+            case 'this_month':
+                $query->whereDate('sale_date', '>=', $now->copy()->startOfMonth()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->format('Y-m-d'));
+                break;
+            case 'last_month':
+                $query->whereDate('sale_date', '>=', $now->copy()->subMonth()->startOfMonth()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->copy()->subMonth()->endOfMonth()->format('Y-m-d'));
+                break;
+            case 'last_3_months':
+                $query->whereDate('sale_date', '>=', $now->copy()->subMonths(3)->startOfMonth()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->format('Y-m-d'));
+                break;
+            case 'this_year':
+                $query->whereDate('sale_date', '>=', $now->copy()->startOfYear()->format('Y-m-d'))
+                      ->whereDate('sale_date', '<=', $now->format('Y-m-d'));
+                break;
+            case 'all':
+                // Pas de filtre de date
+                break;
+        }
+    }
+
+    /**
+     * Calculer les statistiques par méthode de paiement
+     */
+    private function getPaymentMethodStats($sales): array
+    {
+        return $sales->groupBy('payment_method')->map(function ($group, $method) {
+            return [
+                'method' => $method,
+                'label' => $this->getPaymentMethodLabel($method),
+                'count' => $group->count(),
+                'amount' => $group->sum('total'),
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Obtenir le libellé d'une méthode de paiement
+     */
+    private function getPaymentMethodLabel(string $method): string
+    {
+        return match ($method) {
+            'cash' => 'Espèces',
+            'mobile_money' => 'Mobile Money',
+            'card' => 'Carte bancaire',
+            'bank_transfer' => 'Virement bancaire',
+            default => ucfirst($method),
+        };
     }
 }

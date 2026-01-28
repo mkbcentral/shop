@@ -474,6 +474,108 @@ class MobileStockMovementController extends Controller
         ]);
     }
 
+    /**
+     * Vue groupée des mouvements de stock (cohérent avec Livewire StockIndex)
+     *
+     * GET /api/mobile/stock/movements/grouped
+     */
+    public function groupedMovements(Request $request): JsonResponse
+    {
+        try {
+            $perPage = (int) $request->input('per_page', 20);
+            $perPage = min(max($perPage, 10), 100);
+
+            $type = $request->input('type'); // in, out
+            $movementType = $request->input('movement_type'); // purchase, sale, adjustment, transfer, return
+            $dateFrom = $request->input('date_from');
+            $dateTo = $request->input('date_to');
+
+            $query = StockMovement::with(['productVariant.product', 'user'])
+                ->orderBy('date', 'desc')
+                ->orderBy('created_at', 'desc');
+
+            // Appliquer le filtre de store automatiquement
+            if (!user_can_access_all_stores() && current_store_id()) {
+                $query->where('store_id', current_store_id());
+            }
+
+            if ($type) {
+                $query->where('type', $type);
+            }
+
+            if ($movementType) {
+                $query->where('movement_type', $movementType);
+            }
+
+            // Filtre par date
+            if ($dateFrom && $dateTo) {
+                $query->whereBetween('date', [$dateFrom, $dateTo]);
+            } elseif ($dateFrom) {
+                $query->whereDate('date', '>=', $dateFrom);
+            } elseif ($dateTo) {
+                $query->whereDate('date', '<=', $dateTo);
+            }
+
+            // Get all movements for grouping
+            $allMovements = $query->get();
+
+            // Group movements by product variant
+            $groupedMovements = $allMovements->groupBy('product_variant_id')->map(function ($movements) {
+                $firstMovement = $movements->first();
+                $totalIn = $movements->where('type', 'in')->sum('quantity');
+                $totalOut = $movements->where('type', 'out')->sum('quantity');
+                $lastDate = $movements->max('date');
+                $movementCount = $movements->count();
+
+                return [
+                    'product_variant_id' => $firstMovement->product_variant_id,
+                    'product_variant' => $firstMovement->productVariant ? [
+                        'id' => $firstMovement->productVariant->id,
+                        'sku' => $firstMovement->productVariant->sku,
+                        'name' => $firstMovement->productVariant->full_name ?? $firstMovement->productVariant->sku,
+                        'product_name' => $firstMovement->productVariant->product?->name,
+                        'current_stock' => $firstMovement->productVariant->stock_quantity,
+                    ] : null,
+                    'total_in' => $totalIn,
+                    'total_out' => $totalOut,
+                    'net_change' => $totalIn - $totalOut,
+                    'movement_count' => $movementCount,
+                    'last_date' => $lastDate,
+                ];
+            })->values();
+
+            // Paginate grouped movements manually
+            $page = (int) $request->input('page', 1);
+            $total = $groupedMovements->count();
+            $paginatedData = $groupedMovements->forPage($page, $perPage)->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'grouped_movements' => $paginatedData,
+                    'summary' => [
+                        'total_products' => $total,
+                        'total_movements' => $allMovements->count(),
+                        'total_in' => $allMovements->where('type', 'in')->sum('quantity'),
+                        'total_out' => $allMovements->where('type', 'out')->sum('quantity'),
+                    ],
+                    'pagination' => [
+                        'current_page' => $page,
+                        'last_page' => (int) ceil($total / $perPage),
+                        'per_page' => $perPage,
+                        'total' => $total,
+                    ],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des mouvements groupés',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
     // ==================== MÉTHODES PRIVÉES ====================
 
     /**

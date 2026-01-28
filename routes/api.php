@@ -124,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // ===== Mouvements de Stock =====
             Route::get('/movements', [MobileStockMovementController::class, 'index'])->name('movements.index');
+            Route::get('/movements/grouped', [MobileStockMovementController::class, 'groupedMovements'])->name('movements.grouped');
             Route::get('/movements/{id}', [MobileStockMovementController::class, 'show'])->name('movements.show');
             Route::post('/movements/add', [MobileStockMovementController::class, 'addStock'])->name('movements.add');
             Route::post('/movements/remove', [MobileStockMovementController::class, 'removeStock'])->name('movements.remove');
@@ -185,6 +186,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // ===== Historique des Ventes =====
         Route::prefix('sales')->name('sales.')->group(function () {
+            // Statistiques des ventes (cohérent avec Livewire)
+            Route::get('/statistics', [\App\Http\Controllers\Api\Mobile\MobileSalesController::class, 'statistics'])->name('statistics');
+
             // Liste des ventes
             Route::get('/', [\App\Http\Controllers\Api\Mobile\MobileSalesController::class, 'salesHistory'])->name('history');
 

@@ -45,6 +45,7 @@ class MobileProductController extends Controller
             $search = $request->input('search');
             $categoryId = $request->input('category_id');
             $status = $request->input('status');
+            $stockLevel = $request->input('stock_level'); // Nouveau filtre: in_stock, low_stock, out_of_stock
             $sortField = $request->input('sort_by', 'name');
             $sortDirection = $request->input('sort_dir', 'asc');
 
@@ -60,6 +61,7 @@ class MobileProductController extends Controller
                 search: $search,
                 categoryId: $categoryId ? (int) $categoryId : null,
                 status: $status,
+                stockLevel: $stockLevel,
                 sortField: $sortField,
                 sortDirection: $sortDirection
             );
