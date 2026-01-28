@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Mobile\MobileStockReportController;
 use App\Http\Controllers\Api\Mobile\MobileStockMovementController;
 use App\Http\Controllers\Api\Mobile\MobileProductController;
 use App\Http\Controllers\Api\Mobile\MobileTaxController;
+use App\Http\Controllers\Api\Mobile\MobileProformaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -226,6 +227,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('pos')->name('pos.')->group(function () {
             // Créer une vente depuis le POS
             Route::post('/sales', [\App\Http\Controllers\Api\Mobile\MobileSalesController::class, 'checkout'])->name('sales.create');
+        });
+
+        // ===== Gestion des Proformas (Devis) =====
+        Route::prefix('proformas')->name('proformas.')->group(function () {
+            // Utilitaires
+            Route::get('/search-products', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'searchProducts'])->name('search-products');
+            Route::get('/statistics', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'statistics'])->name('statistics');
+
+            // CRUD
+            Route::get('/', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'store'])->name('store');
+            Route::get('/{id}', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'show'])->name('show');
+            Route::put('/{id}', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'update'])->name('update');
+            Route::delete('/{id}', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'destroy'])->name('destroy');
+
+            // Actions
+            Route::post('/{id}/change-status', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'changeStatus'])->name('change-status');
+            Route::post('/{id}/convert-to-sale', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'convertToSale'])->name('convert-to-sale');
+            Route::post('/{id}/duplicate', [\App\Http\Controllers\Api\Mobile\MobileProformaController::class, 'duplicate'])->name('duplicate');
         });
         });
 });
