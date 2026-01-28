@@ -29,7 +29,8 @@ class MobileDashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $data = $this->reportService->getDashboardData($user);
 
             return response()->json([
@@ -54,7 +55,8 @@ class MobileDashboardController extends Controller
     public function userContext(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $context = $this->reportService->getUserContext($user);
 
             return response()->json([
@@ -78,7 +80,8 @@ class MobileDashboardController extends Controller
     public function stores(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $stores = $this->reportService->getAccessibleStores($user);
 
             return response()->json([
@@ -180,7 +183,8 @@ class MobileDashboardController extends Controller
     public function storesPerformance(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
 
             if (!user_can_access_all_stores()) {
                 return response()->json([
@@ -215,7 +219,8 @@ class MobileDashboardController extends Controller
     public function refresh(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $this->reportService->invalidateCache($user);
 
             return response()->json([

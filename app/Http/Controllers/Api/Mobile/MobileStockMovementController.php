@@ -38,6 +38,9 @@ class MobileStockMovementController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
+            
             $perPage = (int) $request->input('per_page', 20);
             $perPage = min(max($perPage, 10), 100);
 

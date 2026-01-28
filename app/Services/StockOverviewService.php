@@ -16,10 +16,12 @@ class StockOverviewService
 
     /**
      * Calculate all KPIs for stock overview dashboard.
+     * 
+     * @param int|null $storeId Override the current store ID (useful for API calls)
      */
-    public function calculateKPIs(): array
+    public function calculateKPIs(?int $storeId = null): array
     {
-        $currentStoreId = current_store_id();
+        $currentStoreId = $storeId ?? current_store_id();
 
         $query = $this->variantRepository->query()
             ->with(['product', 'storeStocks']);
@@ -87,10 +89,13 @@ class StockOverviewService
 
     /**
      * Get variants for inventory overview with filters.
+     * 
+     * @param array $filters Filters to apply
+     * @param int|null $storeId Override the current store ID (useful for API calls)
      */
-    public function getInventoryVariants(array $filters = []): Collection
+    public function getInventoryVariants(array $filters = [], ?int $storeId = null): Collection
     {
-        $currentStoreId = current_store_id();
+        $currentStoreId = $storeId ?? current_store_id();
 
         $query = $this->variantRepository->query()
             ->with(['product.category', 'storeStocks']);

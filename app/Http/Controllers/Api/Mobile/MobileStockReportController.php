@@ -29,7 +29,8 @@ class MobileStockReportController extends Controller
     public function alerts(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $data = $this->reportService->getStockAlerts($user);
 
             return response()->json([
@@ -62,11 +63,13 @@ class MobileStockReportController extends Controller
     public function summary(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             
             // Utiliser StockOverviewService pour cohérence avec Livewire
             $stockOverviewService = app(\App\Services\StockOverviewService::class);
-            $kpis = $stockOverviewService->calculateKPIs();
+            // Passer explicitement le current_store_id de l'utilisateur rafraîchi
+            $kpis = $stockOverviewService->calculateKPIs($user->current_store_id);
 
             return response()->json([
                 'success' => true,
@@ -111,7 +114,8 @@ class MobileStockReportController extends Controller
     public function lowStock(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $limit = $request->input('limit') ? (int) $request->input('limit') : null;
 
             // Limiter la valeur si fournie
@@ -146,7 +150,8 @@ class MobileStockReportController extends Controller
     public function outOfStock(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $limit = $request->input('limit') ? (int) $request->input('limit') : null;
 
             // Limiter la valeur si fournie
@@ -181,7 +186,8 @@ class MobileStockReportController extends Controller
     public function stockValue(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
 
             // Seuls admin/manager peuvent voir la valeur du stock
             if (!user_can_access_all_stores() && !$user->hasPermission('reports.stock')) {
@@ -216,7 +222,8 @@ class MobileStockReportController extends Controller
     public function byStore(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
 
             if (!user_can_access_all_stores()) {
                 return response()->json([
@@ -275,7 +282,8 @@ class MobileStockReportController extends Controller
     public function widget(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
             $summary = $this->reportService->getStockSummary($user);
             $alerts = $this->reportService->getStockAlerts($user);
 
@@ -316,10 +324,13 @@ class MobileStockReportController extends Controller
     public function overview(Request $request): JsonResponse
     {
         try {
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
+            
             $stockOverviewService = app(\App\Services\StockOverviewService::class);
 
-            // Récupérer les KPIs
-            $kpis = $stockOverviewService->calculateKPIs();
+            // Récupérer les KPIs avec le store ID de l'utilisateur rafraîchi
+            $kpis = $stockOverviewService->calculateKPIs($user->current_store_id);
 
             // Préparer les filtres
             $filters = [
@@ -330,8 +341,8 @@ class MobileStockReportController extends Controller
                 'sort_direction' => $request->input('sort_dir', 'asc'),
             ];
 
-            // Récupérer les variantes avec filtres
-            $variants = $stockOverviewService->getInventoryVariants($filters);
+            // Récupérer les variantes avec filtres et le store ID
+            $variants = $stockOverviewService->getInventoryVariants($filters, $user->current_store_id);
 
             // Pagination manuelle
             $perPage = min(max((int) $request->input('per_page', 20), 10), 100);
@@ -392,6 +403,9 @@ class MobileStockReportController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         try {
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
+            
             $variantRepository = app(\App\Repositories\ProductVariantRepository::class);
             $movementRepository = app(\App\Repositories\StockMovementRepository::class);
 
@@ -524,6 +538,9 @@ class MobileStockReportController extends Controller
     public function alertsList(Request $request): JsonResponse
     {
         try {
+            // Rafraîchir l'utilisateur pour obtenir le current_store_id à jour
+            $user = Auth::user()->fresh();
+            
             $variantRepository = app(\App\Repositories\ProductVariantRepository::class);
 
             $alertType = $request->input('alert_type', 'all'); // all, out_of_stock, low_stock
