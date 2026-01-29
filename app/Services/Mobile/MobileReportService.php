@@ -441,11 +441,35 @@ class MobileReportService
     public function invalidateCache(User $user): void
     {
         $prefix = $this->getCachePrefix($user);
-        // Note: En production, utiliser Cache::tags() avec Redis
-        Cache::forget("{$prefix}_dashboard");
-        Cache::forget("{$prefix}_sales_summary");
-        Cache::forget("{$prefix}_stock_alerts");
-        Cache::forget("{$prefix}_stock_summary");
+        
+        // Invalider tous les caches liés à ce prefix (store + org)
+        // Liste exhaustive de toutes les clés possibles
+        $cacheKeys = [
+            'dashboard',
+            'sales_summary',
+            'stock_alerts',
+            'stock_summary',
+            'low_stock',
+            'out_of_stock',
+            'sales_daily',
+            'sales_weekly',
+            'sales_monthly',
+            'chart_week',
+            'chart_month',
+            'chart_quarter',
+            'chart_year',
+        ];
+
+        foreach ($cacheKeys as $key) {
+            Cache::forget("{$prefix}_{$key}");
+        }
+
+        // Aussi invalider les top_products avec différentes combinaisons courantes
+        for ($limit = 10; $limit <= 100; $limit += 10) {
+            for ($days = 7; $days <= 90; $days += 7) {
+                Cache::forget("{$prefix}_top_products_{$limit}_{$days}");
+            }
+        }
     }
 
     // ==================== MÉTHODES PRIVÉES ====================
