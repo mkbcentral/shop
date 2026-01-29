@@ -101,6 +101,12 @@ class EnsureOrganizationAccess
     {
         $currentStoreId = $user->current_store_id;
 
+        // If user is admin and current_store_id is null, they want to see all stores
+        // Don't force assign them a store
+        if ($currentStoreId === null && $user->isAdmin()) {
+            return;
+        }
+
         // If user has a current store, check if it belongs to the organization
         if ($currentStoreId) {
             $store = \App\Models\Store::find($currentStoreId);

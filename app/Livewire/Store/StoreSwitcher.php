@@ -97,9 +97,23 @@ class StoreSwitcher extends Component
 
                 // Forcer le rafraîchissement de l'utilisateur pour éviter le cache
                 $user->refresh();
+
+                // Forcer la re-authentification pour mettre à jour la session
+                auth()->setUser($user);
+
+                // Mettre à jour la session
+                session()->put('current_store_id', null);
+                session()->save();
             } else {
                 // Changer vers un store spécifique
                 $service->switchUserStore(auth()->id(), $storeId);
+
+                // Forcer la re-authentification
+                auth()->setUser(auth()->user()->fresh());
+
+                // Mettre à jour la session
+                session()->put('current_store_id', $storeId);
+                session()->save();
             }
 
             $this->currentStoreId = $storeId;
