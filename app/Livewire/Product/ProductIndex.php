@@ -134,6 +134,9 @@ class ProductIndex extends Component
                 case 'deactivate':
                     $this->bulkUpdateStatus('inactive');
                     break;
+                case 'generate_labels':
+                    $this->dispatch('openLabelModal', $this->selected);
+                    return; // Don't reset selection yet, modal needs it
             }
 
             $this->selected = [];
@@ -191,6 +194,25 @@ class ProductIndex extends Component
         $this->resetPage();
     }
 
+    public function generateAllLabels(ProductRepository $repository)
+    {
+        try {
+            // Récupérer tous les IDs de produits (sans filtre)
+            $allProductIds = $repository->getAllProductIds();
+
+            if (empty($allProductIds)) {
+                $this->dispatch('show-toast', message: 'Aucun produit disponible.', type: 'warning');
+                return;
+            }
+
+            // Ouvrir le modal avec tous les produits
+            $this->dispatch('openLabelModal', $allProductIds);
+
+        } catch (\Exception $e) {
+            $this->dispatch('show-toast', message: 'Erreur : ' . $e->getMessage(), type: 'error');
+        }
+    }
+
     public function sortBy($field)
     {
         if ($this->sortField === $field) {
@@ -238,6 +260,28 @@ class ProductIndex extends Component
         } catch (\Exception $e) {
             $this->dispatch('show-toast', message: 'Erreur lors de l\'export: ' . $e->getMessage(), type: 'error');
             return null;
+        }
+    }
+
+    public function generateLabels(array $productIds, string $format = 'medium', int $columns = 2, array $options = [])
+    {
+        try {
+            $labelService = app(\App\Services\ProductLabelService::class);
+
+            // Generate PDF
+            $pdf = $labelService->generateLabelsPDF($productIds, $format, $columns, $options);
+
+            // Return PDF as download
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, 'product-labels-' . date('Y-m-d-His') . '.pdf');
+
+        } catch (\Exception $e) {
+            $this->dispatch('show-toast', message: 'Erreur lors de la génération des étiquettes: ' . $e->getMessage(), type: 'error');
+            return null;
+        } finally {
+            // Reset selection after generation
+            $this->reset(['selected', 'selectAll', 'bulkAction']);
         }
     }
 

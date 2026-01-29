@@ -30,6 +30,7 @@ class MobileProductController extends Controller
         private CategoryRepository $categoryRepository,
         private ProductTypeRepository $productTypeRepository,
         private ReferenceGeneratorService $referenceGenerator,
+        private \App\Services\ProductLabelService $labelService,
     ) {}
 
     /**
@@ -389,14 +390,14 @@ class MobileProductController extends Controller
      * Récupérer les catégories pour sélection
      *
      * GET /api/mobile/products/categories
-     * 
+     *
      * @queryParam product_type_id int Filtrer par type de produit (optionnel)
      */
     public function categories(Request $request): JsonResponse
     {
         try {
             $productTypeId = $request->input('product_type_id');
-            
+
             if ($productTypeId) {
                 // Filtrer les catégories par type de produit (comme ProductModal)
                 $categories = $this->categoryRepository->getByProductType((int) $productTypeId);
@@ -429,16 +430,16 @@ class MobileProductController extends Controller
      * Récupérer les types de produits pour sélection
      *
      * GET /api/mobile/products/product-types
-     * 
+     *
      * @queryParam with_attributes bool Inclure les attributs du type (optionnel)
      */
     public function productTypes(Request $request): JsonResponse
     {
         try {
             $withAttributes = filter_var($request->input('with_attributes', false), FILTER_VALIDATE_BOOLEAN);
-            
+
             $productTypes = $this->productTypeRepository->allActive();
-            
+
             if ($withAttributes) {
                 $productTypes->load('attributes');
             }
@@ -455,7 +456,7 @@ class MobileProductController extends Controller
                         'has_stock_management' => $pt->has_stock_management,
                         'icon' => $pt->icon,
                     ];
-                    
+
                     if ($withAttributes && $pt->relationLoaded('attributes')) {
                         $data['attributes'] = $pt->attributes->map(fn($attr) => [
                             'id' => $attr->id,
@@ -467,7 +468,7 @@ class MobileProductController extends Controller
                             'default_value' => $attr->default_value,
                         ]);
                     }
-                    
+
                     return $data;
                 }),
             ]);
@@ -489,7 +490,7 @@ class MobileProductController extends Controller
     {
         try {
             $productType = $this->productTypeRepository->findById($id);
-            
+
             if (!$productType) {
                 return response()->json([
                     'success' => false,
@@ -538,27 +539,27 @@ class MobileProductController extends Controller
 
     /**
      * Données nécessaires pour créer un produit (form data)
-     * 
+     *
      * GET /api/mobile/products/create-form-data
-     * 
+     *
      * Retourne les types de produits, et optionnellement les catégories filtrées
      */
     public function createFormData(Request $request): JsonResponse
     {
         try {
             $productTypeId = $request->input('product_type_id');
-            
+
             // 1. Récupérer tous les types de produits avec leurs attributs
             $productTypes = $this->productTypeRepository->allActive();
             $productTypes->load('attributes');
-            
+
             // 2. Récupérer les catégories (filtrées si product_type_id fourni)
             if ($productTypeId) {
                 $categories = $this->categoryRepository->getByProductType((int) $productTypeId);
             } else {
                 $categories = $this->categoryRepository->all();
             }
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -769,5 +770,108 @@ class MobileProductController extends Controller
         $data['updated_at'] = $product->updated_at?->toIso8601String();
 
         return $data;
+    }
+
+    /**
+     * Générer des étiquettes PDF pour un produit
+     *
+     * GET /api/mobile/products/{id}/labels
+     */
+    public function generateLabels(Request $request, int $id)
+    {
+        try {
+            $product = Product::with(['category', 'variants'])->findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'format' => 'nullable|in:small,medium,large',
+                'columns' => 'nullable|integer|min:1|max:4',
+                'show_price' => 'nullable|boolean',
+                'show_qr_code' => 'nullable|boolean',
+                'show_barcode' => 'nullable|boolean',
+                'include_variants' => 'nullable|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de validation',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $options = [
+                'format' => $request->input('format', 'small'),
+                'columns' => $request->input('columns', 3),
+                'show_price' => $request->boolean('show_price', true),
+                'show_qr_code' => $request->boolean('show_qr_code', true),
+                'show_barcode' => $request->boolean('show_barcode', true),
+                'include_variants' => $request->boolean('include_variants', false),
+            ];
+
+            $pdf = $this->labelService->generateProductLabelsPDF($product, $options);
+
+            $filename = 'etiquettes_' . $product->reference . '_' . date('YmdHis') . '.pdf';
+
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la génération des étiquettes',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Générer des étiquettes PDF pour plusieurs produits
+     *
+     * POST /api/mobile/products/labels/bulk
+     */
+    public function generateBulkLabels(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'product_ids' => 'required|array|min:1',
+                'product_ids.*' => 'required|integer|exists:products,id',
+                'format' => 'nullable|in:small,medium,large',
+                'columns' => 'nullable|integer|min:1|max:4',
+                'show_price' => 'nullable|boolean',
+                'show_qr_code' => 'nullable|boolean',
+                'show_barcode' => 'nullable|boolean',
+                'include_variants' => 'nullable|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de validation',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $options = [
+                'format' => $request->input('format', 'small'),
+                'columns' => $request->input('columns', 3),
+                'show_price' => $request->boolean('show_price', true),
+                'show_qr_code' => $request->boolean('show_qr_code', true),
+                'show_barcode' => $request->boolean('show_barcode', true),
+                'include_variants' => $request->boolean('include_variants', false),
+            ];
+
+            $pdf = $this->labelService->generateBulkLabelsPDF(
+                $request->input('product_ids'),
+                $options
+            );
+
+            $filename = 'etiquettes_produits_' . date('YmdHis') . '.pdf';
+
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la génération des étiquettes',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }

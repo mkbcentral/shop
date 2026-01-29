@@ -23,7 +23,7 @@ class ReportController extends Controller
      * GET /api/mobile/reports
      *
      * Query Parameters:
-     * - period (required): week|month|year|custom
+     * - period (optional, default: day): day|week|lastweek|month|lastmonth|year|custom
      * - start_date (required if custom): YYYY-MM-DD
      * - end_date (required if custom): YYYY-MM-DD
      * - store_id (optional): Filter by store
@@ -32,7 +32,7 @@ class ReportController extends Controller
     {
         try {
             $request->validate([
-                'period' => 'required|in:week,month,year,custom',
+                'period' => 'nullable|in:day,week,lastweek,month,lastmonth,year,custom',
                 'start_date' => 'required_if:period,custom|date|date_format:Y-m-d',
                 'end_date' => 'required_if:period,custom|date|date_format:Y-m-d|after_or_equal:start_date',
                 'store_id' => 'nullable|integer|exists:stores,id',
@@ -40,18 +40,21 @@ class ReportController extends Controller
                 'month_number' => 'nullable|integer|min:1|max:12',
             ]);
 
+            // Définir la période par défaut à 'day' si non spécifiée
+            $period = $request->input('period', 'day');
+
             $storeId = $request->query('store_id') ? (int) $request->query('store_id') : null;
-            
+
             // Utiliser effective_store_id() si pas de store_id fourni
             if (!$storeId) {
                 $storeId = effective_store_id();
             }
 
             // 1. Déterminer les dates de la période
-            [$startDate, $endDate] = $this->getPeriodDates($request);
-            
+            [$startDate, $endDate] = $this->getPeriodDates($request, $period);
+
             // 2. Déterminer les dates de la période précédente pour comparaison
-            [$prevStartDate, $prevEndDate] = $this->getPreviousPeriodDates($startDate, $endDate);
+            [$prevStartDate, $prevEndDate] = $this->getPreviousPeriodDates($startDate, $endDate, $period);
 
             // 3. Calculer les KPIs pour les deux périodes
             $currentKpis = $this->calculateKpis($startDate, $endDate, $storeId);
@@ -62,13 +65,13 @@ class ReportController extends Controller
                 'success' => true,
                 'data' => [
                     'period' => [
-                        'type' => $request->period,
+                        'type' => $period,
                         'start_date' => $startDate->format('Y-m-d'),
                         'end_date' => $endDate->format('Y-m-d'),
-                        'label' => $this->formatPeriodLabel($startDate, $endDate),
+                        'label' => $this->formatPeriodLabel($startDate, $endDate, $period),
                     ],
                     'kpis' => $this->formatKpis($currentKpis, $previousKpis),
-                    'chart_data' => $this->getChartData($startDate, $endDate, $storeId, $request->period),
+                    'chart_data' => $this->getChartData($startDate, $endDate, $storeId, $period),
                     'detailed_stats' => $this->getDetailedStats($startDate, $endDate, $storeId),
                     'top_products' => $this->getTopProducts($startDate, $endDate, $storeId),
                 ],
@@ -93,41 +96,76 @@ class ReportController extends Controller
     /**
      * Get period dates based on request
      */
-    private function getPeriodDates(Request $request): array
+    private function getPeriodDates(Request $request, string $period): array
     {
         // Si year et month_number sont fournis, utiliser ce mois spécifique
         if ($request->has('year') && $request->has('month_number')) {
             $year = (int) $request->year;
             $month = (int) $request->month_number;
-            
+
             return [
                 Carbon::create($year, $month, 1)->startOfMonth(),
                 Carbon::create($year, $month, 1)->endOfMonth(),
             ];
         }
 
-        return match($request->period) {
+        return match($period) {
+            'day' => [now()->startOfDay(), now()->endOfDay()],
             'week' => [now()->startOfWeek(), now()->endOfWeek()],
+            'lastweek' => [
+                now()->subWeek()->startOfWeek(),
+                now()->subWeek()->endOfWeek(),
+            ],
             'month' => [now()->startOfMonth(), now()->endOfMonth()],
+            'lastmonth' => [
+                now()->subMonth()->startOfMonth(),
+                now()->subMonth()->endOfMonth(),
+            ],
             'year' => [now()->startOfYear(), now()->endOfYear()],
             'custom' => [
                 Carbon::parse($request->start_date)->startOfDay(),
                 Carbon::parse($request->end_date)->endOfDay(),
             ],
+            default => [now()->startOfDay(), now()->endOfDay()],
         };
     }
 
     /**
      * Get previous period dates for comparison
      */
-    private function getPreviousPeriodDates(Carbon $startDate, Carbon $endDate): array
+    private function getPreviousPeriodDates(Carbon $startDate, Carbon $endDate, string $period): array
     {
-        $duration = $startDate->diffInDays($endDate) + 1;
-        
-        return [
-            $startDate->copy()->subDays($duration),
-            $endDate->copy()->subDays($duration),
-        ];
+        // Pour lastweek et lastmonth, la période précédente est déjà calculée différemment
+        return match($period) {
+            'day' => [
+                $startDate->copy()->subDay(),
+                $endDate->copy()->subDay(),
+            ],
+            'week' => [
+                $startDate->copy()->subWeek(),
+                $endDate->copy()->subWeek(),
+            ],
+            'lastweek' => [
+                $startDate->copy()->subWeek(),
+                $endDate->copy()->subWeek(),
+            ],
+            'month' => [
+                $startDate->copy()->subMonth(),
+                $endDate->copy()->subMonth(),
+            ],
+            'lastmonth' => [
+                $startDate->copy()->subMonth(),
+                $endDate->copy()->subMonth(),
+            ],
+            'year' => [
+                $startDate->copy()->subYear(),
+                $endDate->copy()->subYear(),
+            ],
+            default => [
+                $startDate->copy()->subDays($startDate->diffInDays($endDate) + 1),
+                $endDate->copy()->subDays($startDate->diffInDays($endDate) + 1),
+            ],
+        };
     }
 
     /**
@@ -228,6 +266,11 @@ class ReportController extends Controller
      */
     private function getChartData(Carbon $startDate, Carbon $endDate, ?int $storeId, string $period): array
     {
+        // Pour la période "day", on groupe par heure
+        if ($period === 'day') {
+            return $this->getChartDataByHour($startDate, $endDate, $storeId);
+        }
+
         // Récupérer les données de vente groupées par date
         $data = DB::table('sales')
             ->where('status', 'completed')
@@ -241,7 +284,7 @@ class ReportController extends Controller
 
         $labels = [];
         $values = [];
-        
+
         // Générer les labels et valeurs pour chaque jour
         $current = $startDate->copy();
         while ($current <= $endDate) {
@@ -258,13 +301,45 @@ class ReportController extends Controller
     }
 
     /**
+     * Get chart data grouped by hour for a single day
+     */
+    private function getChartDataByHour(Carbon $startDate, Carbon $endDate, ?int $storeId): array
+    {
+        // Récupérer les données de vente groupées par heure
+        $data = DB::table('sales')
+            ->where('status', 'completed')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->when($storeId, fn($q) => $q->where('store_id', $storeId))
+            ->selectRaw('HOUR(sale_date) as hour, SUM(total) as total')
+            ->groupBy('hour')
+            ->orderBy('hour')
+            ->get()
+            ->keyBy('hour');
+
+        $labels = [];
+        $values = [];
+
+        // Générer les labels et valeurs pour chaque heure (0-23)
+        for ($hour = 0; $hour < 24; $hour++) {
+            $labels[] = sprintf('%02d:00', $hour);
+            $values[] = (float) ($data[$hour]->total ?? 0);
+        }
+
+        return [
+            'labels' => $labels,
+            'values' => $values,
+        ];
+    }
+
+    /**
      * Format chart label based on period
      */
     private function formatChartLabel(Carbon $date, string $period): string
     {
         return match($period) {
-            'week' => $date->locale('fr')->isoFormat('ddd'),  // Lun, Mar, Mer, ...
-            'month' => $date->format('d'),                     // 01, 02, 03, ...
+            'day' => $date->format('H:00'),                    // 00:00, 01:00, ...
+            'week', 'lastweek' => $date->locale('fr')->isoFormat('ddd'),  // Lun, Mar, Mer, ...
+            'month', 'lastmonth' => $date->format('d'),        // 01, 02, 03, ...
             'year' => $date->locale('fr')->isoFormat('MMM'),   // Jan, Fév, Mar, ...
             default => $date->format('d/m'),                   // 01/01, 02/01, ...
         };
@@ -352,18 +427,32 @@ class ReportController extends Controller
     /**
      * Format period label
      */
-    private function formatPeriodLabel(Carbon $startDate, Carbon $endDate): string
+    private function formatPeriodLabel(Carbon $startDate, Carbon $endDate, string $period): string
     {
+        // Labels spécifiques pour les périodes prédéfinies
+        $labels = [
+            'day' => "Aujourd'hui",
+            'week' => 'Cette semaine',
+            'lastweek' => 'Semaine dernière',
+            'month' => 'Ce mois',
+            'lastmonth' => 'Mois dernier',
+            'year' => 'Cette année',
+        ];
+
+        if (isset($labels[$period])) {
+            return $labels[$period] . ' (' . $startDate->format('d/m') . ' - ' . $endDate->format('d/m') . ')';
+        }
+
         // Si même jour
         if ($startDate->isSameDay($endDate)) {
             return $startDate->locale('fr')->isoFormat('D MMM YYYY');
         }
-        
+
         // Si même mois
         if ($startDate->isSameMonth($endDate)) {
             return $startDate->format('d') . ' - ' . $endDate->locale('fr')->isoFormat('D MMM YYYY');
         }
-        
+
         // Mois différents
         return $startDate->locale('fr')->isoFormat('D MMM') . ' - ' . $endDate->locale('fr')->isoFormat('D MMM YYYY');
     }
@@ -374,7 +463,7 @@ class ReportController extends Controller
     private function formatCurrency(float $amount): string
     {
         $currency = current_currency();
-        
+
         if ($amount >= 1000000) {
             return number_format($amount / 1000000, 1, ',', ' ') . 'M ' . $currency;
         }

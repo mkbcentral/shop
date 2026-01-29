@@ -190,6 +190,17 @@ Route::middleware(['auth'])->group(function () {
     // POS Checkout Route (authentification web/session)
     Route::post('/pos/checkout', [\App\Http\Controllers\Pos\PosCheckoutController::class, 'checkout'])
         ->name('pos.checkout');
+
+    // Temporary file download route
+    Route::get('/download/temp/{filename}', function ($filename) {
+        $path = storage_path('app/temp/' . $filename);
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->download($path)->deleteFileAfterSend(true);
+    })->name('download.temp.file');
 });
 
 

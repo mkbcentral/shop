@@ -368,4 +368,28 @@ class ProductRepository
 
         return $query->get();
     }
+
+    /**
+     * Get all product IDs for label generation
+     */
+    public function getAllProductIds(): array
+    {
+        $query = Product::query();
+
+        // Filter by current store if user is not admin
+        if (!user_can_access_all_stores() && effective_store_id()) {
+            $storeId = effective_store_id();
+            $query->where(function ($q) use ($storeId) {
+                $q->where('store_id', $storeId)
+                    ->orWhereHas('variants', function ($variantQuery) use ($storeId) {
+                        $variantQuery->whereHas('storeStocks', function ($stockQuery) use ($storeId) {
+                            $stockQuery->where('store_id', $storeId)
+                                ->where('quantity', '>', 0);
+                        });
+                    });
+            });
+        }
+
+        return $query->pluck('id')->toArray();
+    }
 }

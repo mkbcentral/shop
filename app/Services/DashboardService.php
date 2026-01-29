@@ -84,22 +84,24 @@ class DashboardService
 
     /**
      * Get sales chart data for the last N days
+     * Optimized to use a single grouped query instead of N individual queries
      */
     public function getSalesChartData(int $days = 7): \Illuminate\Support\Collection
     {
-        $chartData = collect();
+        $startDate = now()->subDays($days - 1)->startOfDay();
+        $endDate = now()->endOfDay();
 
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $total = $this->repository->getSalesByDate($date);
+        // Single query to get all sales grouped by date
+        $salesData = $this->repository->getSalesGroupedByDateOptimized($startDate, $endDate);
 
-            $chartData->push((object)[
+        // Fill missing days with 0
+        return collect(range(0, $days - 1))->map(function($i) use ($salesData, $days) {
+            $date = now()->subDays($days - 1 - $i)->format('Y-m-d');
+            return (object)[
                 'day' => $date,
-                'total' => $total
-            ]);
-        }
-
-        return $chartData;
+                'total' => $salesData[$date] ?? 0
+            ];
+        });
     }
 
     /**

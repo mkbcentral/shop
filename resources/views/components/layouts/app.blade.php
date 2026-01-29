@@ -73,5 +73,18 @@
             });
         </script>
     @endif
+
+    <!-- Handle PDF downloads from Livewire events -->
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('downloadPdf', (event) => {
+                const url = event.url;
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.click();
+            });
+        });
+    </script>
 </body>
 </html>

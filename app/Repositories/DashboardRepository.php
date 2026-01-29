@@ -52,7 +52,7 @@ class DashboardRepository
     public function getTotalProducts(): int
     {
         $query = Product::query();
-        
+
         $storeId = effective_store_id();
         if ($storeId) {
             // Filter products that have stock in the selected store
@@ -60,7 +60,7 @@ class DashboardRepository
                 $q->where('store_id', $storeId);
             });
         }
-        
+
         return $query->count();
     }
 
@@ -249,60 +249,97 @@ class DashboardRepository
     }
 
     /**
+     * Get sales grouped by date - optimized version returning keyed collection
+     */
+    public function getSalesGroupedByDateOptimized(Carbon $startDate, Carbon $endDate): array
+    {
+        $query = Sale::selectRaw('DATE(sale_date) as day, SUM(total) as total')
+            ->whereBetween('sale_date', [$startDate, $endDate])
+            ->where('status', 'completed');
+
+        $this->applyStoreFilter($query);
+
+        return $query->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day')
+            ->toArray();
+    }
+
+    /**
      * Get low stock products with details
+     * Optimized to filter in SQL instead of loading all variants in memory
      */
     public function getLowStockProducts(int $limit = null): \Illuminate\Database\Eloquent\Collection
     {
         $storeId = effective_store_id();
 
-        $query = ProductVariant::with(['product', 'storeStocks']);
-        $this->applyStoreFilterViaProduct($query);
+        if ($storeId) {
+            // Use store-specific stock from pivot table
+            $query = ProductVariant::with(['product'])
+                ->join('product_store_stock', function($join) use ($storeId) {
+                    $join->on('product_variants.id', '=', 'product_store_stock.product_variant_id')
+                         ->where('product_store_stock.store_id', '=', $storeId);
+                })
+                ->whereRaw('product_store_stock.quantity > 0')
+                ->whereRaw('product_store_stock.quantity <= product_variants.low_stock_threshold')
+                ->select('product_variants.*', 'product_store_stock.quantity as store_stock_quantity')
+                ->orderBy('product_store_stock.quantity', 'asc');
 
-        $query->orderBy('stock_quantity', 'asc');
+            if ($limit) {
+                $query->limit($limit);
+            }
 
-        // Don't limit here, filter first then limit
-        $variants = $query->get();
+            return $query->get();
+        } else {
+            // Global stock (no store filter)
+            $query = ProductVariant::with(['product'])
+                ->whereRaw('stock_quantity > 0')
+                ->whereRaw('stock_quantity <= low_stock_threshold')
+                ->orderBy('stock_quantity', 'asc');
 
-        // Filter by store-specific stock quantities
-        $filtered = $variants->filter(function($variant) use ($storeId) {
-            $storeQty = $storeId !== null ? $variant->getStoreStock($storeId) : $variant->stock_quantity;
-            return $storeQty > 0 && $storeQty <= $variant->low_stock_threshold;
-        });
+            if ($limit) {
+                $query->limit($limit);
+            }
 
-        // Apply limit after filtering
-        if ($limit) {
-            return $filtered->take($limit);
+            return $query->get();
         }
-
-        return $filtered;
     }
 
     /**
      * Get out of stock products with details
+     * Optimized to filter in SQL instead of loading all variants in memory
      */
     public function getOutOfStockProducts(int $limit = null): \Illuminate\Database\Eloquent\Collection
     {
         $storeId = effective_store_id();
 
-        $query = ProductVariant::with(['product', 'storeStocks']);
-        $this->applyStoreFilterViaProduct($query);
+        if ($storeId) {
+            // Use store-specific stock from pivot table
+            $query = ProductVariant::with(['product'])
+                ->join('product_store_stock', function($join) use ($storeId) {
+                    $join->on('product_variants.id', '=', 'product_store_stock.product_variant_id')
+                         ->where('product_store_stock.store_id', '=', $storeId);
+                })
+                ->whereRaw('product_store_stock.quantity <= 0')
+                ->select('product_variants.*', 'product_store_stock.quantity as store_stock_quantity')
+                ->orderBy('product_variants.updated_at', 'desc');
 
-        $query->orderBy('updated_at', 'desc');
+            if ($limit) {
+                $query->limit($limit);
+            }
 
-        // Don't limit here, filter first then limit
-        $variants = $query->get();
+            return $query->get();
+        } else {
+            // Global stock (no store filter)
+            $query = ProductVariant::with(['product'])
+                ->where('stock_quantity', '<=', 0)
+                ->orderBy('updated_at', 'desc');
 
-        // Filter by store-specific stock quantities
-        $filtered = $variants->filter(function($variant) use ($storeId) {
-            $storeQty = $storeId !== null ? $variant->getStoreStock($storeId) : $variant->stock_quantity;
-            return $storeQty <= 0;
-        });
+            if ($limit) {
+                $query->limit($limit);
+            }
 
-        // Apply limit after filtering
-        if ($limit) {
-            return $filtered->take($limit);
+            return $query->get();
         }
-
-        return $filtered;
     }
 }

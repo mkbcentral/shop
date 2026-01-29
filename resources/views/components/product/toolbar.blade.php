@@ -10,6 +10,7 @@
                     <option value="">Actions groupées</option>
                     <option value="activate">Activer</option>
                     <option value="deactivate">Désactiver</option>
+                    <option value="generate_labels">Générer Étiquettes</option>
                     <option value="delete">Supprimer</option>
                 </x-form.select>
                 <button wire:click="executeBulkAction"

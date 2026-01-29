@@ -13,34 +13,53 @@ Ce document décrit l'intégration Flutter avec l'API Laravel pour les rapports 
 **Description**: Récupère les données complètes de rapports pour une période donnée avec KPIs, graphiques, statistiques et top produits
 
 **Query Parameters**:
-- `period` (string, **required**) - Type de période: `week`, `month`, `year`, `custom`
+- `period` (string, **optional**, default: `day`) - Type de période: `day`, `week`, `lastweek`, `month`, `lastmonth`, `year`, `custom`
 - `store_id` (int, optional) - Filtrer par magasin (utilise le store actuel si absent)
 - `start_date` (string, required si `period=custom`) - Date début (format: YYYY-MM-DD)
 - `end_date` (string, required si `period=custom`) - Date fin (format: YYYY-MM-DD)
 - `year` (int, optional) - Année spécifique (2020-2100)
 - `month_number` (int, optional) - Numéro du mois (1-12)
 
+**Périodes supportées**:
+- `day` - Aujourd'hui (données par heure) ⭐ **Par défaut**
+- `week` - Semaine en cours (Lun-Dim)
+- `lastweek` - Semaine dernière
+- `month` - Mois en cours
+- `lastmonth` - Mois dernier
+- `year` - Année en cours
+- `custom` - Période personnalisée (nécessite start_date et end_date)
+
 ---
 
 ## 📊 Exemples de Requêtes
 
 ```bash
-# 1. Semaine en cours
-GET /api/mobile/reports?period=week&store_id=6
+# 1. Aujourd'hui (par défaut) - Données par heure
+GET /api/mobile/reports
+GET /api/mobile/reports?period=day&store_id=1
 
-# 2. Mois en cours
-GET /api/mobile/reports?period=month&store_id=6
+# 2. Semaine en cours
+GET /api/mobile/reports?period=week&store_id=1
 
-# 3. Année en cours
-GET /api/mobile/reports?period=year&store_id=6
+# 3. Semaine dernière
+GET /api/mobile/reports?period=lastweek&store_id=1
 
-# 4. Mois spécifique (Février 2026)
-GET /api/mobile/reports?period=month&year=2026&month_number=2&store_id=6
+# 4. Mois en cours
+GET /api/mobile/reports?period=month&store_id=1
 
-# 5. Période personnalisée
-GET /api/mobile/reports?period=custom&start_date=2026-01-01&end_date=2026-01-15&store_id=6
+# 5. Mois dernier
+GET /api/mobile/reports?period=lastmonth&store_id=1
 
-# 6. Sans store_id (utilise le magasin actuel de l'utilisateur)
+# 6. Année en cours
+GET /api/mobile/reports?period=year&store_id=1
+
+# 7. Mois spécifique (Février 2026)
+GET /api/mobile/reports?period=month&year=2026&month_number=2&store_id=1
+
+# 8. Période personnalisée (to-from)
+GET /api/mobile/reports?period=custom&start_date=2026-01-01&end_date=2026-01-15&store_id=1
+
+# 9. Sans store_id (utilise le magasin actuel de l'utilisateur)
 GET /api/mobile/reports?period=month
 ```
 

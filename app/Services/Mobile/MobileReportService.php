@@ -323,17 +323,37 @@ class MobileReportService
             return [];
         }
 
-        return $stores->map(function ($store) {
-            $todaySales = $this->getSalesForStore($store->id);
-            $alertsCount = $this->getAlertsCountForStore($store->id);
+        $storeIds = $stores->pluck('id');
 
+        // Single query for all stores sales - optimized
+        $salesByStore = Sale::whereIn('store_id', $storeIds)
+            ->whereDate('sale_date', today())
+            ->where('status', 'completed')
+            ->groupBy('store_id')
+            ->selectRaw('store_id, SUM(total) as total_sales')
+            ->pluck('total_sales', 'store_id');
+
+        // Single query for all stores alerts - optimized
+        $alertsByStore = DB::table('product_variants')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->whereIn('products.store_id', $storeIds)
+            ->where(function ($query) {
+                $query->whereRaw('product_variants.stock_quantity <= product_variants.low_stock_threshold')
+                    ->orWhere('product_variants.stock_quantity', '<=', 0);
+            })
+            ->groupBy('products.store_id')
+            ->selectRaw('products.store_id, COUNT(*) as alerts_count')
+            ->pluck('alerts_count', 'store_id');
+
+        return $stores->map(function ($store) use ($salesByStore, $alertsByStore) {
+            $todaySales = $salesByStore[$store->id] ?? 0;
             return [
                 'id' => $store->id,
                 'name' => $store->name,
                 'code' => $store->code,
                 'today_sales' => $todaySales,
                 'today_sales_formatted' => number_format($todaySales, 2, ',', ' '),
-                'alerts_count' => $alertsCount,
+                'alerts_count' => $alertsByStore[$store->id] ?? 0,
             ];
         })->toArray();
     }

@@ -151,6 +151,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/create-form-data', [MobileProductController::class, 'createFormData'])->name('create-form-data');
             Route::get('/generate-reference', [MobileProductController::class, 'generateReference'])->name('generate-reference');
 
+            // Génération d'étiquettes PDF
+            Route::post('/labels/bulk', [MobileProductController::class, 'generateBulkLabels'])->name('labels.bulk');
+            Route::get('/{id}/labels', [MobileProductController::class, 'generateLabels'])->name('labels');
+
             // CRUD
             Route::get('/', [MobileProductController::class, 'index'])->name('index');
             Route::post('/', [MobileProductController::class, 'store'])->name('store');
