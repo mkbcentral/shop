@@ -74,10 +74,12 @@ class AssignSuperAdminMenus extends Command
         // Trouver les menus manquants
         $missingMenuCodes = array_diff($this->menuCodes, $currentMenuCodes);
 
-        if (empty($missingMenuCodes) && !$this->option('force')) {
-            $this->info('');
-            $this->info('✅ Tous les menus essentiels sont déjà assignés au super-admin !');
-            $this->info('');
+        if (empty($missingMenuCodes)) {
+            if (!$this->option('force')) {
+                $this->info('');
+                $this->info('✅ Tous les menus essentiels sont déjà assignés au super-admin !');
+                $this->info('');
+            }
             $this->table(
                 ['Code', 'Statut'],
                 collect($this->menuCodes)->map(fn($code) => [$code, '✓ Assigné'])->toArray()

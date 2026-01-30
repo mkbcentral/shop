@@ -20,7 +20,8 @@ class CreateSuperAdmin extends Command
     protected $signature = 'user:create-super-admin
                             {--name= : Nom de l\'utilisateur}
                             {--email= : Email de l\'utilisateur}
-                            {--password= : Mot de passe de l\'utilisateur}';
+                            {--password= : Mot de passe de l\'utilisateur}
+                            {--force : Créer sans demander de confirmation}';
 
     /**
      * The console command description.
@@ -101,7 +102,7 @@ class CreateSuperAdmin extends Command
         $this->info('   • Paramètres d\'abonnement');
         $this->info('');
 
-        if (!$this->confirm('Voulez-vous créer ce super-admin?', true)) {
+        if (!$this->option('force') && !$this->confirm('Voulez-vous créer ce super-admin?', true)) {
             $this->warn('Opération annulée.');
             return self::SUCCESS;
         }

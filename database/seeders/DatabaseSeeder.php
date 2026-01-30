@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             MenuItemSeeder::class,
             ProductTypeSeeder::class,
+            DefautUserSuperAdminSeeder::class,
         ]);
     }
 }
