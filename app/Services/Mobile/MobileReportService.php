@@ -441,7 +441,7 @@ class MobileReportService
     public function invalidateCache(User $user): void
     {
         $prefix = $this->getCachePrefix($user);
-        
+
         // Invalider tous les caches liés à ce prefix (store + org)
         // Liste exhaustive de toutes les clés possibles
         $cacheKeys = [

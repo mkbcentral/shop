@@ -21,6 +21,9 @@ yarn-error.log
 /.vscode
 /.zed
 
+# Documentation de développement
+/docs-dev
+
 # Fichiers de test/debug temporaires
 check-*.php
 fix-*.php

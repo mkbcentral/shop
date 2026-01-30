@@ -6,8 +6,75 @@ on:
       - main # Déclenche le workflow sur chaque push sur la branche main
 
 jobs:
-  deploy:
+  test:
+    name: 🧪 Run Tests
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test_database
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: 🧩 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, dom, filter, gd, json
+          coverage: none
+
+      - name: 📦 Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: 📥 Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: 📝 Copy .env.testing
+        run: |
+          cp .env.example .env.testing
+          php artisan key:generate --env=testing
+
+      - name: 📁 Prepare Laravel directories
+        run: |
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/logs
+          chmod -R 775 bootstrap/cache
+          chmod -R 775 storage
+
+      - name: 🧪 Run PHPUnit Tests
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: test_database
+          DB_USERNAME: root
+          DB_PASSWORD: password
+        run: php artisan test --parallel
+
+      - name: ✅ Tests Passed
+        if: success()
+        run: echo "✅ All tests passed! Ready for deployment."
+
+  deploy:
+    name: 🚀 Deploy to Production
+    needs: test
+    runs-on: ubuntu-latest
+    if: success() # Ne déploie que si les tests passent
 
     steps:
       - name: 🧩 Checkout code
