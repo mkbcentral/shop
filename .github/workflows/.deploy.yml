@@ -31,7 +31,14 @@ jobs:
             echo "APP_KEY=" >> .env
           fi
 
-      - name: 📦 Install Composer Dependencies
+      - name: � Create storage directories
+        run: |
+          mkdir -p storage/framework/{sessions,views,cache}
+          mkdir -p storage/logs
+          mkdir -p bootstrap/cache
+          chmod -R 775 storage bootstrap/cache
+
+      - name: �📦 Install Composer Dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: 🔑 Generate Application Key
@@ -82,7 +89,14 @@ jobs:
             echo "APP_KEY=" >> .env
           fi
 
-      - name: 📦 Install Composer Dependencies
+      - name: � Create storage directories
+        run: |
+          mkdir -p storage/framework/{sessions,views,cache}
+          mkdir -p storage/logs
+          mkdir -p bootstrap/cache
+          chmod -R 775 storage bootstrap/cache
+
+      - name: �📦 Install Composer Dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: 🔑 Generate Application Key
