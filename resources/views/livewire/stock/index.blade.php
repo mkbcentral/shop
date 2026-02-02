@@ -336,13 +336,13 @@
     @endif
 
     <!-- Add Stock Modal -->
-    @include('livewire.stock.modals.add-stock-new')
+    @include('livewire.stock.modals.add-stock')
 
     <!-- Remove Stock Modal -->
-    @include('livewire.stock.modals.remove-stock-new')
+    @include('livewire.stock.modals.remove-stock')
 
     <!-- Adjust Stock Modal -->
-    @include('livewire.stock.modals.adjust-stock-new')
+    @include('livewire.stock.modals.adjust-stock')
 
     <!-- Edit Movement Modal -->
     @include('livewire.stock.modals.edit-movement')

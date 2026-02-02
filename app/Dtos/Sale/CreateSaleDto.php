@@ -33,6 +33,14 @@ readonly class CreateSaleDto
         );
     }
 
+    public static function fromRequest($request): self
+    {
+        $data = $request->validated();
+        $data['user_id'] = $data['user_id'] ?? auth()->id();
+        
+        return self::fromArray($data);
+    }
+
     public function toArray(): array
     {
         $array = [

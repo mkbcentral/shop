@@ -22,7 +22,7 @@ class OrganizationPayment extends Component
             'organization_param' => $organization,
             'auth_id' => Auth::id(),
         ]);
-        
+
         $this->organization = Organization::findOrFail($organization);
 
         \Log::info('Organization loaded', [
@@ -62,10 +62,13 @@ class OrganizationPayment extends Component
         // Pour le moment, on simule un paiement réussi
 
         $paymentReference = 'PAY_' . strtoupper(uniqid());
+        $amount = $this->planData['price'] ?? 0;
 
         $this->organization->markPaymentCompleted(
-            $paymentReference,
-            $this->paymentMethod
+            paymentReference: $paymentReference,
+            paymentMethod: $this->paymentMethod,
+            amount: (float) $amount,
+            metadata: ['source' => 'organization_payment_page']
         );
 
         session()->flash('success', 'Paiement effectué avec succès ! Bienvenue à bord 🎉');

@@ -467,9 +467,29 @@ class Organization extends Model
 
     /**
      * Mark payment as completed
+     *
+     * @param string $paymentReference Référence de paiement (ex: transaction_id Shwary)
+     * @param string $paymentMethod Méthode de paiement (mobile_money, card, etc.)
+     * @param float|null $amount Montant payé (optionnel, utilise le prix du plan si non fourni)
+     * @param array $metadata Données supplémentaires (shwary_transaction_id, etc.)
      */
-    public function markPaymentCompleted(string $paymentReference, string $paymentMethod): void
+    public function markPaymentCompleted(
+        string $paymentReference,
+        string $paymentMethod,
+        ?float $amount = null,
+        array $metadata = []
+    ): void
     {
+        $oldPlan = $this->subscription_plan->value;
+
+        // Calculer le montant si non fourni
+        if ($amount === null) {
+            $plans = \App\Services\SubscriptionService::getPlansFromCache();
+            $planData = $plans[$this->subscription_plan->value] ?? [];
+            $amount = $planData['price'] ?? 0;
+        }
+
+        // Mettre à jour l'organisation
         $this->update([
             'payment_status' => PaymentStatus::COMPLETED,
             'payment_reference' => $paymentReference,
@@ -477,6 +497,43 @@ class Organization extends Model
             'payment_completed_at' => now(),
             'is_active' => true,
         ]);
+
+        // Créer l'enregistrement SubscriptionPayment
+        $subscriptionPayment = SubscriptionPayment::create([
+            'organization_id' => $this->id,
+            'user_id' => $this->owner_id,
+            'reference' => 'PAY-' . strtoupper(\Illuminate\Support\Str::random(10)),
+            'plan' => $this->subscription_plan->value,
+            'duration_months' => 1,
+            'amount' => $amount,
+            'discount' => 0,
+            'tax' => 0,
+            'total' => $amount,
+            'currency' => $this->currency ?? 'CDF',
+            'payment_method' => $paymentMethod,
+            'payment_provider' => $paymentMethod === 'mobile_money' ? 'shwary' : $paymentMethod,
+            'transaction_id' => $paymentReference,
+            'status' => SubscriptionPayment::STATUS_COMPLETED,
+            'paid_at' => now(),
+            'period_starts_at' => $this->subscription_starts_at ?? now(),
+            'period_ends_at' => $this->subscription_ends_at ?? now()->addMonth(),
+            'invoice_number' => 'INV-' . date('Ymd') . '-' . str_pad($this->id, 5, '0', STR_PAD_LEFT),
+            'metadata' => array_merge($metadata, [
+                'shwary_reference' => $paymentReference,
+                'payment_method' => $paymentMethod,
+            ]),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        // Créer l'entrée dans SubscriptionHistory
+        SubscriptionHistory::record(
+            organization: $this,
+            action: SubscriptionHistory::ACTION_CREATED,
+            oldPlan: $oldPlan,
+            payment: $subscriptionPayment,
+            notes: "Paiement initial via {$paymentMethod} - Référence: {$paymentReference}"
+        );
 
         // Assigner les rôles admin et manager au propriétaire
         $this->assignOwnerRolesAndMenus();

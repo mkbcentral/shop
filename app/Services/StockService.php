@@ -6,10 +6,13 @@ use App\Models\StockMovement;
 use App\Models\Store;
 use App\Repositories\StockMovementRepository;
 use App\Repositories\ProductVariantRepository;
+use App\Traits\ResolvesStoreContext;
 use Illuminate\Support\Facades\DB;
 
 class StockService
 {
+    use ResolvesStoreContext;
+
     public function __construct(
         private StockMovementRepository $movementRepository,
         private ProductVariantRepository $variantRepository
@@ -17,34 +20,11 @@ class StockService
 
     /**
      * Get the store ID to use for stock movements.
-     * Falls back to user's first store if current_store_id is null.
+     * Falls back to resolveStoreId from trait.
      */
     private function getStoreIdForMovement(?int $providedStoreId = null): int
     {
-        // Use provided store_id first
-        if ($providedStoreId) {
-            return $providedStoreId;
-        }
-
-        // Use current_store_id if set
-        $currentStoreId = current_store_id();
-        if ($currentStoreId) {
-            return $currentStoreId;
-        }
-
-        // Fall back to user's first store
-        $user = auth()->user();
-        if ($user && $user->stores->isNotEmpty()) {
-            return $user->stores->first()->id;
-        }
-
-        // Last resort: use first store in system
-        $firstStore = Store::first();
-        if ($firstStore) {
-            return $firstStore->id;
-        }
-
-        throw new \Exception("Aucun magasin disponible. Veuillez créer un magasin d'abord.");
+        return $this->resolveStoreId($providedStoreId);
     }
 
     /**

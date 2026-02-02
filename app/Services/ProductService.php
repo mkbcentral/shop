@@ -3,261 +3,55 @@
 namespace App\Services;
 
 use App\Models\Product;
-use App\Models\ProductAttributeValue;
+use App\Models\ProductVariant;
 use App\Repositories\ProductRepository;
-use App\Repositories\ProductVariantRepository;
-use App\Services\SkuGeneratorService;
-use App\Services\QRCodeGeneratorService;
-use App\Services\VariantGeneratorService;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
+use App\Services\Product\ProductCreationService;
+use App\Services\Product\ProductUpdateService;
+use App\Services\Product\ProductVariantService;
+use App\Traits\ResolvesStoreContext;
 
+/**
+ * Main Product Service - Facade pattern
+ * 
+ * This service acts as the main entry point for product operations
+ * and delegates to specialized services for better code organization.
+ * 
+ * @deprecated Consider using specialized services directly:
+ * - ProductCreationService for creating products
+ * - ProductUpdateService for updating products
+ * - ProductVariantService for variant operations
+ */
 class ProductService
 {
+    use ResolvesStoreContext;
+
     public function __construct(
         private ProductRepository $productRepository,
-        private ProductVariantRepository $variantRepository,
-        private SkuGeneratorService $skuGenerator,
-        private QRCodeGeneratorService $qrCodeGenerator,
-        private VariantGeneratorService $variantGeneratorService
+        private ProductCreationService $creationService,
+        private ProductUpdateService $updateService,
+        private ProductVariantService $variantService
     ) {}
 
     /**
-     * Create a product with variants.
+     * Create a product with variants
+     * Delegates to ProductCreationService
      */
     public function createProduct(array $data): Product
     {
-        // Vérifier la limite de produits du plan
-        $this->checkProductLimit();
-
-        // Clean empty strings to null for nullable integer fields
-        $nullableFields = ['product_type_id', 'category_id', 'cost_price'];
-        foreach ($nullableFields as $field) {
-            if (isset($data[$field]) && $data[$field] === '') {
-                $data[$field] = null;
-            }
-        }
-
-        // Get current organization
-        $currentOrganization = app()->bound('current_organization') ? app('current_organization') : null;
-
-        // Ensure store_id is set from current user's store
-        if (!isset($data['store_id']) || empty($data['store_id'])) {
-            $currentStoreId = auth()->user()?->current_store_id;
-
-            if ($currentStoreId) {
-                // Verify the store belongs to the current organization
-                $store = \App\Models\Store::find($currentStoreId);
-                if ($store && (!$currentOrganization || $store->organization_id === $currentOrganization->id)) {
-                    $data['store_id'] = $currentStoreId;
-                } else {
-                    $currentStoreId = null; // Reset if store doesn't match organization
-                }
-            }
-
-            if (!$currentStoreId) {
-                // Get the main store of the current organization
-                $storeQuery = \App\Models\Store::where('is_active', true);
-
-                if ($currentOrganization) {
-                    $storeQuery->where('organization_id', $currentOrganization->id);
-                }
-
-                // Try to get the main store first
-                $mainStore = (clone $storeQuery)->where('is_main', true)->first();
-
-                if ($mainStore) {
-                    $data['store_id'] = $mainStore->id;
-                } else {
-                    // If no main store, get the first active store
-                    $firstStore = $storeQuery->first();
-                    if ($firstStore) {
-                        $data['store_id'] = $firstStore->id;
-                    } else {
-                        throw new \Exception('Aucun magasin disponible dans cette organisation. Veuillez créer un magasin ou sélectionner un magasin actuel.');
-                    }
-                }
-            }
-        }
-
-        // Generate unique slug if not provided
-        if (!isset($data['slug'])) {
-            $data['slug'] = $this->generateUniqueSlug($data['name']);
-        }
-
-        // Generate unique QR code if not provided
-        if (!isset($data['qr_code']) || empty($data['qr_code'])) {
-            $data['qr_code'] = $this->qrCodeGenerator->generateForProduct();
-        }
-
-        // Final check: Ensure reference is unique (globally)
-        if (isset($data['reference'])) {
-            $referenceExists = Product::withoutGlobalScope('organization')
-                ->where('reference', $data['reference'])
-                ->exists();
-            if ($referenceExists) {
-                throw new \Exception("La référence {$data['reference']} existe déjà. Veuillez en choisir une autre.");
-            }
-        }
-
-        // Final check: Ensure barcode is unique (globally, if provided)
-        if (isset($data['barcode']) && !empty($data['barcode'])) {
-            $barcodeExists = Product::withoutGlobalScope('organization')
-                ->where('barcode', $data['barcode'])
-                ->exists();
-            if ($barcodeExists) {
-                throw new \Exception("Le code-barres {$data['barcode']} existe déjà. Veuillez en générer un autre.");
-            }
-        }
-
-        // Extract variants and attributes before creating product
-        $variants = $data['variants'] ?? [];
-        $attributes = $data['attributes'] ?? [];
-        unset($data['variants'], $data['attributes']);
-
-        DB::beginTransaction();
-        try {
-            $product = $this->productRepository->create($data);
-
-            // Handle dynamic attributes and auto-generate variants if needed
-            if (!empty($attributes) && isset($data['product_type_id'])) {
-                $hasVariants = $this->variantGeneratorService->generateVariants($product, $attributes);
-
-                // If variants were auto-generated, we're done
-                if ($hasVariants) {
-                    DB::commit();
-                    return $product->load('variants', 'productType.attributes');
-                }
-            }
-
-            // Create manual variants if provided, otherwise create a default variant
-            if (!empty($variants) && is_array($variants)) {
-                foreach ($variants as $variantData) {
-                    $variant = $this->createVariant($product->id, $variantData);
-
-                    // Save non-variant attributes to the default variant
-                    if (!empty($attributes)) {
-                        $this->saveAttributeValues($variant->id, $attributes, false);
-                    }
-                }
-            } else {
-                // Create a default variant for stock management
-                $variant = $this->createDefaultVariant($product);
-
-                // Save attributes to the default variant
-                if (!empty($attributes)) {
-                    $this->saveAttributeValues($variant->id, $attributes, false);
-                }
-            }
-
-            DB::commit();
-            return $product->load('variants', 'productType.attributes');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        return $this->creationService->createProduct($data);
     }
 
     /**
-     * Save attribute values for a product variant
-     */
-    private function saveAttributeValues(int $variantId, array $attributes, bool $onlyVariantAttributes = false): void
-    {
-        foreach ($attributes as $attributeId => $value) {
-            if (empty($value)) {
-                continue;
-            }
-
-            // If we only want variant attributes, check the attribute
-            if ($onlyVariantAttributes) {
-                $attribute = \App\Models\ProductAttribute::find($attributeId);
-                if (!$attribute || !$attribute->is_variant_attribute) {
-                    continue;
-                }
-            }
-
-            ProductAttributeValue::updateOrCreate(
-                [
-                    'product_variant_id' => $variantId,
-                    'product_attribute_id' => $attributeId,
-                ],
-                [
-                    'value' => is_array($value) ? json_encode($value) : $value,
-                ]
-            );
-        }
-    }
-
-    /**
-     * Generate a unique slug for a product.
-     * Le slug doit être unique globalement (toutes organisations confondues).
-     */
-    private function generateUniqueSlug(string $name, ?int $excludeId = null): string
-    {
-        $slug = Str::slug($name);
-        $originalSlug = $slug;
-        $counter = 1;
-
-        // Check if slug exists globally (without organization scope)
-        while (true) {
-            $query = Product::withoutGlobalScope('organization')
-                ->where('slug', $slug);
-
-            if ($excludeId) {
-                $query->where('id', '!=', $excludeId);
-            }
-
-            if (!$query->exists()) {
-                break;
-            }
-
-            $slug = $originalSlug . '-' . $counter;
-            $counter++;
-        }
-
-        return $slug;
-    }
-
-    /**
-     * Update a product.
+     * Update a product
+     * Delegates to ProductUpdateService
      */
     public function updateProduct(int $productId, array $data): Product
     {
-        $product = $this->productRepository->find($productId);
-
-        if (!$product) {
-            throw new \Exception("Product not found");
-        }
-
-        // Extract attributes before updating
-        $attributes = $data['attributes'] ?? [];
-        unset($data['attributes'], $data['variants']);
-
-        DB::beginTransaction();
-        try {
-            // Generate unique QR code if product doesn't have one
-            if (empty($product->qr_code)) {
-                $data['qr_code'] = $this->qrCodeGenerator->generateForProduct();
-            }
-
-            $this->productRepository->update($product, $data);
-
-            // Update attributes if provided
-            if (!empty($attributes) && $product->variants->isNotEmpty()) {
-                $defaultVariant = $product->variants->first();
-                $this->saveAttributeValues($defaultVariant->id, $attributes, false);
-            }
-
-            DB::commit();
-            return $product->fresh(['variants', 'productType.attributes']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        return $this->updateService->updateProduct($productId, $data);
     }
 
     /**
-     * Delete a product.
+     * Delete a product
      */
     public function deleteProduct(int $productId): bool
     {
@@ -273,93 +67,84 @@ class ProductService
             ->exists();
 
         if ($hasSales) {
-            throw new \Exception("Cannot delete product with existing sales. Please archive it instead by setting status to 'inactive'.");
+            throw new \Exception(
+                "Cannot delete product with existing sales. " .
+                "Please archive it instead by setting status to 'inactive'."
+            );
         }
 
-        // Delete all variants first (even though cascade should handle it)
+        // Delete all variants first
         $product->variants()->delete();
 
-        // Delete the product
         return $this->productRepository->delete($product);
     }
 
     /**
-     * Create a product variant.
+     * Create a product variant
+     * Delegates to ProductVariantService
      */
-    public function createVariant(int $productId, array $data): \App\Models\ProductVariant
+    public function createVariant(int $productId, array $data): ProductVariant
     {
-        $data['product_id'] = $productId;
-
-        // Generate SKU if not provided or empty
-        if (empty($data['sku'])) {
-            $product = $this->productRepository->find($productId);
-            $data['sku'] = $this->skuGenerator->generateForVariant($product, $data);
-        }
-
-        return $this->variantRepository->create($data);
+        return $this->variantService->createVariant($productId, $data);
     }
 
     /**
-     * Update a product variant.
+     * Update a product variant
+     * Delegates to ProductVariantService
      */
-    public function updateVariant(int $variantId, array $data): \App\Models\ProductVariant
+    public function updateVariant(int $variantId, array $data): ProductVariant
     {
-        $variant = $this->variantRepository->find($variantId);
-
-        if (!$variant) {
-            throw new \Exception("Variant not found");
-        }
-
-        $this->variantRepository->update($variant, $data);
-
-        return $variant->fresh();
+        return $this->variantService->updateVariant($variantId, $data);
     }
 
     /**
-     * Delete a product variant.
+     * Delete a product variant
+     * Delegates to ProductVariantService
      */
     public function deleteVariant(int $variantId): bool
     {
-        $variant = $this->variantRepository->find($variantId);
-
-        if (!$variant) {
-            throw new \Exception("Variant not found");
-        }
-
-        // Check if variant has sales
-        if ($variant->saleItems()->count() > 0) {
-            throw new \Exception("Cannot delete variant with existing sales history.");
-        }
-
-        // Check if it's the last variant of the product
-        if ($variant->product->variants()->count() === 1) {
-            throw new \Exception("Cannot delete the last variant of a product. Delete the product instead.");
-        }
-
-        return $this->variantRepository->delete($variant);
+        return $this->variantService->deleteVariant($variantId);
     }
 
     /**
-     * Create a default variant for a product without variants.
-     * This ensures all products can be managed in stock.
+     * Create a default variant for a product
+     * Delegates to ProductVariantService
      */
-    public function createDefaultVariant(Product $product): \App\Models\ProductVariant
+    public function createDefaultVariant(Product $product): ProductVariant
     {
-        return $this->variantRepository->create([
-            'product_id' => $product->id,
-            'sku' => $this->skuGenerator->generateDefault($product),
-            'size' => null,
-            'color' => null,
-            'stock_quantity' => 0,
-            'low_stock_threshold' => $product->stock_alert_threshold ?? 10,
-            'min_stock_threshold' => 0,
-            'additional_price' => 0,
-        ]);
+        return $this->variantService->createDefaultVariant($product);
     }
 
     /**
-     * Ensure all products have at least one variant.
-     * Useful for migrating existing products without variants.
+     * Toggle product status (active/inactive)
+     * Delegates to ProductUpdateService
+     */
+    public function toggleStatus(int $productId): Product
+    {
+        return $this->updateService->toggleStatus($productId);
+    }
+
+    /**
+     * Update product pricing
+     * Delegates to ProductUpdateService
+     */
+    public function updatePricing(int $productId, array $pricingData): Product
+    {
+        return $this->updateService->updatePricing($productId, $pricingData);
+    }
+
+    /**
+     * Bulk update products
+     * Delegates to ProductUpdateService
+     */
+    public function bulkUpdate(array $updates): array
+    {
+        return $this->updateService->bulkUpdate($updates);
+    }
+
+    /**
+     * Ensure all products have at least one variant
+     * Useful for data migration
      */
     public function ensureAllProductsHaveVariants(): int
     {
@@ -367,7 +152,7 @@ class ProductService
         $count = 0;
 
         foreach ($productsWithoutVariants as $product) {
-            $this->createDefaultVariant($product);
+            $this->variantService->createDefaultVariant($product);
             $count++;
         }
 
@@ -375,46 +160,19 @@ class ProductService
     }
 
     /**
-     * Get low stock products.
+     * Get low stock products
      */
-    public function getLowStockProducts(int $threshold = 10): \Illuminate\Database\Eloquent\Collection
+    public function getLowStockProducts(int $threshold = 10)
     {
         return $this->productRepository->lowStock($threshold);
     }
 
     /**
-     * Search products.
+     * Search products
      */
-    public function searchProducts(string $query): \Illuminate\Database\Eloquent\Collection
+    public function searchProducts(string $query)
     {
         return $this->productRepository->search($query);
     }
-
-    /**
-     * Vérifie si l'organisation peut ajouter un produit selon son plan
-     * @throws \Exception si la limite est atteinte
-     */
-    protected function checkProductLimit(): void
-    {
-        $user = auth()->user();
-
-        if (!$user) {
-            return; // Pas d'utilisateur connecté, on laisse passer (sera géré par auth)
-        }
-
-        $organizationId = session('current_organization_id') ?? $user->default_organization_id;
-        $organization = \App\Models\Organization::find($organizationId);
-
-        if (!$organization) {
-            return; // Pas d'organisation, on laisse passer
-        }
-
-        if (!$organization->canAddProduct()) {
-            $usage = $organization->getProductsUsage();
-            throw new \Exception(
-                "Limite de produits atteinte ({$usage['current']}/{$usage['max']}). " .
-                "Passez à un plan supérieur pour ajouter plus de produits."
-            );
-        }
-    }
 }
+

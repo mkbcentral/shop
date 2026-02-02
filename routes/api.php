@@ -250,6 +250,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{id}/change-status', [MobileProformaController::class, 'changeStatus'])->name('change-status');
             Route::post('/{id}/convert-to-sale', [MobileProformaController::class, 'convertToSale'])->name('convert-to-sale');
             Route::post('/{id}/duplicate', [MobileProformaController::class, 'duplicate'])->name('duplicate');
+            Route::post('/{id}/send-email', [MobileProformaController::class, 'sendEmail'])->name('send-email');
         });
         });
 });

@@ -2,62 +2,55 @@
 
 namespace App\Actions\Sale;
 
-use App\Services\SaleService;
-use App\Services\StockService;
-use Illuminate\Support\Facades\DB;
+use App\Dtos\Sale\RefundSaleDto;
+use App\Models\Sale;
+use App\Services\Sale\SaleRefundService;
 
+/**
+ * Action to refund a sale
+ * 
+ * Validates refund data and delegates to SaleRefundService
+ */
 class RefundSaleAction
 {
     public function __construct(
-        private SaleService $saleService,
-        private StockService $stockService
+        private SaleRefundService $refundService
     ) {}
 
     /**
-     * Refund a sale and restore stock.
+     * Refund a sale and restore stock
+     * 
+     * @param int $saleId Sale to refund
+     * @param array $data Refund data (reason, restore_stock)
+     * @return Sale The refunded sale
      */
-    public function execute(int $saleId, array $data): array
+    public function execute(int $saleId, array $data): Sale
     {
-        return DB::transaction(function () use ($saleId, $data) {
-            $sale = $this->saleService->findById($saleId);
+        // Validate DTO if it exists, otherwise use direct data
+        if (class_exists(RefundSaleDto::class)) {
+            $dto = RefundSaleDto::fromArray(array_merge($data, ['sale_id' => $saleId]));
+            $reason = $dto->reason;
+            $restoreStock = $dto->restore_stock ?? true;
+        } else {
+            $reason = $data['reason'] ?? 'No reason provided';
+            $restoreStock = $data['restore_stock'] ?? true;
+        }
 
-            if (!$sale) {
-                throw new \Exception("Sale not found");
-            }
+        // Check if refund is allowed
+        if (!$this->refundService->canRefund($saleId)) {
+            throw new \Exception("This sale cannot be refunded");
+        }
 
-            if ($sale->status !== 'completed') {
-                throw new \Exception("Only completed sales can be refunded");
-            }
+        // Delegate to specialized service
+        return $this->refundService->refundSale($saleId, $reason, $restoreStock);
+    }
 
-            // Restore stock for each item
-            foreach ($sale->items as $item) {
-                $this->stockService->returnStock(
-                    $item->product_variant_id,
-                    $item->quantity,
-                    $data['user_id'] ?? auth()->id(),
-                    $data['reason'] ?? 'Sale refund',
-                    $sale->id
-                );
-            }
-
-            // Update sale status
-            $sale->payment_status = 'refunded';
-            $sale->status = 'cancelled';
-            $sale->notes = ($sale->notes ? $sale->notes . "\n" : '') .
-                          "Refunded on " . now()->format('Y-m-d H:i:s') .
-                          "\nReason: " . ($data['reason'] ?? 'No reason provided');
-            $sale->save();
-
-            // Update invoice if exists
-            if ($sale->invoice) {
-                $sale->invoice->status = 'cancelled';
-                $sale->invoice->save();
-            }
-
-            return [
-                'sale' => $sale->fresh(),
-                'message' => 'Sale refunded successfully',
-            ];
-        });
+    /**
+     * Partial refund with specific items
+     */
+    public function executePartial(int $saleId, array $items, string $reason, bool $restoreStock = true): Sale
+    {
+        return $this->refundService->partialRefund($saleId, $items, $reason, $restoreStock);
     }
 }
+

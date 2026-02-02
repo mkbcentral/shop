@@ -126,7 +126,7 @@ async function initVuePosComponents() {
             const cartApp = createApp(PosCart, { clients, currency });
             cartApp.use(pinia);
             cartApp.mount('#vue-pos-cart');
-            
+
             // Expose store globally for Alpine integration
             const { usePosStore } = await import('./stores/posStore.js');
             window.__VUE_POS_STORE__ = usePosStore(pinia);

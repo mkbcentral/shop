@@ -168,14 +168,6 @@
 
             <!-- Grille de produits -->
             <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                <!-- Debug info -->
-                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p class="text-sm text-blue-800">
-                        <strong>Debug :</strong>
-                        <span x-text="'Produits chargés: ' + filteredProducts.length"></span>
-                    </p>
-                </div>
-
                 <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     <template x-for="product in filteredProducts" :key="product.id">
                         <div class="bg-white border-2 rounded-xl p-4 hover:shadow-lg transition cursor-pointer relative"

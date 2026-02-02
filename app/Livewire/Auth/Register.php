@@ -161,9 +161,14 @@ class Register extends Component
             // Clear registration session data
             session()->forget(['registration.step1', 'registration.step2']);
 
-            // 13. La redirection sera gérée par RegisterResponse
-            // qui vérifiera d'abord l'email, puis le paiement si nécessaire
-            return redirect()->route('dashboard');
+            // 13. Flash message pour la page de vérification
+            session()->flash('success', 'Votre compte a été créé avec succès ! Veuillez vérifier votre adresse email pour continuer.');
+
+            DB::commit();
+
+            // 14. Rediriger vers la vérification d'email avec Livewire
+            // Utiliser redirectRoute() de Livewire pour une redirection fiable
+            return $this->redirectRoute('verification.notice', navigate: false);
 
         } catch (\Exception $e) {
             DB::rollBack();

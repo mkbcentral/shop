@@ -13,7 +13,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use App\Mail\ProformaInvoiceMail;
 
 /**
  * Controller API Mobile - Gestion des Proformas (Devis)
@@ -53,7 +55,7 @@ class MobileProformaController extends Controller
 
             // Query
             $query = ProformaInvoice::query()
-                ->with(['user', 'store'])
+                ->with(['user', 'store', 'items'])
                 ->orderBy($sortField, $sortDirection);
 
             // Search filter
@@ -150,7 +152,7 @@ class MobileProformaController extends Controller
             'notes' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
+            'items.*.product_variant_id' => 'nullable|integer',
             'items.*.description' => 'required|string',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -169,13 +171,35 @@ class MobileProformaController extends Controller
             DB::beginTransaction();
 
             $data = $validator->validated();
-            $data['user_id'] = Auth::id();
-            $data['store_id'] = session('current_store_id') ?? Auth::user()->default_store_id;
+            $user = Auth::user();
+            $data['user_id'] = $user->id;
+            $data['organization_id'] = $user->default_organization_id;
+            
+            // Récupérer le store_id pour l'API mobile
+            $storeId = $user->current_store_id ?? $user->default_store_id;
+            if (!$storeId) {
+                // Prendre le premier store de l'utilisateur
+                $firstStore = $user->stores()->first();
+                $storeId = $firstStore?->id;
+            }
+            
+            if (!$storeId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun magasin associé à votre compte',
+                ], 400);
+            }
+            
+            $data['store_id'] = $storeId;
             $data['status'] = ProformaInvoice::STATUS_DRAFT;
+
+            // Extraire les items avant la création
+            $items = $data['items'];
+            unset($data['items']);
 
             // Calculer les totaux
             $subtotal = 0;
-            foreach ($data['items'] as $item) {
+            foreach ($items as $item) {
                 $itemTotal = ($item['quantity'] * $item['unit_price']) - ($item['discount'] ?? 0);
                 $subtotal += $itemTotal;
             }
@@ -189,7 +213,15 @@ class MobileProformaController extends Controller
             $proforma = ProformaInvoice::create($data);
 
             // Créer les items
-            foreach ($data['items'] as $itemData) {
+            foreach ($items as $itemData) {
+                // Vérifier si la variante existe, sinon mettre null
+                if (isset($itemData['product_variant_id'])) {
+                    $variantExists = \App\Models\ProductVariant::where('id', $itemData['product_variant_id'])->exists();
+                    if (!$variantExists) {
+                        $itemData['product_variant_id'] = null;
+                    }
+                }
+                
                 $itemData['total'] = ($itemData['quantity'] * $itemData['unit_price']) - ($itemData['discount'] ?? 0);
                 $proforma->items()->create($itemData);
             }
@@ -199,7 +231,7 @@ class MobileProformaController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Proforma créé avec succès',
-                'data' => $this->formatProformaDetailed($proforma->fresh(['items', 'user', 'store'])),
+                'data' => $this->formatProformaDetailed($proforma->fresh(['items.productVariant.product', 'user', 'store'])),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -245,7 +277,7 @@ class MobileProformaController extends Controller
             'notes' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
             'items' => 'sometimes|required|array|min:1',
-            'items.*.product_variant_id' => 'nullable|exists:product_variants,id',
+            'items.*.product_variant_id' => 'nullable|integer',
             'items.*.description' => 'required|string',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -272,6 +304,14 @@ class MobileProformaController extends Controller
 
                 $subtotal = 0;
                 foreach ($data['items'] as $itemData) {
+                    // Vérifier si la variante existe, sinon mettre null
+                    if (isset($itemData['product_variant_id'])) {
+                        $variantExists = \App\Models\ProductVariant::where('id', $itemData['product_variant_id'])->exists();
+                        if (!$variantExists) {
+                            $itemData['product_variant_id'] = null;
+                        }
+                    }
+                    
                     $itemTotal = ($itemData['quantity'] * $itemData['unit_price']) - ($itemData['discount'] ?? 0);
                     $subtotal += $itemTotal;
                     
@@ -292,7 +332,7 @@ class MobileProformaController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Proforma modifié avec succès',
-                'data' => $this->formatProformaDetailed($proforma->fresh(['items', 'user', 'store'])),
+                'data' => $this->formatProformaDetailed($proforma->fresh(['items.productVariant.product', 'user', 'store'])),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -489,7 +529,7 @@ class MobileProformaController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Proforma dupliqué avec succès',
-                'data' => $this->formatProformaDetailed($newProforma->fresh(['items', 'user', 'store'])),
+                'data' => $this->formatProformaDetailed($newProforma->fresh(['items.productVariant.product', 'user', 'store'])),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -498,6 +538,55 @@ class MobileProformaController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * Envoyer le proforma par email
+     *
+     * POST /api/mobile/proformas/{id}/send-email
+     */
+    public function sendEmail(int $id, Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+            ], [
+                'email.required' => 'L\'adresse email est requise',
+                'email.email' => 'L\'adresse email n\'est pas valide',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation échouée',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $proforma = ProformaInvoice::with(['items.productVariant.product', 'store', 'user'])->find($id);
+
+            if (!$proforma) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Proforma non trouvé',
+                ], 404);
+            }
+
+            $email = $request->input('email');
+
+            // Envoyer l'email avec le PDF en pièce jointe
+            Mail::to($email)->send(new ProformaInvoiceMail($proforma));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Proforma envoyé avec succès à ' . $email,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi de l\'email: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

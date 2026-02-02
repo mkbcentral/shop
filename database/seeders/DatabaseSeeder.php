@@ -15,10 +15,12 @@ class DatabaseSeeder extends Seeder
     {
         // Seed categories
         $this->call([
+            SubscriptionPlanSeeder::class,
             CategorySeeder::class,
             RoleSeeder::class,
             MenuItemSeeder::class,
             ProductTypeSeeder::class,
+            SubscriptionPlanSeeder::class,
             DefautUserSuperAdminSeeder::class,
         ]);
     }

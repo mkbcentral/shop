@@ -45,6 +45,7 @@ use App\Livewire\ProductType\ProductTypeIndex;
 use App\Livewire\ProductAttribute\AttributeManager;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\OrganizationInvitationController;
+use App\Livewire\Pos\CashRegisterAlpine;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Route;
 
@@ -122,7 +123,7 @@ Route::middleware(['auth'])->group(function () {
 
     // POS - Point of Sale
     //Route::get('/pos', CashRegisterModular::class)->name('pos.cash-register')->middleware('permission:sales.create');
-    Route::get('/pos', \App\Livewire\Pos\CashRegisterAlpine::class)
+    Route::get('/pos', CashRegisterAlpine::class)
         ->name('pos.cash-register')
         ->middleware('permission:sales.create');
 
@@ -182,10 +183,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{organization}/subscription', SubscriptionManager::class)->name('subscription');
     });
 
-    // Organization Payment Route
-    Route::get('/organization/{organization}/payment', OrganizationPayment::class)
-        ->name('organization.payment')
-        ->where('organization', '[0-9]+');
+    // Note: Le paiement est maintenant géré via le PaymentModal dans le layout
+    // La route organization.payment est gardée pour compatibilité mais redirige vers dashboard
+    Route::get('/organization/{organization}/payment', function ($organization) {
+        return redirect()->route('dashboard');
+    })->name('organization.payment')->where('organization', '[0-9]+');
 
     // POS Checkout Route (authentification web/session)
     Route::post('/pos/checkout', [\App\Http\Controllers\Pos\PosCheckoutController::class, 'checkout'])
@@ -211,6 +213,15 @@ Route::prefix('organization/invitation')->name('organization.invitation.')->grou
     Route::post('/{token}/accept', [OrganizationInvitationController::class, 'accept'])->name('accept');
     Route::delete('/{token}/decline', [OrganizationInvitationController::class, 'decline'])->name('decline');
 });
+
+// Shwary Webhook Routes (public - no auth required for callbacks)
+Route::prefix('webhooks')->name('webhooks.')->group(function () {
+    Route::post('/shwary', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary.webhook');
+    Route::get('/shwary/status/{transactionId}', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'checkStatus'])->name('shwary.status');
+});
+
+// Alias for Shwary webhook (used in ShwaryPaymentService)
+Route::post('/shwary/callback', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary.webhook');
 
 // Include store and transfer routes
 require __DIR__ . '/stores.php';
