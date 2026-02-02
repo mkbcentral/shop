@@ -27,18 +27,33 @@ jobs:
             cp .env.example .env
           else
             echo "⚠️ .env.example not found, creating minimal .env"
-            echo "APP_ENV=testing" > .env
-            echo "APP_KEY=" >> .env
-          fi
+            cat > .env << 'EOF'
+          APP_NAME=Laravel
+          APP_ENV=testing
+          APP_KEY=
+          APP_DEBUG=true
+          APP_URL=http://localhost
 
-      - name: � Create storage directories
+          LOG_CHANNEL=stack
+          LOG_LEVEL=debug
+
+          DB_CONNECTION=sqlite
+          DB_DATABASE=:memory:
+
+          CACHE_DRIVER=array
+          SESSION_DRIVER=array
+          QUEUE_CONNECTION=sync
+
+          MAIL_MAILER=array
+          EOF
+          fi
         run: |
           mkdir -p storage/framework/{sessions,views,cache}
           mkdir -p storage/logs
           mkdir -p bootstrap/cache
           chmod -R 775 storage bootstrap/cache
 
-      - name: �📦 Install Composer Dependencies
+      - name: 📦 Install Composer Dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: 🔑 Generate Application Key
@@ -85,11 +100,28 @@ jobs:
             cp .env.example .env
           else
             echo "⚠️ .env.example not found, creating minimal .env"
-            echo "APP_ENV=testing" > .env
-            echo "APP_KEY=" >> .env
+            cat > .env << 'EOF'
+          APP_NAME=Laravel
+          APP_ENV=testing
+          APP_KEY=
+          APP_DEBUG=true
+          APP_URL=http://localhost
+
+          LOG_CHANNEL=stack
+          LOG_LEVEL=debug
+
+          DB_CONNECTION=sqlite
+          DB_DATABASE=:memory:
+
+          CACHE_DRIVER=array
+          SESSION_DRIVER=array
+          QUEUE_CONNECTION=sync
+
+          MAIL_MAILER=array
+          EOF
           fi
 
-      - name: � Create storage directories
+      - name: 📁 Create storage directories
         run: |
           mkdir -p storage/framework/{sessions,views,cache}
           mkdir -p storage/logs
