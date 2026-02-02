@@ -294,24 +294,3 @@ jobs:
             chmod -R 755 storage bootstrap/cache
             chmod -R 644 storage/logs/*.log 2>/dev/null || true
         # Configure les fichiers racine pour Hostinger
-
-      - name: 🔗 Create public_html symlink
-        uses: appleboy/ssh-action@v1.1.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            # Remove existing public_html (backup if needed)
-            if [ -L ~/public_html ]; then
-              rm ~/public_html
-            elif [ -d ~/public_html ]; then
-              rm -rf ~/public_html
-            fi
-            
-            # Create symlink from public folder to public_html
-            ln -s ${{ secrets.DEPLOY_PATH }}/public ~/public_html
-            
-            echo "✅ Symlink created: ~/public_html -> ${{ secrets.DEPLOY_PATH }}/public"
-        # Crée un lien symbolique entre public et public_html
