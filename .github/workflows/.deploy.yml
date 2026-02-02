@@ -47,6 +47,8 @@ jobs:
           MAIL_MAILER=array
           EOF
           fi
+
+      - name: 📁 Create storage directories
         run: |
           mkdir -p storage/framework/{sessions,views,cache}
           mkdir -p storage/logs
@@ -128,7 +130,7 @@ jobs:
           mkdir -p bootstrap/cache
           chmod -R 775 storage bootstrap/cache
 
-      - name: �📦 Install Composer Dependencies
+      - name: 📦 Install Composer Dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: 🔑 Generate Application Key
@@ -214,7 +216,7 @@ jobs:
           chmod -R 775 bootstrap/cache
           chmod -R 775 storage
         # Crée les dossiers nécessaires pour Laravel avant l'installation
-      - name: � Install dependencies
+      - name: 📦 Install dependencies
         run: composer install --no-dev --optimize-autoloader
         # Installe les dépendances PHP sans les dépendances de développement
 
