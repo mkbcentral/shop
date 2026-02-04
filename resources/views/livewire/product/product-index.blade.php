@@ -25,9 +25,11 @@
                 </svg>
                 Étiquettes (Tous)
             </button>
+            @permission('products.create')
             <x-form.button wire:click="$dispatch('openProductModal')" icon="plus">
                 Nouveau Produit
             </x-form.button>
+            @endpermission
         </div>
     </div>
 

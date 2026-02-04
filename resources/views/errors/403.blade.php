@@ -1,4 +1,4 @@
-<x-layouts.app>
+<x-layouts.app :exception="$exception ?? null">
     @section('title', 'Accès non autorisé')
 
     <div class="flex items-center justify-center min-h-[calc(100vh-200px)]">

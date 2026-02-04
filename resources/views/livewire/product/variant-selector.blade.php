@@ -72,7 +72,7 @@
                                     @if($product->brand)
                                         <p class="text-sm text-gray-600">{{ $product->brand }}</p>
                                     @endif
-                                    <p class="text-lg font-bold text-indigo-600 mt-1">{{ number_format($product->price, 0, ',', ' ') }} FC</p>
+                                    <p class="text-lg font-bold text-indigo-600 mt-1">@currency($product->price)</p>
                                 </div>
                             </div>
                         </div>
@@ -130,13 +130,13 @@
                                                 <div class="flex items-center justify-between">
                                                     <span class="text-sm font-medium text-green-700">Prix:</span>
                                                     <span class="text-lg font-bold text-green-800">
-                                                        {{ number_format($product->price + $matchingVariant->additional_price, 0, ',', ' ') }} FC
+                                                        @currency($product->price + $matchingVariant->additional_price)
                                                     </span>
                                                 </div>
                                                 @if($matchingVariant->additional_price != 0)
                                                     <div class="text-xs text-green-600">
-                                                        (Prix de base: {{ number_format($product->price, 0, ',', ' ') }} FC
-                                                        + {{ number_format($matchingVariant->additional_price, 0, ',', ' ') }} FC)
+                                                        (Prix de base: @currency($product->price)
+                                                        + @currency($matchingVariant->additional_price))
                                                     </div>
                                                 @endif
                                                 <div class="text-xs text-green-600 mt-2">

@@ -216,7 +216,8 @@ class Organization extends Model
             return true;
         }
 
-        return $this->subscription_ends_at && $this->subscription_ends_at->isFuture();
+        // L'abonnement est actif si la date de fin est aujourd'hui ou dans le futur
+        return $this->subscription_ends_at && $this->subscription_ends_at->endOfDay()->isFuture();
     }
 
     /**
@@ -228,8 +229,20 @@ class Organization extends Model
             return false;
         }
 
-        return $this->subscription_ends_at->diffInDays(now()) <= 7
-            && $this->subscription_ends_at->isFuture();
+        $daysRemaining = now()->diffInDays($this->subscription_ends_at->endOfDay(), false);
+        return $daysRemaining >= 0 && $daysRemaining <= 7;
+    }
+
+    /**
+     * Check if subscription expires today
+     */
+    public function isSubscriptionExpiringToday(): bool
+    {
+        if (!$this->subscription_ends_at) {
+            return false;
+        }
+
+        return $this->subscription_ends_at->isToday();
     }
 
     /**

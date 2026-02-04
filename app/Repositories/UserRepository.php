@@ -62,7 +62,7 @@ class UserRepository
         string $sortDirection = 'asc',
         int $perPage = 10
     ): LengthAwarePaginator {
-        $query = User::query()->with(['roles', 'stores', 'currentStore']);
+        $query = User::query()->with(['roles', 'stores', 'currentStore', 'organizations']);
 
         // Filter by current organization - show only users that belong to the same organization
         $organizationId = $this->getCurrentOrganizationId();

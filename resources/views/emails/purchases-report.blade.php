@@ -147,7 +147,7 @@
                 <div class="stat-label">Achats Réceptionnés</div>
             </div>
             <div class="stat-box blue">
-                <div class="stat-value">{{ number_format($totals['total_amount'] ?? 0, 0, ',', ' ') }} FCFA</div>
+                <div class="stat-value">@currency($totals['total_amount'] ?? 0)</div>
                 <div class="stat-label">Montant Total</div>
             </div>
             <div class="stat-box amber">
@@ -155,7 +155,7 @@
                 <div class="stat-label">En Attente</div>
             </div>
             <div class="stat-box purple">
-                <div class="stat-value">{{ number_format($totals['pending_amount'] ?? 0, 0, ',', ' ') }} FCFA</div>
+                <div class="stat-value">@currency($totals['pending_amount'] ?? 0)</div>
                 <div class="stat-label">Montant en Attente</div>
             </div>
         </div>

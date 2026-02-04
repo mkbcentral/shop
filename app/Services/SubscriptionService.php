@@ -740,8 +740,21 @@ class SubscriptionService
         $count = 0;
 
         foreach ($organizations as $organization) {
-            $organization->owner->notify(new SubscriptionExpiringNotification($organization));
-            $count++;
+            // Calculer les jours restants
+            $daysRemaining = $organization->remaining_days ?? 0;
+            
+            // Vérifier si on n'a pas déjà notifié récemment (sauf pour aujourd'hui)
+            $cacheKey = "subscription_expiring_notified_{$organization->id}_{$daysRemaining}";
+            
+            if (!Cache::has($cacheKey)) {
+                $organization->owner->notify(new SubscriptionExpiringNotification($organization, $daysRemaining));
+                
+                // Cache pour éviter les doubles notifications (24h pour les notifications normales)
+                $cacheDuration = $daysRemaining === 0 ? now()->addHours(12) : now()->addHours(24);
+                Cache::put($cacheKey, true, $cacheDuration);
+                
+                $count++;
+            }
         }
 
         Log::info("Expiring subscription notifications sent", ['count' => $count]);
@@ -983,6 +996,196 @@ class SubscriptionService
         return [
             'total_revenue' => $totalRevenue,
             'monthly_revenue' => $monthlyRevenue,
+        ];
+    }
+
+    /**
+     * Récupérer les organisations qui approchent leurs limites d'abonnement
+     *
+     * @param int $threshold Pourcentage seuil (défaut 80%)
+     * @return Collection Collection avec les organisations et leurs limites atteintes
+     */
+    public function getOrganizationsNearLimits(int $threshold = 80): Collection
+    {
+        $organizations = Organization::with(['owner', 'stores'])
+            ->where('is_active', true)
+            ->get();
+
+        $nearLimitOrganizations = collect();
+
+        foreach ($organizations as $organization) {
+            $reachingLimits = $this->checkOrganizationLimits($organization, $threshold);
+
+            if (!empty($reachingLimits)) {
+                $nearLimitOrganizations->push([
+                    'organization' => $organization,
+                    'reaching_limits' => $reachingLimits,
+                ]);
+            }
+        }
+
+        return $nearLimitOrganizations;
+    }
+
+    /**
+     * Vérifier les limites d'une organisation spécifique
+     *
+     * @param Organization $organization
+     * @param int $threshold Pourcentage seuil
+     * @return array Les limites qui sont atteintes ou dépassées
+     */
+    public function checkOrganizationLimits(Organization $organization, int $threshold = 80): array
+    {
+        $reachingLimits = [];
+
+        // Vérifier les produits
+        $productsUsage = $organization->getProductsUsage();
+        if ($productsUsage['max'] > 0 && $productsUsage['percentage'] >= $threshold) {
+            $reachingLimits['products'] = $productsUsage;
+        }
+
+        // Vérifier les magasins
+        $storesUsage = $organization->getStoresUsage();
+        if ($storesUsage['max'] > 0 && $storesUsage['percentage'] >= $threshold) {
+            $reachingLimits['stores'] = $storesUsage;
+        }
+
+        // Vérifier les utilisateurs
+        $usersUsage = $organization->getUsersUsage();
+        if ($usersUsage['max'] > 0 && $usersUsage['percentage'] >= $threshold) {
+            $reachingLimits['users'] = $usersUsage;
+        }
+
+        return $reachingLimits;
+    }
+
+    /**
+     * Envoyer les notifications aux organisations approchant leurs limites
+     *
+     * @param int $threshold Pourcentage seuil
+     * @return int Nombre de notifications envoyées
+     */
+    public function sendLimitReachingNotifications(int $threshold = 80): int
+    {
+        $organizationsNearLimit = $this->getOrganizationsNearLimits($threshold);
+        $notificationCount = 0;
+
+        foreach ($organizationsNearLimit as $orgData) {
+            $organization = $orgData['organization'];
+            $reachingLimits = $orgData['reaching_limits'];
+
+            // Ne pas notifier si déjà notifié dans les 7 derniers jours
+            if ($this->wasRecentlyNotifiedAboutLimits($organization)) {
+                Log::info("Skipping limit notification - already notified recently", [
+                    'organization_id' => $organization->id,
+                ]);
+                continue;
+            }
+
+            // Notifier le propriétaire
+            if ($organization->owner) {
+                $organization->owner->notify(
+                    new \App\Notifications\SubscriptionLimitReachingNotification($organization, $reachingLimits)
+                );
+
+                // Marquer comme notifié
+                $this->markLimitNotificationSent($organization);
+
+                $notificationCount++;
+
+                Log::info("Subscription limit notification sent", [
+                    'organization_id' => $organization->id,
+                    'organization_name' => $organization->name,
+                    'reaching_limits' => array_keys($reachingLimits),
+                    'owner_email' => $organization->owner->email,
+                ]);
+            }
+        }
+
+        return $notificationCount;
+    }
+
+    /**
+     * Vérifier si l'organisation a été notifiée récemment pour les limites
+     *
+     * @param Organization $organization
+     * @param int $days Nombre de jours à considérer (défaut 7)
+     * @return bool
+     */
+    private function wasRecentlyNotifiedAboutLimits(Organization $organization, int $days = 7): bool
+    {
+        $cacheKey = "org_limit_notification_{$organization->id}";
+        return Cache::has($cacheKey);
+    }
+
+    /**
+     * Marquer qu'une notification de limite a été envoyée
+     *
+     * @param Organization $organization
+     * @param int $days Durée en jours avant la prochaine notification
+     */
+    private function markLimitNotificationSent(Organization $organization, int $days = 7): void
+    {
+        $cacheKey = "org_limit_notification_{$organization->id}";
+        Cache::put($cacheKey, now()->toISOString(), now()->addDays($days));
+    }
+
+    /**
+     * Obtenir le résumé des limites pour une organisation
+     *
+     * @param Organization $organization
+     * @return array
+     */
+    public function getOrganizationLimitsSummary(Organization $organization): array
+    {
+        return [
+            'products' => $organization->getProductsUsage(),
+            'stores' => $organization->getStoresUsage(),
+            'users' => $organization->getUsersUsage(),
+            'plan' => [
+                'name' => $organization->subscription_plan instanceof \App\Enums\SubscriptionPlan
+                    ? $organization->subscription_plan->label()
+                    : $organization->subscription_plan,
+                'slug' => $organization->subscription_plan instanceof \App\Enums\SubscriptionPlan
+                    ? $organization->subscription_plan->value
+                    : $organization->subscription_plan,
+            ],
+        ];
+    }
+
+    /**
+     * Vérifier si une organisation peut effectuer une action en fonction de ses limites
+     *
+     * @param Organization $organization
+     * @param string $limitType Type de limite à vérifier (products, stores, users)
+     * @return array ['can_proceed' => bool, 'usage' => array, 'message' => string|null]
+     */
+    public function canProceedWithLimit(Organization $organization, string $limitType): array
+    {
+        $usage = match ($limitType) {
+            'products' => $organization->getProductsUsage(),
+            'stores' => $organization->getStoresUsage(),
+            'users' => $organization->getUsersUsage(),
+            default => throw new Exception("Type de limite inconnu : {$limitType}"),
+        };
+
+        $canProceed = $usage['remaining'] > 0;
+        $message = null;
+
+        if (!$canProceed) {
+            $labels = [
+                'products' => 'produits',
+                'stores' => 'magasins',
+                'users' => 'utilisateurs',
+            ];
+            $label = $labels[$limitType] ?? $limitType;
+            $message = "Vous avez atteint la limite de {$label} pour votre plan ({$usage['current']}/{$usage['max']}). Veuillez mettre à niveau votre abonnement.";
+        }
+
+        return [
+            'can_proceed' => $canProceed,
+            'usage' => $usage,
+            'message' => $message,
         ];
     }
 }

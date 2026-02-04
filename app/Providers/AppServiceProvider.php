@@ -36,17 +36,17 @@ class AppServiceProvider extends ServiceProvider
         Sale::observe(SaleObserver::class);
 
         // Blade directive pour la devise
-        // Usage: @currency(1000) => "1 000 FCFA"
+        // Usage: @currency(1000) => "1 000 FC" (or organization currency)
         Blade::directive('currency', function ($expression) {
             return "<?php echo format_currency($expression); ?>";
         });
 
-        // Usage: @money(1000, 2) => "1 000,00 FCFA"
+        // Usage: @money(1000, 2) => "1 000,00 FC" (or organization currency)
         Blade::directive('money', function ($expression) {
             return "<?php echo format_currency($expression); ?>";
         });
 
-        // Usage: @currencySymbol => "FCFA"
+        // Usage: @currencySymbol => "CDF" (or organization currency)
         Blade::directive('currencySymbol', function () {
             return "<?php echo current_currency(); ?>";
         });

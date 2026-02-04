@@ -7,6 +7,7 @@ use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class Invoice extends Model
 {
@@ -85,7 +86,7 @@ class Invoice extends Model
         $prefix = 'FACT-S' . $storeId . '-' . $date . '-';
         $maxAttempts = 10;
 
-        return \DB::transaction(function () use ($prefix, $maxAttempts) {
+        return DB::transaction(function () use ($prefix, $maxAttempts) {
             for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
                 // Récupère le MAX du numéro de séquence pour ce store
                 $maxNumber = self::where('invoice_number', 'like', $prefix . '%')

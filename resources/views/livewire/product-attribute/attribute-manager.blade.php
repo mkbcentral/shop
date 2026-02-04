@@ -1,7 +1,8 @@
 <div class="space-y-6"
-     x-data="{ showModal: @entangle('showModal'), isEditing: @entangle('editMode') }"
+     x-data="{ showModal: @entangle('showModal'), isEditing: @entangle('editMode'), showDeleteModal: false, attributeToDelete: null, attributeName: '' }"
      @open-attribute-modal.window="showModal = true"
-     @close-attribute-modal.window="showModal = false">
+     @close-attribute-modal.window="showModal = false"
+     @close-delete-modal.window="showDeleteModal = false; attributeToDelete = null; attributeName = ''">
 
     <!-- Header -->
     <div class="flex items-center justify-between">
@@ -175,8 +176,7 @@
                                     </svg>
                                 </x-table.action-button>
                                 <x-table.action-button
-                                    wire:click="delete({{ $attribute->id }})"
-                                    wire:confirm="Êtes-vous sûr de vouloir supprimer cet attribut ?"
+                                    @click="showDeleteModal = true; attributeToDelete = {{ $attribute->id }}; attributeName = '{{ addslashes($attribute->name) }}'"
                                     color="red">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -275,33 +275,39 @@
                 </div>
 
                 <!-- Options (si select) -->
-                @if($type === 'select')
-                    <div>
-                        <x-form.label for="options">Options (séparées par des virgules)</x-form.label>
-                        <x-form.input wire:model="options" id="options" type="text" placeholder="Ex: XS, S, M, L, XL, XXL" />
-                        <p class="mt-1 text-xs text-gray-500">Entrez les options séparées par des virgules</p>
-                        <x-form.error for="options" />
-                    </div>
-                @endif
+                <div x-show="$wire.type === 'select'" x-cloak>
+                    <x-form.label for="options">Options (séparées par des virgules)</x-form.label>
+                    <x-form.input wire:model="options" id="options" type="text" placeholder="Ex: Homme, Femme, Mixte, Unisexe" />
+                    <p class="mt-1 text-xs text-gray-500">Entrez les options séparées par des virgules</p>
+                    @if($options)
+                        @php
+                            $optionsList = is_array($options) ? $options : array_filter(array_map('trim', explode(',', $options)));
+                        @endphp
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            @foreach($optionsList as $opt)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    {{ $opt }}
+                                </span>
+                            @endforeach
+                        </div>
+                    @endif
+                    <x-form.error for="options" />
+                </div>
 
                 <!-- Unité (si number) -->
-                @if($type === 'number')
-                    <div>
-                        <x-form.label for="unit">Unité de mesure</x-form.label>
-                        <x-form.input wire:model="unit" id="unit" type="text" placeholder="Ex: kg, cm, W, V..." />
-                        <p class="mt-1 text-xs text-gray-500">Optionnel: kg, cm, litres, watts, etc.</p>
-                        <x-form.error for="unit" />
-                    </div>
-                @endif
+                <div x-show="$wire.type === 'number'" x-cloak>
+                    <x-form.label for="unit">Unité de mesure</x-form.label>
+                    <x-form.input wire:model="unit" id="unit" type="text" placeholder="Ex: kg, cm, W, V..." />
+                    <p class="mt-1 text-xs text-gray-500">Optionnel: kg, cm, litres, watts, etc.</p>
+                    <x-form.error for="unit" />
+                </div>
 
                 <!-- Valeur par défaut -->
-                @if($type === 'boolean')
-                    <div>
-                        <x-form.label for="default_value">Texte du label (optionnel)</x-form.label>
-                        <x-form.input wire:model="default_value" id="default_value" type="text" placeholder="Ex: Produit biologique, En promotion..." />
-                        <x-form.error for="default_value" />
-                    </div>
-                @endif
+                <div x-show="$wire.type === 'boolean'" x-cloak>
+                    <x-form.label for="default_value">Texte du label (optionnel)</x-form.label>
+                    <x-form.input wire:model="default_value" id="default_value" type="text" placeholder="Ex: Produit biologique, En promotion..." />
+                    <x-form.error for="default_value" />
+                </div>
 
                 <!-- Propriétés -->
                 <div class="bg-gray-50 rounded-lg p-4 space-y-3">
@@ -360,4 +366,13 @@
             </div>
         </form>
     </x-ui.alpine-modal>
+
+    <!-- Delete Confirmation Modal -->
+    <x-delete-confirmation-modal
+        show="showDeleteModal"
+        itemName="attributeName"
+        itemType="l'attribut"
+        wireTarget="delete"
+        onConfirm="$wire.delete(attributeToDelete)"
+        onCancel="showDeleteModal = false; attributeToDelete = null; attributeName = ''" />
 </div>

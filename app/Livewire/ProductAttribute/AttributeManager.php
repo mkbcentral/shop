@@ -109,6 +109,7 @@ class AttributeManager extends Component
         $this->resetForm();
         $this->editMode = false;
         $this->showModal = true;
+        $this->dispatch('open-attribute-modal');
     }
 
     public function openEditModal($id)
@@ -139,6 +140,7 @@ class AttributeManager extends Component
 
         $this->editMode = true;
         $this->showModal = true;
+        $this->dispatch('open-attribute-modal');
     }
 
     public function save()
@@ -214,6 +216,7 @@ class AttributeManager extends Component
                     'type' => 'error',
                     'message' => 'Impossible de supprimer cet attribut car il est utilisé par des produits.'
                 ]);
+                $this->dispatch('close-delete-modal');
                 return;
             }
 
@@ -224,12 +227,14 @@ class AttributeManager extends Component
                 'message' => 'Attribut supprimé avec succès.'
             ]);
 
+            $this->dispatch('close-delete-modal');
             $this->resetPage();
         } catch (\Exception $e) {
             $this->dispatch('notify', [
                 'type' => 'error',
                 'message' => 'Erreur lors de la suppression: ' . $e->getMessage()
             ]);
+            $this->dispatch('close-delete-modal');
         }
     }
 
@@ -237,6 +242,7 @@ class AttributeManager extends Component
     {
         $this->showModal = false;
         $this->resetForm();
+        $this->dispatch('close-attribute-modal');
     }
 
     private function resetForm()

@@ -2,7 +2,7 @@
      wire:poll.30s
      @organization-created.window="$wire.$refresh()"
      @organization-updated.window="$wire.$refresh()"
-     @organization-deleted.window="$wire.$refresh()">
+     @organization-deleted.window="$wire.$refresh()">>
     <x-slot name="header">
         <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Organisations']]" />
     </x-slot>
@@ -48,7 +48,82 @@
     <div class="space-y-4">
         @forelse ($organizations as $organization)
             <div wire:key="org-{{ $organization->id }}"
-                class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition duration-150 {{ $currentOrganization?->id === $organization->id ? 'ring-2 ring-indigo-500' : '' }}">
+                class="bg-white rounded-xl shadow-sm border {{ $organization->subscription_plan->value !== 'free' && !$organization->hasActiveSubscription() ? 'border-red-300' : 'border-gray-200' }} overflow-hidden hover:shadow-md transition duration-150 {{ $currentOrganization?->id === $organization->id ? 'ring-2 ring-indigo-500' : '' }}">
+
+                {{-- Expiration Alert Banner --}}
+                @if($organization->subscription_plan->value !== 'free' && !$organization->hasActiveSubscription())
+                    <div class="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-red-500 mr-2 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-sm font-medium text-red-800">
+                                ⚠️ Abonnement expiré depuis le {{ $organization->subscription_ends_at->format('d/m/Y') }}
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {{-- Bouton paiement pour tous les utilisateurs --}}
+                            <button 
+                                x-data
+                                @click="$dispatch('open-renewal-modal', { organizationId: {{ $organization->id }} })"
+                                class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition"
+                            >
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Renouveler
+                            </button>
+                            {{-- Bouton admin pour modifier les dates manuellement --}}
+                            @if(auth()->user()->isSuperAdmin())
+                                <button 
+                                    wire:click="openSubscriptionModal({{ $organization->id }})"
+                                    class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
+                                    title="Modifier manuellement"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                @elseif($organization->subscription_plan->value !== 'free' && $organization->isSubscriptionExpiringToday())
+                    <div class="bg-orange-50 border-b border-orange-200 px-4 py-2 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-orange-500 mr-2 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-sm font-medium text-orange-800">
+                                ⏰ L'abonnement expire AUJOURD'HUI à {{ $organization->subscription_ends_at->format('H:i') }}
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {{-- Bouton paiement pour tous les utilisateurs --}}
+                            <button 
+                                x-data
+                                @click="$dispatch('open-renewal-modal', { organizationId: {{ $organization->id }} })"
+                                class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-orange-600 text-white hover:bg-orange-700 transition"
+                            >
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Prolonger
+                            </button>
+                            {{-- Bouton admin pour modifier les dates manuellement --}}
+                            @if(auth()->user()->isSuperAdmin())
+                                <button 
+                                    wire:click="openSubscriptionModal({{ $organization->id }})"
+                                    class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
+                                    title="Modifier manuellement"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                @endif
 
                 <div class="p-6">
                     <div class="flex items-start justify-between">
@@ -97,7 +172,7 @@
                                 @endif
 
                                 <!-- Stats -->
-                                <div class="flex items-center space-x-4 mt-3 text-sm text-gray-500">
+                                <div class="flex items-center flex-wrap gap-3 mt-3 text-sm text-gray-500">
                                     <div class="flex items-center">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -114,13 +189,78 @@
                                     </div>
                                     <div class="flex items-center">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                            {{ $organization->subscription_plan === 'free' ? 'bg-gray-100 text-gray-800' : '' }}
-                                            {{ $organization->subscription_plan === 'starter' ? 'bg-blue-100 text-blue-800' : '' }}
-                                            {{ $organization->subscription_plan === 'professional' ? 'bg-purple-100 text-purple-800' : '' }}
-                                            {{ $organization->subscription_plan === 'enterprise' ? 'bg-green-100 text-green-800' : '' }}">
+                                            {{ $organization->subscription_plan->value === 'free' ? 'bg-gray-100 text-gray-800' : '' }}
+                                            {{ $organization->subscription_plan->value === 'starter' ? 'bg-blue-100 text-blue-800' : '' }}
+                                            {{ $organization->subscription_plan->value === 'professional' ? 'bg-purple-100 text-purple-800' : '' }}
+                                            {{ $organization->subscription_plan->value === 'enterprise' ? 'bg-green-100 text-green-800' : '' }}">
                                             {{ $organization->plan_label }}
                                         </span>
                                     </div>
+                                    
+                                    {{-- Subscription Status --}}
+                                    @if($organization->subscription_plan->value !== 'free')
+                                        <div class="flex items-center">
+                                            @if($organization->hasActiveSubscription())
+                                                @if($organization->isSubscriptionExpiringToday())
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 animate-pulse">
+                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Expire aujourd'hui
+                                                    </span>
+                                                @elseif($organization->isSubscriptionExpiringSoon())
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                        </svg>
+                                                        Expire bientôt
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        Actif
+                                                    </span>
+                                                @endif
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    Expiré
+                                                </span>
+                                            @endif
+                                        </div>
+                                        
+                                        {{-- Expiration Date --}}
+                                        @if($organization->subscription_ends_at)
+                                            <div class="flex items-center text-xs {{ $organization->isSubscriptionExpiringToday() ? 'text-orange-600 font-semibold' : ($organization->isSubscriptionExpiringSoon() ? 'text-yellow-600' : ($organization->hasActiveSubscription() ? 'text-gray-500' : 'text-red-600')) }}">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                @if($organization->hasActiveSubscription())
+                                                    @if($organization->isSubscriptionExpiringToday())
+                                                        ⚠️ Expire AUJOURD'HUI à {{ $organization->subscription_ends_at->format('H:i') }}
+                                                    @else
+                                                        Expire le {{ $organization->subscription_ends_at->format('d/m/Y') }}
+                                                        ({{ $organization->remaining_days }} jour(s))
+                                                    @endif
+                                                @else
+                                                    Expiré le {{ $organization->subscription_ends_at->format('d/m/Y') }}
+                                                @endif
+                                            </div>
+                                        @endif
+                                    @else
+                                        <div class="flex items-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Plan gratuit
+                                            </span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -144,6 +284,32 @@
                             @can('manageMembers', $organization)
                                 <x-form.button href="{{ route('organizations.members', $organization) }}" variant="secondary" size="sm" icon="users" />
                             @endcan
+
+                            {{-- Subscription Management Button (Super Admin Only) --}}
+                            @if(auth()->user()->isSuperAdmin())
+                                <x-form.button 
+                                    wire:click="openSubscriptionModal({{ $organization->id }})"
+                                    variant="secondary" 
+                                    size="sm"
+                                    title="Gérer l'abonnement"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </x-form.button>
+
+                                {{-- Subscription History Button --}}
+                                <x-form.button 
+                                    wire:click="openHistoryModal({{ $organization->id }})"
+                                    variant="secondary" 
+                                    size="sm"
+                                    title="Historique des abonnements"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </x-form.button>
+                            @endif
                         </div>
                     </div>
 
@@ -192,6 +358,309 @@
     @if($organizations->hasPages())
         <div class="mt-6">
             {{ $organizations->links() }}
+        </div>
+    @endif
+
+    {{-- Subscription Management Modal (Super Admin Only) --}}
+    @if(auth()->user()->isSuperAdmin())
+        <div x-data="{ showModal: false, isEditing: true }"
+             @open-subscription-modal.window="showModal = true"
+             @close-subscription-modal.window="showModal = false; $wire.resetSubscriptionModal()">
+            <x-ui.alpine-modal 
+                name="subscription" 
+                title="Gérer l'abonnement"
+                editTitle="Gérer l'abonnement"
+                maxWidth="md"
+            >
+                <x-slot name="icon">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </x-slot>
+
+                <form wire:submit="updateSubscriptionDates">
+                    <div class="p-6 space-y-4 overflow-y-auto" style="max-height: calc(90vh - 180px);">
+                        {{-- Organization Name --}}
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-sm text-gray-500">Organisation</p>
+                            <p class="text-lg font-semibold text-gray-900">{{ $subscriptionOrgName }}</p>
+                        </div>
+
+                        {{-- Subscription Start Date --}}
+                        <div>
+                            <label for="subscriptionStartsAt" class="block text-sm font-medium text-gray-700 mb-1">
+                                Date de début d'abonnement
+                            </label>
+                            <input 
+                                type="date" 
+                                id="subscriptionStartsAt" 
+                                wire:model.live="subscriptionStartsAt"
+                                value="{{ $subscriptionStartsAt }}"
+                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            >
+                            @error('subscriptionStartsAt')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            @if($subscriptionStartsAt)
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Actuellement : {{ \Carbon\Carbon::parse($subscriptionStartsAt)->format('d/m/Y') }}
+                                </p>
+                            @endif
+                        </div>
+
+                        {{-- Subscription End Date --}}
+                        <div>
+                            <label for="subscriptionEndsAt" class="block text-sm font-medium text-gray-700 mb-1">
+                                Date de fin d'abonnement
+                            </label>
+                            <input 
+                                type="date" 
+                                id="subscriptionEndsAt" 
+                                wire:model.live="subscriptionEndsAt"
+                                value="{{ $subscriptionEndsAt }}"
+                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            >
+                            @error('subscriptionEndsAt')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            @if($subscriptionEndsAt)
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Actuellement : {{ \Carbon\Carbon::parse($subscriptionEndsAt)->format('d/m/Y') }}
+                                </p>
+                            @else
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Laissez vide pour un abonnement sans date d'expiration (plan gratuit).
+                                </p>
+                            @endif
+                        </div>
+
+                        {{-- Quick Actions --}}
+                        <div class="border-t border-gray-200 pt-4">
+                            <p class="text-sm font-medium text-gray-700 mb-2">Actions rapides</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('subscriptionEndsAt', '{{ now()->addMonth()->format('Y-m-d') }}')"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                                >
+                                    +1 mois
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('subscriptionEndsAt', '{{ now()->addMonths(3)->format('Y-m-d') }}')"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                                >
+                                    +3 mois
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('subscriptionEndsAt', '{{ now()->addMonths(6)->format('Y-m-d') }}')"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                                >
+                                    +6 mois
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('subscriptionEndsAt', '{{ now()->addYear()->format('Y-m-d') }}')"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 transition"
+                                >
+                                    +1 an
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('subscriptionEndsAt', null)"
+                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
+                                >
+                                    Illimité
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Modal Footer --}}
+                    <div class="flex-shrink-0 flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+                        <button 
+                            type="button" 
+                            @click="showModal = false; $wire.resetSubscriptionModal()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
+                        >
+                            Annuler
+                        </button>
+                        <button 
+                            type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
+                        >
+                            <span wire:loading.remove wire:target="updateSubscriptionDates">Enregistrer</span>
+                            <span wire:loading wire:target="updateSubscriptionDates">
+                                <svg class="animate-spin h-4 w-4 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Enregistrement...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </x-ui.alpine-modal>
+        </div>
+
+        {{-- Subscription History Modal --}}
+        <div x-data="{ showModal: false, isEditing: true }"
+             @open-history-modal.window="showModal = true"
+             @close-history-modal.window="showModal = false; $wire.resetHistoryModal()">
+            <x-ui.alpine-modal 
+                name="subscription-history" 
+                title="Historique des abonnements"
+                editTitle="Historique des abonnements"
+                maxWidth="3xl"
+            >
+                <x-slot name="icon">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </x-slot>
+
+                <div class="p-6 max-h-[70vh] overflow-y-auto">
+                    {{-- Organization Name --}}
+                    @if($historyOrgName)
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-gray-500">Organisation</p>
+                            <p class="text-lg font-semibold text-gray-900">{{ $historyOrgName }}</p>
+                        </div>
+                    @endif
+
+                    {{-- Filter --}}
+                    <div class="mb-4">
+                        <label for="historyActionFilter" class="block text-sm font-medium text-gray-700 mb-1">Filtrer par action</label>
+                        <select 
+                            id="historyActionFilter" 
+                            wire:model.live="historyActionFilter"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                            <option value="">Toutes les actions</option>
+                            @foreach($historyActions as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- History Timeline --}}
+                    <div class="space-y-4">
+                        @forelse($subscriptionHistory as $entry)
+                            <div class="relative pl-8 pb-4 {{ !$loop->last ? 'border-l-2 border-gray-200' : '' }}" wire:key="history-{{ $entry->id }}">
+                                {{-- Timeline Dot --}}
+                                <div class="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full 
+                                    @switch($entry->action_color)
+                                        @case('blue') bg-blue-500 @break
+                                        @case('green') bg-green-500 @break
+                                        @case('indigo') bg-indigo-500 @break
+                                        @case('yellow') bg-yellow-500 @break
+                                        @case('red') bg-red-500 @break
+                                        @case('purple') bg-purple-500 @break
+                                        @default bg-gray-400
+                                    @endswitch
+                                "></div>
+
+                                {{-- Entry Card --}}
+                                <div class="bg-white rounded-lg border border-gray-200 p-4 ml-4 shadow-sm">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            {{-- Action Badge --}}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                @switch($entry->action_color)
+                                                    @case('blue') bg-blue-100 text-blue-800 @break
+                                                    @case('green') bg-green-100 text-green-800 @break
+                                                    @case('indigo') bg-indigo-100 text-indigo-800 @break
+                                                    @case('yellow') bg-yellow-100 text-yellow-800 @break
+                                                    @case('red') bg-red-100 text-red-800 @break
+                                                    @case('purple') bg-purple-100 text-purple-800 @break
+                                                    @default bg-gray-100 text-gray-800
+                                                @endswitch
+                                            ">
+                                                {{ $entry->action_label }}
+                                            </span>
+
+                                            {{-- Plan Info --}}
+                                            @if($entry->old_plan && $entry->new_plan && $entry->old_plan !== $entry->new_plan)
+                                                <span class="ml-2 text-sm text-gray-500">
+                                                    {{ ucfirst($entry->old_plan) }} → {{ ucfirst($entry->new_plan) }}
+                                                </span>
+                                            @elseif($entry->new_plan)
+                                                <span class="ml-2 text-sm text-gray-500">
+                                                    Plan {{ ucfirst($entry->new_plan) }}
+                                                </span>
+                                            @endif
+
+                                            {{-- Date Range --}}
+                                            @if($entry->subscription_starts_at || $entry->subscription_ends_at)
+                                                <div class="mt-2 text-sm text-gray-600">
+                                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    @if($entry->subscription_starts_at)
+                                                        {{ $entry->subscription_starts_at->format('d/m/Y') }}
+                                                    @endif
+                                                    @if($entry->subscription_starts_at && $entry->subscription_ends_at)
+                                                        →
+                                                    @endif
+                                                    @if($entry->subscription_ends_at)
+                                                        {{ $entry->subscription_ends_at->format('d/m/Y') }}
+                                                    @else
+                                                        <span class="text-gray-400">(Illimité)</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+
+                                            {{-- Notes --}}
+                                            @if($entry->notes)
+                                                <p class="mt-2 text-sm text-gray-500 italic">{{ $entry->notes }}</p>
+                                            @endif
+
+                                            {{-- Amount --}}
+                                            @if($entry->amount && $entry->amount > 0)
+                                                <div class="mt-2">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                        {{ number_format($entry->amount, 0, ',', ' ') }} {{ $entry->currency }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        {{-- Timestamp --}}
+                                        <div class="text-right text-xs text-gray-400 ml-4">
+                                            <div>{{ $entry->created_at->format('d/m/Y') }}</div>
+                                            <div>{{ $entry->created_at->format('H:i') }}</div>
+                                            @if($entry->user)
+                                                <div class="mt-1 text-gray-500">
+                                                    par {{ $entry->user->name }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-8 text-gray-500">
+                                <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="mt-2">Aucun historique trouvé</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                {{-- Modal Footer --}}
+                <div class="flex-shrink-0 flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+                    <button 
+                        type="button" 
+                        @click="showModal = false; $wire.resetHistoryModal()"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
+                    >
+                        Fermer
+                    </button>
+                </div>
+            </x-ui.alpine-modal>
         </div>
     @endif
 </div>

@@ -11,6 +11,19 @@ class OrganizationPolicy
     use HandlesAuthorization;
 
     /**
+     * Perform pre-authorization checks.
+     * Super-admin has full access to all organizations.
+     */
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->hasRole('super-admin')) {
+            return true;
+        }
+
+        return null;
+    }
+
+    /**
      * Determine whether the user can view any organizations.
      */
     public function viewAny(User $user): bool

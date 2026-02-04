@@ -1,4 +1,5 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+     
     <!-- Header -->
     <div class="mb-6">
         <div class="flex items-center justify-between">
@@ -60,7 +61,7 @@
                             'Essai' => $stats['trial_organizations']
                         ]"
                     />
-
+                 
                     <!-- Revenue Card -->
                     <livewire:admin.components.stats-card
                         title="Revenus Abonnements"
@@ -181,10 +182,10 @@
                                         <div class="flex flex-wrap gap-1">
                                             @foreach ($user->roles as $role)
                                                 <span class="px-2 py-1 text-xs font-medium rounded-full
-                                                    @if ($role->slug === 'super-admin') bg-red-100 text-red-800
-                                                    @elseif($role->slug === 'admin') bg-purple-100 text-purple-800
-                                                    @elseif($role->slug === 'manager') bg-blue-100 text-blue-800
-                                                    @else bg-gray-100 text-gray-800 @endif">
+                                                    @if ($role->slug === 'super-admin') bg-red-100
+                                                    @elseif($role->slug === 'admin') text-purple-800
+                                                    @elseif($role->slug === 'manager')
+                                                    @else @endif">
                                                     {{ $role->name }}
                                                 </span>
                                             @endforeach
@@ -295,9 +296,9 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 py-1 text-xs font-medium rounded-full
-                                            @if ($org->subscription_plan?->value === 'premium') bg-amber-100 text-amber-800
-                                            @elseif($org->subscription_plan?->value === 'professional') bg-indigo-100 text-indigo-800
-                                            @else bg-gray-100 text-gray-800 @endif">
+                                            @if ($org->subscription_plan?->value === 'premium') bg-amber-100
+                                            @elseif($org->subscription_plan?->value === 'professional')
+                                            @else text-gray-800 @endif">
                                             {{ ucfirst($org->subscription_plan?->value ?? 'starter') }}
                                         </span>
                                     </td>

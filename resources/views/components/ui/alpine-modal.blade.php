@@ -69,8 +69,9 @@ $maxWidthClass = $maxWidthClasses[$maxWidth] ?? $maxWidthClasses['lg'];
                     </div>
                     @endif
                     <h3 class="text-xl font-bold text-gray-900"
-                        id="modal-{{ $name }}-title"
-                        x-text="isEditing ? '{{ $editTitle ?: "Modifier" }}' : '{{ $title ?: "Nouveau" }}'">
+                        id="modal-{{ $name }}-title">
+                        <span x-show="!isEditing">{{ $title ?: 'Nouveau' }}</span>
+                        <span x-show="isEditing">{{ $editTitle ?: 'Modifier' }}</span>
                     </h3>
                 </div>
                 <button @click="showModal = false" type="button"

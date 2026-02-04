@@ -25,6 +25,7 @@
                 startStatusCheck();
             @endif
         "
+        @open-renewal-modal.window="$wire.openForRenewal($event.detail.organizationId)"
         @payment-initiated.window="startStatusCheck()"
         @payment-completed.window="stopStatusCheck()">
 
@@ -36,16 +37,39 @@
             <div class="relative bg-white rounded-2xl overflow-hidden shadow-2xl transform transition-all w-full max-w-3xl">
 
                 <!-- Header compact -->
-                <div class="px-6 py-4 border-b border-gray-200 flex items-center">
-                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                        </svg>
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 {{ $isRenewal ? 'bg-green-100' : 'bg-indigo-100' }} rounded-full flex items-center justify-center mr-3">
+                            @if($isRenewal)
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                            @else
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            @endif
+                        </div>
+                        <div>
+                            @if($isRenewal)
+                                <h2 class="text-lg font-bold text-gray-900">Renouveler votre abonnement</h2>
+                                <p class="text-gray-500 text-xs">Prolongez votre abonnement de 30 jours supplémentaires</p>
+                            @else
+                                <h2 class="text-lg font-bold text-gray-900">Finalisez votre inscription</h2>
+                                <p class="text-gray-500 text-xs">Procédez au paiement pour activer votre organisation</p>
+                            @endif
+                        </div>
                     </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-900">Finalisez votre inscription</h2>
-                        <p class="text-gray-500 text-xs">Procédez au paiement pour activer votre organisation</p>
-                    </div>
+                    @if($isRenewal)
+                        <button 
+                            type="button" 
+                            wire:click="closeModal"
+                            class="text-gray-400 hover:text-gray-600 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    @endif
                 </div>
 
                 <!-- Body - Two columns layout -->
@@ -53,6 +77,27 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column: Plan Summary & Features -->
                         <div>
+                            <!-- Renewal Info Banner -->
+                            @if($isRenewal)
+                                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                                    <div class="flex items-start">
+                                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <div>
+                                            <p class="text-sm font-medium text-green-800">Renouvellement pour 30 jours</p>
+                                            <p class="text-xs text-green-600 mt-1">
+                                                @if($organization->hasActiveSubscription() && $organization->subscription_ends_at)
+                                                    Nouvelle date d'expiration : <strong>{{ $organization->subscription_ends_at->copy()->addDays(30)->format('d/m/Y') }}</strong>
+                                                @else
+                                                    Nouvelle date d'expiration : <strong>{{ now()->addDays(30)->format('d/m/Y') }}</strong>
+                                                @endif
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Plan Summary -->
                             <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
                                 <div class="flex justify-between items-center mb-3">
@@ -60,11 +105,22 @@
                                     <span class="text-sm font-semibold text-gray-900">{{ $organization->name }}</span>
                                 </div>
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm font-medium text-gray-500">Plan choisi</span>
+                                    <span class="text-sm font-medium text-gray-500">Plan {{ $isRenewal ? 'actuel' : 'choisi' }}</span>
                                     <span class="text-sm font-semibold text-indigo-600">
                                         {{ $planData['name'] ?? $organization->subscription_plan->label() }}
                                     </span>
                                 </div>
+                                @if($isRenewal && $organization->subscription_ends_at)
+                                    <div class="flex justify-between items-center mb-3">
+                                        <span class="text-sm font-medium text-gray-500">Expire le</span>
+                                        <span class="text-sm font-semibold {{ $organization->hasActiveSubscription() ? 'text-yellow-600' : 'text-red-600' }}">
+                                            {{ $organization->subscription_ends_at->format('d/m/Y') }}
+                                            @if(!$organization->hasActiveSubscription())
+                                                (Expiré)
+                                            @endif
+                                        </span>
+                                    </div>
+                                @endif
                                 <div class="flex justify-between items-center pt-3 border-t border-gray-200">
                                     <span class="text-sm font-medium text-gray-500">Total</span>
                                     <span class="text-lg font-bold text-emerald-600">
@@ -153,7 +209,7 @@
                                         {{-- Actions selon le statut --}}
                                         <div class="mt-3 flex flex-wrap gap-2">
                                             @if($paymentStatus === 'pending' && $pendingTransactionId)
-                                                <button wire:click="confirmPaymentManually" 
+                                                <button wire:click="confirmPaymentManually"
                                                         wire:loading.attr="disabled"
                                                         wire:loading.class="opacity-50 cursor-wait"
                                                         class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors">
@@ -336,25 +392,39 @@
                                 </div>
                             </div>
 
-                            <!-- Free Plan Option -->
-                            <button
-                                wire:click="useFreePlan"
-                                wire:loading.attr="disabled"
-                                @if($pendingTransactionId) disabled @endif
-                                class="w-full px-4 py-2.5 bg-gray-50 hover:bg-gray-100
-                                    text-gray-600 font-medium text-sm rounded-lg transition-all
-                                    border border-gray-200 hover:border-gray-300
-                                    {{ $pendingTransactionId ? 'opacity-50 cursor-not-allowed' : '' }}">
-                                <span wire:loading.remove wire:target="useFreePlan">
-                                    Continuer avec le plan gratuit
-                                </span>
-                                <span wire:loading wire:target="useFreePlan">
-                                    Chargement...
-                                </span>
-                            </button>
-                            <p class="text-center text-xs text-gray-400 mt-2">
-                                1 magasin • 2 utilisateurs • 100 produits
-                            </p>
+                            @if($isRenewal)
+                                <!-- Cancel Renewal Button -->
+                                <button
+                                    wire:click="closeModal"
+                                    class="w-full px-4 py-2.5 bg-gray-50 hover:bg-gray-100
+                                        text-gray-600 font-medium text-sm rounded-lg transition-all
+                                        border border-gray-200 hover:border-gray-300">
+                                    Annuler
+                                </button>
+                                <p class="text-center text-xs text-gray-400 mt-2">
+                                    Vous pouvez renouveler plus tard
+                                </p>
+                            @else
+                                <!-- Free Plan Option -->
+                                <button
+                                    wire:click="useFreePlan"
+                                    wire:loading.attr="disabled"
+                                    @if($pendingTransactionId) disabled @endif
+                                    class="w-full px-4 py-2.5 bg-gray-50 hover:bg-gray-100
+                                        text-gray-600 font-medium text-sm rounded-lg transition-all
+                                        border border-gray-200 hover:border-gray-300
+                                        {{ $pendingTransactionId ? 'opacity-50 cursor-not-allowed' : '' }}">
+                                    <span wire:loading.remove wire:target="useFreePlan">
+                                        Continuer avec le plan gratuit
+                                    </span>
+                                    <span wire:loading wire:target="useFreePlan">
+                                        Chargement...
+                                    </span>
+                                </button>
+                                <p class="text-center text-xs text-gray-400 mt-2">
+                                    1 magasin • 2 utilisateurs • 100 produits
+                                </p>
+                            @endif
                         </div>
                     </div>
                 </div>

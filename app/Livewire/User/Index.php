@@ -91,14 +91,15 @@ class Index extends Component
         $this->assignUser = User::with(['roles', 'stores'])->find($userId);
 
         if ($this->assignUser) {
-            $this->selectedRoles = $this->assignUser->roles->pluck('id')->toArray();
-            $this->selectedStores = $this->assignUser->stores->pluck('id')->toArray();
+            // Convertir en strings pour correspondre aux valeurs HTML des checkboxes
+            $this->selectedRoles = $this->assignUser->roles->pluck('id')->map(fn($id) => (string) $id)->toArray();
+            $this->selectedStores = $this->assignUser->stores->pluck('id')->map(fn($id) => (string) $id)->toArray();
 
             // Set store roles
             foreach ($this->assignUser->stores as $store) {
                 $this->storeRoles[$store->id] = $store->pivot->role ?? 'staff';
                 if ($store->pivot->is_default) {
-                    $this->defaultStore = $store->id;
+                    $this->defaultStore = (string) $store->id;
                 }
             }
 
@@ -219,14 +220,15 @@ class Index extends Component
             $this->name = $this->selectedUser->name;
             $this->email = $this->selectedUser->email;
             $this->isActive = $this->selectedUser->is_active ?? true;
-            $this->selectedRoles = $this->selectedUser->roles->pluck('id')->toArray();
-            $this->selectedStores = $this->selectedUser->stores->pluck('id')->toArray();
+            // Convertir en strings pour correspondre aux valeurs HTML des checkboxes
+            $this->selectedRoles = $this->selectedUser->roles->pluck('id')->map(fn($id) => (string) $id)->toArray();
+            $this->selectedStores = $this->selectedUser->stores->pluck('id')->map(fn($id) => (string) $id)->toArray();
 
             // Set store roles
             foreach ($this->selectedUser->stores as $store) {
                 $this->storeRoles[$store->id] = $store->pivot->role ?? 'staff';
                 if ($store->pivot->is_default) {
-                    $this->defaultStore = $store->id;
+                    $this->defaultStore = (string) $store->id;
                 }
             }
 
@@ -377,7 +379,12 @@ class Index extends Component
             $this->perPage
         );
 
-        $roles = Role::active()->get();
+        // Filtrer le rôle super-admin si l'utilisateur connecté n'est pas super-admin
+        $roles = Role::active()
+            ->when(!auth()->user()->hasRole('super-admin'), function ($query) {
+                return $query->where('slug', '!=', 'super-admin');
+            })
+            ->get();
 
         // Get current organization ID
         $organizationId = $this->getCurrentOrganizationId();
@@ -387,10 +394,18 @@ class Index extends Component
             return $query->where('organization_id', $organizationId);
         })->orderBy('name')->get();
 
+        // Vérifier si l'utilisateur est super admin
+        $isSuperAdmin = auth()->user()->hasRole('super-admin');
+
+        // Charger les organisations pour le filtre (super admin uniquement)
+        $organizations = $isSuperAdmin ? Organization::orderBy('name')->get() : collect();
+
         return view('livewire.user.index', [
             'users' => $users,
             'roles' => $roles,
             'stores' => $stores,
+            'isSuperAdmin' => $isSuperAdmin,
+            'organizations' => $organizations,
         ]);
     }
 

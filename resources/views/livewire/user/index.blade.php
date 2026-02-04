@@ -65,6 +65,9 @@
             <x-table.head>
                 <tr>
                     <x-table.header>Utilisateur</x-table.header>
+                    @if($isSuperAdmin)
+                        <x-table.header>Organisation</x-table.header>
+                    @endif
                     <x-table.header>Rôles</x-table.header>
                     <x-table.header>Magasins</x-table.header>
                     <x-table.header>Dernière connexion</x-table.header>
@@ -88,6 +91,24 @@
                                 </div>
                             </div>
                         </x-table.cell>
+                        @if($isSuperAdmin)
+                            <x-table.cell>
+                                @if($user->organizations->count() > 0)
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach($user->organizations->take(2) as $org)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                {{ $org->name }}
+                                            </span>
+                                        @endforeach
+                                        @if($user->organizations->count() > 2)
+                                            <span class="text-xs text-gray-500">+{{ $user->organizations->count() - 2 }}</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-sm text-gray-400">Aucune</span>
+                                @endif
+                            </x-table.cell>
+                        @endif
                         <x-table.cell>
                             <div class="flex flex-wrap gap-1">
                                 @forelse($user->roles as $role)
@@ -182,7 +203,7 @@
                         </x-table.cell>
                     </x-table.row>
                 @empty
-                    <x-table.empty-state colspan="6" title="Aucun utilisateur trouvé"
+                    <x-table.empty-state :colspan="$isSuperAdmin ? 7 : 6" title="Aucun utilisateur trouvé"
                         description="Commencez par créer votre premier utilisateur.">
                         <x-slot name="action">
                             <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
@@ -228,6 +249,7 @@
     <x-ui.alpine-modal
         name="user"
         max-width="2xl"
+
         title="Nouvel utilisateur"
         edit-title="Modifier l'utilisateur"
         icon-bg="from-indigo-500 to-purple-600">
@@ -335,6 +357,7 @@
                                 @foreach ($roles as $role)
                                     <label class="flex items-center p-2 hover:bg-white rounded transition-colors cursor-pointer">
                                         <input type="checkbox" wire:model="selectedRoles" value="{{ $role->id }}"
+                                            @checked(in_array((string) $role->id, $selectedRoles))
                                             class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                         <span class="ml-2 text-sm text-gray-700">{{ $role->name }}</span>
                                     </label>
@@ -356,10 +379,11 @@
                                         <label class="flex items-center flex-1 cursor-pointer">
                                             <input type="checkbox" wire:model.live="selectedStores"
                                                 value="{{ $store->id }}"
+                                                @checked(in_array((string) $store->id, $selectedStores))
                                                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                             <span class="ml-2 text-sm text-gray-700">{{ $store->name }}</span>
                                         </label>
-                                        @if (in_array($store->id, $selectedStores))
+                                        @if (in_array((string) $store->id, $selectedStores))
                                             <div class="flex items-center space-x-2 ml-4">
                                                 <select wire:model="storeRoles.{{ $store->id }}"
                                                     class="text-xs rounded border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 py-1">
@@ -477,6 +501,7 @@
                                     @foreach ($roles as $role)
                                         <label class="flex items-center p-3 hover:bg-white rounded-lg transition-colors cursor-pointer border border-transparent hover:border-purple-200">
                                             <input type="checkbox" wire:model="selectedRoles" value="{{ $role->id }}"
+                                                @checked(in_array((string) $role->id, $selectedRoles))
                                                 class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-5 h-5">
                                             <span class="ml-3 text-sm font-medium text-gray-700">{{ $role->name }}</span>
                                         </label>
@@ -498,10 +523,11 @@
                                             <label class="flex items-center cursor-pointer">
                                                 <input type="checkbox" wire:model.live="selectedStores"
                                                     value="{{ $store->id }}"
+                                                    @checked(in_array((string) $store->id, $selectedStores))
                                                     class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-5 h-5">
                                                 <span class="ml-3 text-sm font-medium text-gray-700">{{ $store->name }}</span>
                                             </label>
-                                            @if (in_array($store->id, $selectedStores))
+                                            @if (in_array((string) $store->id, $selectedStores))
                                                 <div class="mt-3 ml-8 flex items-center space-x-3">
                                                     <select wire:model="storeRoles.{{ $store->id }}"
                                                         class="text-sm rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 py-1.5">

@@ -1,3 +1,5 @@
+@props(['exception' => null])
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -31,6 +33,9 @@
             <!-- Top Bar -->
             <x-header />
 
+            <!-- Subscription Alert Banner -->
+            <x-subscription-alert />
+
             <!-- Page Header Section -->
             @if (isset($header))
                 <div class="bg-white border-b border-gray-200 px-6 py-4">
@@ -45,12 +50,16 @@
         </div>
     </div>
 
-    <!-- Global Search Modal -->
-    @livewire('global-search')
+    <!-- Global Search Modal - Only load if not on error page -->
+    @if(!isset($exception))
+        @livewire('global-search')
+    @endif
 
     <!-- Payment Modal - Shows when organization payment is pending -->
     @auth
-        <livewire:organization.payment-modal />
+        @if(!isset($exception))
+            <livewire:organization.payment-modal />
+        @endif
     @endauth
 
     <!-- Toast Notifications -->
@@ -76,6 +85,20 @@
             });
         </script>
     @endif
+
+    <!-- Handle Livewire navigation flash messages -->
+    <script>
+        document.addEventListener('livewire:navigated', () => {
+            // Check for flash messages after Livewire SPA navigation
+            if (typeof Livewire !== 'undefined') {
+                Livewire.hook('request', ({ fail }) => {
+                    fail(({ status, content }) => {
+                        // Handle errors
+                    });
+                });
+            }
+        });
+    </script>
 
     <!-- Handle PDF downloads from Livewire events -->
     <script>

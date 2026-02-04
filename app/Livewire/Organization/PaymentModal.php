@@ -6,10 +6,12 @@ use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionPlan;
 use App\Models\Organization;
 use App\Models\ShwaryTransaction;
+use App\Models\SubscriptionHistory;
 use App\Services\ShwaryPaymentService;
 use App\Services\SubscriptionService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 
 class PaymentModal extends Component
 {
@@ -18,6 +20,7 @@ class PaymentModal extends Component
     public string $paymentMethod = 'mobile_money';
     public array $planData = [];
     public string $currency = '€';
+    public bool $isRenewal = false; // Indique si c'est un renouvellement
 
     // Shwary Mobile Money
     public string $phoneNumber = '';
@@ -187,27 +190,38 @@ class PaymentModal extends Component
             $this->paymentStatus = 'success';
             $this->paymentMessage = $shwaryService->getStatusMessage($transaction);
 
-            // Marquer l'organisation comme payée avec toutes les informations
+            // Traiter le paiement selon le type (nouveau ou renouvellement)
             if ($this->organization) {
-                $this->organization->markPaymentCompleted(
-                    paymentReference: $transaction->reference ?? $transaction->transaction_id,
-                    paymentMethod: 'mobile_money',
-                    amount: (float) $transaction->amount,
-                    metadata: [
-                        'shwary_transaction_id' => $transaction->transaction_id,
-                        'shwary_local_id' => $transaction->id,
-                        'phone_number' => $transaction->phone_number,
-                        'country_code' => $transaction->country_code,
-                    ]
-                );
+                if ($this->isRenewal) {
+                    // Renouvellement: prolonger de 30 jours
+                    $this->processRenewalSuccess($transaction);
+                } else {
+                    // Nouveau paiement
+                    $this->organization->markPaymentCompleted(
+                        paymentReference: $transaction->reference ?? $transaction->transaction_id,
+                        paymentMethod: 'mobile_money',
+                        amount: (float) $transaction->amount,
+                        metadata: [
+                            'shwary_transaction_id' => $transaction->transaction_id,
+                            'shwary_local_id' => $transaction->id,
+                            'phone_number' => $transaction->phone_number,
+                            'country_code' => $transaction->country_code,
+                        ]
+                    );
+                }
             }
 
             // Arrêter la vérification et rediriger
             $this->dispatch('payment-completed');
 
-            session()->flash('success', 'Paiement Mobile Money effectué avec succès ! Bienvenue à bord 🎉');
+            $successMessage = $this->isRenewal 
+                ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
+                : 'Paiement Mobile Money effectué avec succès ! Bienvenue à bord 🎉';
+            
+            session()->flash('success', $successMessage);
 
             $this->showModal = false;
+            $this->isRenewal = false;
             return $this->redirect(route('dashboard'), navigate: true);
         }
 
@@ -255,29 +269,40 @@ class PaymentModal extends Component
         $this->paymentStatus = 'success';
         $this->paymentMessage = 'Paiement confirmé avec succès !';
 
-        // Marquer l'organisation comme payée avec toutes les informations
+        // Traiter selon le type (renouvellement ou nouveau paiement)
         if ($this->organization) {
-            $this->organization->markPaymentCompleted(
-                paymentReference: $transaction->reference ?? $transaction->transaction_id,
-                paymentMethod: 'mobile_money',
-                amount: (float) $transaction->amount,
-                metadata: [
-                    'shwary_transaction_id' => $transaction->transaction_id,
-                    'shwary_local_id' => $transaction->id,
-                    'phone_number' => $transaction->phone_number,
-                    'country_code' => $transaction->country_code,
-                    'confirmed_manually' => true,
-                ]
-            );
+            if ($this->isRenewal) {
+                // Renouvellement: prolonger de 30 jours
+                $this->processRenewalSuccess($transaction);
+            } else {
+                // Nouveau paiement
+                $this->organization->markPaymentCompleted(
+                    paymentReference: $transaction->reference ?? $transaction->transaction_id,
+                    paymentMethod: 'mobile_money',
+                    amount: (float) $transaction->amount,
+                    metadata: [
+                        'shwary_transaction_id' => $transaction->transaction_id,
+                        'shwary_local_id' => $transaction->id,
+                        'phone_number' => $transaction->phone_number,
+                        'country_code' => $transaction->country_code,
+                        'confirmed_manually' => true,
+                    ]
+                );
+            }
         }
 
         // Arrêter la vérification et rediriger
         $this->dispatch('payment-completed');
 
-        session()->flash('success', 'Paiement Mobile Money confirmé avec succès ! Bienvenue à bord 🎉');
+        $successMessage = $this->isRenewal 
+            ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
+            : 'Paiement Mobile Money confirmé avec succès ! Bienvenue à bord 🎉';
+        
+        session()->flash('success', $successMessage);
 
         $this->showModal = false;
-        
+        $this->isRenewal = false;
+
         // Forcer une redirection complète (pas navigate)
         $this->redirectRoute('dashboard');
     }
@@ -288,6 +313,67 @@ class PaymentModal extends Component
     public function cancelPendingPayment(): void
     {
         $this->pendingTransactionId = null;
+        $this->paymentStatus = null;
+        $this->paymentMessage = null;
+    }
+
+    /**
+     * Ouvrir le modal pour un renouvellement d'abonnement
+     */
+    #[On('open-renewal-modal')]
+    public function openForRenewal(?int $organizationId = null): void
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return;
+        }
+
+        // Utiliser l'organisation passée ou l'organisation courante
+        if ($organizationId) {
+            $this->organization = Organization::find($organizationId);
+        } else {
+            $this->organization = app()->bound('current_organization') 
+                ? app('current_organization') 
+                : $user->defaultOrganization;
+        }
+
+        if (!$this->organization) {
+            return;
+        }
+
+        $this->isRenewal = true;
+        $this->showModal = true;
+
+        // Charger les données du plan actuel
+        $allPlans = SubscriptionService::getPlansFromCache();
+        $planSlug = $this->organization->subscription_plan->value;
+        $this->planData = $allPlans[$planSlug] ?? [];
+        $this->currency = SubscriptionService::getCurrencyFromCache();
+
+        // Réinitialiser les états
+        $this->paymentStatus = null;
+        $this->paymentMessage = null;
+        $this->pendingTransactionId = null;
+        $this->isProcessing = false;
+
+        // Vérifier si une transaction est en attente
+        $this->checkPendingTransaction();
+    }
+
+    /**
+     * Fermer le modal
+     */
+    public function closeModal(): void
+    {
+        // Ne pas permettre la fermeture si ce n'est pas un renouvellement
+        // (cas du premier paiement obligatoire)
+        if (!$this->isRenewal && $this->organization && !$this->organization->isAccessible()) {
+            return;
+        }
+
+        $this->showModal = false;
+        $this->isRenewal = false;
         $this->paymentStatus = null;
         $this->paymentMessage = null;
     }
@@ -377,6 +463,56 @@ class PaymentModal extends Component
     public function getPhonePrefixProperty(): string
     {
         return config("shwary.countries.{$this->selectedCountry}.phone_prefix", '+243');
+    }
+
+    /**
+     * Traiter le succès d'un renouvellement
+     */
+    protected function processRenewalSuccess($transaction): void
+    {
+        if (!$this->organization) {
+            return;
+        }
+
+        $oldStartsAt = $this->organization->subscription_starts_at;
+        $oldEndsAt = $this->organization->subscription_ends_at;
+
+        // Calculer la nouvelle date de fin
+        // Si l'abonnement est expiré, partir d'aujourd'hui
+        // Sinon, ajouter 30 jours à la date de fin actuelle
+        $baseDate = $this->organization->hasActiveSubscription() && $oldEndsAt
+            ? $oldEndsAt
+            : now();
+        
+        $newEndsAt = $baseDate->copy()->addDays(30)->endOfDay();
+        $newStartsAt = $this->organization->hasActiveSubscription() && $oldStartsAt
+            ? $oldStartsAt
+            : now();
+
+        // Mettre à jour l'organisation
+        $this->organization->update([
+            'subscription_starts_at' => $newStartsAt,
+            'subscription_ends_at' => $newEndsAt,
+            'payment_status' => PaymentStatus::COMPLETED,
+            'payment_method' => 'mobile_money',
+            'payment_reference' => $transaction->reference ?? $transaction->transaction_id,
+            'payment_completed_at' => now(),
+        ]);
+
+        // Recharger l'organisation pour avoir les nouvelles valeurs
+        $this->organization->refresh();
+
+        // Enregistrer dans l'historique
+        SubscriptionHistory::record(
+            organization: $this->organization,
+            action: SubscriptionHistory::ACTION_RENEWED,
+            notes: sprintf(
+                'Renouvellement via Mobile Money. Référence: %s. Période: %s → %s',
+                $transaction->reference ?? $transaction->transaction_id,
+                $newStartsAt->format('d/m/Y'),
+                $newEndsAt->format('d/m/Y')
+            )
+        );
     }
 
     public function render()

@@ -3,7 +3,7 @@
 
     $menuService = app(MenuService::class);
     $user = auth()->user();
-    $menusBySection = $menuService->getAccessibleMenusForUser($user);
+    $menusBySection = $user ? $menuService->getAccessibleMenusForUser($user) : collect();
 @endphp
 
 <x-sidebar>

@@ -56,17 +56,36 @@ class MobileReportService
         // Use effective_store_id() which takes into account request store_id parameter
         $effectiveStoreId = effective_store_id();
         $currentStore = $effectiveStoreId ? \App\Models\Store::find($effectiveStoreId) : null;
+
+        // Récupérer l'organisation : d'abord defaultOrganization, sinon la première organisation de l'utilisateur
         $organization = $user->defaultOrganization;
+        if (!$organization) {
+            // Fallback: récupérer la première organisation active de l'utilisateur
+            $organization = $user->organizations()
+                ->wherePivot('is_active', true)
+                ->first();
+
+            // Si trouvée, mettre à jour le default_organization_id pour les prochaines connexions
+            if ($organization && !$user->default_organization_id) {
+                $user->update(['default_organization_id' => $organization->id]);
+            }
+        }
+
+        // Récupérer la devise de l'organisation (par défaut CDF)
+        $currency = $organization?->currency ?? config('app.default_currency', 'CDF');
 
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'role' => user_role_in_current_store(),
+            'currency' => $currency,
+            'currency_symbol' => currency_symbol($currency),
             'organization' => $organization ? [
                 'id' => $organization->id,
                 'name' => $organization->name,
                 'slug' => $organization->slug,
+                'currency' => $currency,
             ] : null,
             'current_store' => $currentStore ? [
                 'id' => $currentStore->id,
@@ -241,6 +260,7 @@ class MobileReportService
 
         return Cache::remember($cacheKey, 300, function () {
             $stockStats = $this->dashboardService->getStockStats();
+            $stockValue = (float) $stockStats['total_stock_value'];
 
             return [
                 'alerts' => [
@@ -249,8 +269,8 @@ class MobileReportService
                     'total' => $stockStats['low_stock_alerts'] + $stockStats['out_of_stock_alerts'],
                 ],
                 'value' => [
-                    'total' => (float) $stockStats['total_stock_value'],
-                    'formatted' => number_format((float) $stockStats['total_stock_value'], 2, ',', ' '),
+                    'total' => $stockValue,
+                    'formatted' => format_currency($stockValue, 2),
                 ],
             ];
         });
@@ -352,7 +372,7 @@ class MobileReportService
                 'name' => $store->name,
                 'code' => $store->code,
                 'today_sales' => $todaySales,
-                'today_sales_formatted' => number_format($todaySales, 2, ',', ' '),
+                'today_sales_formatted' => format_currency($todaySales, 2),
                 'alerts_count' => $alertsByStore[$store->id] ?? 0,
             ];
         })->toArray();

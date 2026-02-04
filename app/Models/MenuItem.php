@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class MenuItem extends Model
 {
@@ -121,7 +122,7 @@ class MenuItem extends Model
             $userRoleIds = $user->roles->pluck('id')->toArray();
 
             // Récupérer les menus parents accessibles
-            $accessibleMenuIds = \DB::table('menu_item_role')
+            $accessibleMenuIds = DB::table('menu_item_role')
                 ->whereIn('role_id', $userRoleIds)
                 ->pluck('menu_item_id')
                 ->toArray();

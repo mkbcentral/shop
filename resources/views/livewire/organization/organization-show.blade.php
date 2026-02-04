@@ -1,4 +1,5 @@
 <div x-data="{ showModal: false, isEditing: false }"
+     x-init="@if($showSuccessToast) $nextTick(() => $dispatch('show-toast', { message: 'L\'organisation a été mise à jour avec succès !', type: 'success' })) @endif"
      @open-store-modal.window="showModal = true; isEditing = false"
      @close-store-modal.window="showModal = false">
     <x-slot name="header">

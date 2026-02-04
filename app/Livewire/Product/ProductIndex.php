@@ -231,6 +231,13 @@ class ProductIndex extends Component
             return;
         }
 
+        // Vérifier la permission côté serveur
+        if (!auth()->user()->hasPermission('products.delete')) {
+            $this->dispatch('show-toast', message: 'Vous n\'avez pas la permission de supprimer des produits.', type: 'error');
+            $this->productToDelete = null;
+            return;
+        }
+
         try {
             $service->deleteProduct($this->productToDelete);
             $this->dispatch('show-toast', message: 'Produit supprimé avec succès.', type: 'success');

@@ -3,6 +3,7 @@
 namespace App\Livewire\Organization;
 
 use App\Models\Organization;
+use App\Models\SubscriptionHistory;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -15,6 +16,17 @@ class OrganizationIndex extends Component
     public string $type = '';
     public string $sortBy = 'created_at';
     public string $sortDirection = 'desc';
+
+    // Subscription management modal
+    public ?int $subscriptionOrgId = null;
+    public ?string $subscriptionOrgName = null;
+    public ?string $subscriptionStartsAt = null;
+    public ?string $subscriptionEndsAt = null;
+
+    // Subscription history modal
+    public ?int $historyOrgId = null;
+    public ?string $historyOrgName = null;
+    public string $historyActionFilter = '';
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -101,6 +113,177 @@ class OrganizationIndex extends Component
         $this->dispatch('\$refresh');
     }
 
+    /**
+     * Open subscription management modal
+     */
+    public function openSubscriptionModal(int $organizationId): void
+    {
+        $user = auth()->user();
+        
+        // Only super admin can manage subscription dates
+        if (!$user->isSuperAdmin()) {
+            session()->flash('error', 'Accès non autorisé.');
+            return;
+        }
+
+        $organization = Organization::find($organizationId);
+        
+        if (!$organization) {
+            session()->flash('error', 'Organisation introuvable.');
+            return;
+        }
+
+        $this->subscriptionOrgId = $organization->id;
+        $this->subscriptionOrgName = $organization->name;
+        $this->subscriptionStartsAt = $organization->subscription_starts_at?->format('Y-m-d');
+        $this->subscriptionEndsAt = $organization->subscription_ends_at?->format('Y-m-d');
+
+        $this->dispatch('open-subscription-modal');
+    }
+
+    /**
+     * Update subscription dates
+     */
+    public function updateSubscriptionDates(): void
+    {
+        $user = auth()->user();
+        
+        // Only super admin can manage subscription dates
+        if (!$user->isSuperAdmin()) {
+            session()->flash('error', 'Accès non autorisé.');
+            return;
+        }
+
+        $this->validate([
+            'subscriptionStartsAt' => 'nullable|date',
+            'subscriptionEndsAt' => 'nullable|date|after_or_equal:subscriptionStartsAt',
+        ], [
+            'subscriptionEndsAt.after_or_equal' => 'La date de fin doit être postérieure ou égale à la date de début.',
+        ]);
+
+        $organization = Organization::find($this->subscriptionOrgId);
+        
+        if (!$organization) {
+            session()->flash('error', 'Organisation introuvable.');
+            return;
+        }
+
+        // Sauvegarder les anciennes valeurs pour l'historique
+        $oldStartsAt = $organization->subscription_starts_at?->format('Y-m-d');
+        $oldEndsAt = $organization->subscription_ends_at?->format('Y-m-d');
+        
+        $newStartsAt = $this->subscriptionStartsAt;
+        $newEndsAt = $this->subscriptionEndsAt;
+
+        // Mettre à jour l'organisation
+        $organization->update([
+            'subscription_starts_at' => $newStartsAt ? \Carbon\Carbon::parse($newStartsAt)->startOfDay() : null,
+            'subscription_ends_at' => $newEndsAt ? \Carbon\Carbon::parse($newEndsAt)->endOfDay() : null,
+        ]);
+
+        // Recharger l'organisation pour avoir les nouvelles dates
+        $organization->refresh();
+
+        // Déterminer le type d'action
+        $action = \App\Models\SubscriptionHistory::ACTION_DATES_MODIFIED;
+        
+        // Si on prolonge la date de fin, c'est une extension
+        if ($oldEndsAt && $newEndsAt && $newEndsAt > $oldEndsAt) {
+            $action = \App\Models\SubscriptionHistory::ACTION_EXTENDED;
+        }
+
+        // Créer une note descriptive
+        $notes = "Modification manuelle par {$user->name}. ";
+        if ($oldStartsAt !== $newStartsAt) {
+            $notes .= "Début: " . ($oldStartsAt ?? 'vide') . " → " . ($newStartsAt ?? 'vide') . ". ";
+        }
+        if ($oldEndsAt !== $newEndsAt) {
+            $notes .= "Fin: " . ($oldEndsAt ?? 'vide') . " → " . ($newEndsAt ?? 'vide') . ".";
+        }
+
+        // Enregistrer dans l'historique
+        \App\Models\SubscriptionHistory::record(
+            organization: $organization,
+            action: $action,
+            oldPlan: $organization->subscription_plan instanceof \App\Enums\SubscriptionPlan 
+                ? $organization->subscription_plan->value 
+                : $organization->subscription_plan,
+            payment: null,
+            notes: trim($notes),
+            user: $user
+        );
+
+        $this->dispatch('close-subscription-modal');
+        $this->resetSubscriptionModal();
+        
+        session()->flash('success', "Les dates d'abonnement de \"{$organization->name}\" ont été mises à jour.");
+    }
+
+    /**
+     * Reset subscription modal state
+     */
+    public function resetSubscriptionModal(): void
+    {
+        $this->subscriptionOrgId = null;
+        $this->subscriptionOrgName = null;
+        $this->subscriptionStartsAt = null;
+        $this->subscriptionEndsAt = null;
+    }
+
+    /**
+     * Open subscription history modal
+     */
+    public function openHistoryModal(int $organizationId): void
+    {
+        $user = auth()->user();
+        
+        if (!$user->isSuperAdmin()) {
+            session()->flash('error', 'Accès non autorisé.');
+            return;
+        }
+
+        $organization = Organization::find($organizationId);
+        
+        if (!$organization) {
+            session()->flash('error', 'Organisation introuvable.');
+            return;
+        }
+
+        $this->historyOrgId = $organization->id;
+        $this->historyOrgName = $organization->name;
+        $this->historyActionFilter = '';
+
+        $this->dispatch('open-history-modal');
+    }
+
+    /**
+     * Reset history modal state
+     */
+    public function resetHistoryModal(): void
+    {
+        $this->historyOrgId = null;
+        $this->historyOrgName = null;
+        $this->historyActionFilter = '';
+    }
+
+    /**
+     * Get subscription history for the selected organization
+     */
+    public function getSubscriptionHistory()
+    {
+        if (!$this->historyOrgId) {
+            return collect();
+        }
+
+        return SubscriptionHistory::query()
+            ->where('organization_id', $this->historyOrgId)
+            ->with(['user', 'payment'])
+            ->when($this->historyActionFilter, fn($q) => $q->where('action', $this->historyActionFilter))
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+    }
+
     public function render()
     {
         $user = auth()->user();
@@ -131,9 +314,14 @@ class OrganizationIndex extends Component
             'group' => 'Groupe commercial',
         ];
 
+        // Get history if modal is open
+        $subscriptionHistory = $this->getSubscriptionHistory();
+
         return view('livewire.organization.organization-index', [
             'organizations' => $organizations,
             'types' => $types,
+            'subscriptionHistory' => $subscriptionHistory,
+            'historyActions' => SubscriptionHistory::ACTION_LABELS,
         ]);
     }
 }

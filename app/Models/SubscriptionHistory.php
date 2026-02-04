@@ -58,6 +58,8 @@ class SubscriptionHistory extends Model
     public const ACTION_REACTIVATED = 'reactivated';
     public const ACTION_TRIAL_STARTED = 'trial_started';
     public const ACTION_TRIAL_ENDED = 'trial_ended';
+    public const ACTION_DATES_MODIFIED = 'dates_modified';
+    public const ACTION_EXTENDED = 'extended';
 
     /**
      * Labels des actions
@@ -72,6 +74,8 @@ class SubscriptionHistory extends Model
         self::ACTION_REACTIVATED => 'Réactivation',
         self::ACTION_TRIAL_STARTED => 'Début essai',
         self::ACTION_TRIAL_ENDED => 'Fin essai',
+        self::ACTION_DATES_MODIFIED => 'Modification dates',
+        self::ACTION_EXTENDED => 'Prolongation',
     ];
 
     /*
@@ -140,11 +144,12 @@ class SubscriptionHistory extends Model
     {
         return match ($this->action) {
             self::ACTION_CREATED, self::ACTION_TRIAL_STARTED => 'blue',
-            self::ACTION_UPGRADED, self::ACTION_REACTIVATED => 'green',
+            self::ACTION_UPGRADED, self::ACTION_REACTIVATED, self::ACTION_EXTENDED => 'green',
             self::ACTION_RENEWED => 'indigo',
             self::ACTION_DOWNGRADED => 'yellow',
             self::ACTION_CANCELLED, self::ACTION_EXPIRED => 'red',
             self::ACTION_TRIAL_ENDED => 'gray',
+            self::ACTION_DATES_MODIFIED => 'purple',
             default => 'gray',
         };
     }
@@ -164,6 +169,8 @@ class SubscriptionHistory extends Model
             self::ACTION_REACTIVATED => 'check-circle',
             self::ACTION_TRIAL_STARTED => 'play',
             self::ACTION_TRIAL_ENDED => 'stop',
+            self::ACTION_DATES_MODIFIED => 'calendar',
+            self::ACTION_EXTENDED => 'plus',
             default => 'information-circle',
         };
     }

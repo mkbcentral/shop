@@ -162,7 +162,8 @@ class OrganizationRepository
     {
         return $this->model
             ->where('subscription_plan', '!=', 'free')
-            ->whereBetween('subscription_ends_at', [now(), now()->addDays($days)])
+            ->whereDate('subscription_ends_at', '>=', now()->startOfDay())
+            ->whereDate('subscription_ends_at', '<=', now()->addDays($days)->endOfDay())
             ->get();
     }
 

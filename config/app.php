@@ -73,11 +73,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | This is the default currency used across the application when no
-    | organization-specific currency is set. Common values: FCFA, USD, EUR
+    | organization-specific currency is set. Common values: CDF, FCFA, USD, EUR
     |
     */
 
-    'default_currency' => env('APP_DEFAULT_CURRENCY', 'FCFA'),
+    'default_currency' => env('APP_DEFAULT_CURRENCY', 'CDF'),
 
     /*
     |--------------------------------------------------------------------------

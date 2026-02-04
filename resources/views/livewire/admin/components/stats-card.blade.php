@@ -1,4 +1,6 @@
+
 <div class="bg-gradient-to-br from-{{ $gradientFrom }} to-{{ $gradientTo }} rounded-xl p-6 text-white shadow-lg">
+     
     <div class="flex items-center justify-between">
         <div>
             <p class="text-{{ $gradientFrom }}-100 text-sm font-medium">{{ $title }}</p>

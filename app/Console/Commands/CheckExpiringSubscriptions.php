@@ -46,7 +46,7 @@ class CheckExpiringSubscriptions extends Command
                 ['Organisation', 'Plan', 'Expire le', 'Jours restants'],
                 $expiring->map(fn ($org) => [
                     $org->name,
-                    $org->subscription_plan,
+                    $org->plan_label ?? $org->subscription_plan->value ?? $org->subscription_plan,
                     $org->subscription_ends_at->format('d/m/Y'),
                     $org->remaining_days,
                 ])->toArray()
@@ -72,7 +72,7 @@ class CheckExpiringSubscriptions extends Command
                 ['Organisation', 'Plan', 'Expiré le'],
                 $expired->map(fn ($org) => [
                     $org->name,
-                    $org->subscription_plan,
+                    $org->plan_label ?? $org->subscription_plan->value ?? $org->subscription_plan,
                     $org->subscription_ends_at->format('d/m/Y'),
                 ])->toArray()
             );

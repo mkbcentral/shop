@@ -100,7 +100,7 @@
                 />
                 <x-stat-card
                     title="Valeur du Stock"
-                    :value="number_format($statistics['total_stock_value'], 0, ',', ' ') . ' FC'"
+                    :value="format_currency($statistics['total_stock_value'])"
                     color="purple"
                     icon='<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
                 />
@@ -188,7 +188,7 @@
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Total ventes</dt>
                             <dd class="mt-1 text-sm text-gray-900 font-semibold">
-                                {{ number_format($statistics['total_sales_amount'], 0, ',', ' ') }} FC
+                                @currency($statistics['total_sales_amount'])
                             </dd>
                         </div>
                     </dl>
@@ -514,7 +514,7 @@
                                 <x-table.row>
                                     <x-table.cell>{{ $sale->reference }}</x-table.cell>
                                     <x-table.cell>{{ $sale->client->name ?? 'Client anonyme' }}</x-table.cell>
-                                    <x-table.cell>{{ number_format($sale->total_amount, 0, ',', ' ') }} FC
+                                    <x-table.cell>@currency($sale->total_amount)
                                     </x-table.cell>
                                     <x-table.cell>{{ $sale->created_at->format('d/m/Y') }}</x-table.cell>
                                 </x-table.row>
@@ -557,7 +557,7 @@
                                 <x-table.row>
                                     <x-table.cell>{{ $purchase->reference }}</x-table.cell>
                                     <x-table.cell>{{ $purchase->supplier->name }}</x-table.cell>
-                                    <x-table.cell>{{ number_format($purchase->total_amount, 0, ',', ' ') }} FC
+                                    <x-table.cell>@currency($purchase->total_amount)
                                     </x-table.cell>
                                     <x-table.cell>{{ $purchase->created_at->format('d/m/Y') }}</x-table.cell>
                                 </x-table.row>

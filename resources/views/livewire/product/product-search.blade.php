@@ -192,7 +192,7 @@
                                 @if($product->brand)
                                     <p class="text-xs text-gray-500 mb-2">{{ $product->brand }}</p>
                                 @endif
-                                <p class="text-lg font-bold text-indigo-600 mb-2">{{ number_format($product->price, 0, ',', ' ') }} FC</p>
+                                <p class="text-lg font-bold text-indigo-600 mb-2">@currency($product->price)</p>
 
                                 <!-- Variants Info -->
                                 @if($product->variants->count() > 0)

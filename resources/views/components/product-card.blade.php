@@ -84,11 +84,13 @@
 
         <!-- Actions -->
         <div class="flex space-x-2 pt-2">
+            @permission('products.edit')
             <button type="button"
                 wire:click="$dispatch('editProduct', { productId: {{ $product->id }}, product: {{ json_encode($product) }} })"
                 class="flex-1 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
                 Modifier
             </button>
+            @endpermission
             <button type="button"
                 wire:click="$dispatch('openLabelModal', [[{{ $product->id }}]])"
                 class="px-3 py-2 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
@@ -98,6 +100,7 @@
                         d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
             </button>
+            @permission('products.delete')
             <button type="button"
                 @click="showDeleteModal = true; productToDelete = {{ $product->id }}; productName = '{{ addslashes($product->name) }}'"
                 class="px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
@@ -105,6 +108,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
             </button>
+            @endpermission
         </div>
     </div>
 </div>

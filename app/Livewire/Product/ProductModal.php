@@ -290,6 +290,21 @@ class ProductModal extends Component
 
     public function save(ProductService $productService, ReferenceGeneratorService $referenceGenerator)
     {
+        // Vérifier les permissions côté serveur
+        if ($this->productId) {
+            // Mode édition - vérifier permission products.edit
+            if (!auth()->user()->hasPermission('products.edit')) {
+                $this->dispatch('show-toast', message: 'Vous n\'avez pas la permission de modifier des produits.', type: 'error');
+                return;
+            }
+        } else {
+            // Mode création - vérifier permission products.create
+            if (!auth()->user()->hasPermission('products.create')) {
+                $this->dispatch('show-toast', message: 'Vous n\'avez pas la permission de créer des produits.', type: 'error');
+                return;
+            }
+        }
+
         try {
             // Validation based on mode (create or update)
             if ($this->productId) {

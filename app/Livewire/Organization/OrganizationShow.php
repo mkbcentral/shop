@@ -14,6 +14,7 @@ class OrganizationShow extends Component
 {
     public Organization $organization;
     public array $statistics = [];
+    public bool $showSuccessToast = false;
 
     public StoreForm $storeForm;
 
@@ -26,6 +27,11 @@ class OrganizationShow extends Component
         // Ne pas eager-load les relations pour éviter les problèmes de sérialisation Livewire
         $this->organization = $organization;
         $this->statistics = $this->normalizeArray($service->getStatistics($organization));
+
+        // Afficher le toast après une mise à jour réussie (flash message)
+        if (session()->has('organization_updated')) {
+            $this->showSuccessToast = true;
+        }
     }
 
     /**

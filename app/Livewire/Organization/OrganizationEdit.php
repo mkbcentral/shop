@@ -5,6 +5,7 @@ namespace App\Livewire\Organization;
 use App\Livewire\Forms\OrganizationForm;
 use App\Models\Organization;
 use App\Services\OrganizationService;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -32,8 +33,8 @@ class OrganizationEdit extends Component
         // Upload du nouveau logo si fourni
         if ($this->form->logo) {
             // Supprimer l'ancien logo
-            if ($this->form->current_logo && \Storage::disk('public')->exists($this->form->current_logo)) {
-                \Storage::disk('public')->delete($this->form->current_logo);
+            if ($this->form->current_logo && Storage::disk('public')->exists($this->form->current_logo)) {
+                Storage::disk('public')->delete($this->form->current_logo);
             }
             $data['logo'] = $this->form->logo->store('organizations/logos', 'public');
         }
@@ -45,9 +46,9 @@ class OrganizationEdit extends Component
             $this->dispatch('organization-updated')->to('organization.organization-index');
             $this->dispatch('organization-updated')->to('organization.organization-show');
 
-            session()->flash('success', 'L\'organisation a été mise à jour avec succès !');
+            session()->flash('organization_updated', true);
 
-            return $this->redirect(route('organizations.show', $this->organization), navigate: true);
+            return redirect()->route('organizations.show', $this->organization);
         } catch (\Exception $e) {
             $this->dispatch('show-toast', message: 'Erreur : ' . $e->getMessage(), type: 'error');
         }
@@ -55,14 +56,14 @@ class OrganizationEdit extends Component
 
     public function removeLogo(OrganizationService $service): void
     {
-        if ($this->form->current_logo && \Storage::disk('public')->exists($this->form->current_logo)) {
-            \Storage::disk('public')->delete($this->form->current_logo);
+        if ($this->form->current_logo && Storage::disk('public')->exists($this->form->current_logo)) {
+            Storage::disk('public')->delete($this->form->current_logo);
         }
 
         $service->update($this->organization, ['logo' => null]);
         $this->form->current_logo = null;
 
-        session()->flash('success', 'Le logo a été supprimé.');
+        $this->dispatch('show-toast', message: 'Le logo a été supprimé.', type: 'success');
     }
 
     public function render()

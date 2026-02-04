@@ -4,7 +4,7 @@ if (!function_exists('current_currency')) {
     /**
      * Get the current organization's currency
      *
-     * @return string The currency code (default: 'FCFA')
+     * @return string The currency code (default: 'CDF')
      */
     function current_currency(): string
     {
@@ -36,14 +36,25 @@ if (!function_exists('current_currency')) {
         // Try from authenticated user
         $user = auth()->user();
         if ($user) {
-            $userOrg = $user->organizations()->first();
+            // D'abord essayer defaultOrganization
+            if ($user->default_organization_id) {
+                $defaultOrg = $user->defaultOrganization;
+                if ($defaultOrg && !empty($defaultOrg->currency)) {
+                    return $defaultOrg->currency;
+                }
+            }
+
+            // Sinon, essayer la première organisation active de l'utilisateur
+            $userOrg = $user->organizations()
+                ->wherePivot('is_active', true)
+                ->first();
             if ($userOrg && !empty($userOrg->currency)) {
                 return $userOrg->currency;
             }
         }
 
         // Default fallback
-        return config('app.default_currency', 'FCFA');
+        return config('app.default_currency', 'CDF');
     }
 }
 

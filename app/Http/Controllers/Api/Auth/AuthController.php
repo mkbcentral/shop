@@ -194,6 +194,22 @@ class AuthController extends Controller
      */
     private function formatUserData(User $user): array
     {
+        // Récupérer l'organisation : d'abord defaultOrganization, sinon la première organisation active
+        $organization = $user->defaultOrganization;
+        if (!$organization) {
+            $organization = $user->organizations()
+                ->wherePivot('is_active', true)
+                ->first();
+
+            // Mettre à jour default_organization_id pour les prochaines connexions
+            if ($organization && !$user->default_organization_id) {
+                $user->update(['default_organization_id' => $organization->id]);
+            }
+        }
+
+        // Récupérer la devise de l'organisation (par défaut CDF)
+        $currency = $organization?->currency ?? config('app.default_currency', 'CDF');
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -202,11 +218,13 @@ class AuthController extends Controller
             'is_active' => $user->is_active,
             'email_verified' => $user->hasVerifiedEmail(),
             'last_login_at' => $user->last_login_at?->toIso8601String(),
-            'organization' => $user->defaultOrganization ? [
-                'id' => $user->defaultOrganization->id,
-                'name' => $user->defaultOrganization->name,
-                'slug' => $user->defaultOrganization->slug,
-                'currency' => $user->defaultOrganization->currency,
+            'currency' => $currency,
+            'currency_symbol' => currency_symbol($currency),
+            'organization' => $organization ? [
+                'id' => $organization->id,
+                'name' => $organization->name,
+                'slug' => $organization->slug,
+                'currency' => $currency,
             ] : null,
             'current_store' => $user->currentStore ? [
                 'id' => $user->currentStore->id,
@@ -235,7 +253,13 @@ class AuthController extends Controller
             return [];
         }
 
+        // Récupérer l'organisation : d'abord defaultOrganization, sinon la première organisation active
         $currentOrganization = $user->defaultOrganization;
+        if (!$currentOrganization) {
+            $currentOrganization = $user->organizations()
+                ->wherePivot('is_active', true)
+                ->first();
+        }
 
         // Admin peut accéder à tous les magasins de l'organisation
         if ($user->isAdmin()) {

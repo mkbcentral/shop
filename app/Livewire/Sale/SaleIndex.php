@@ -483,12 +483,25 @@ class SaleIndex extends Component
     }
 
     /**
-     * Get users for email modal dropdown
+     * Get users for email modal dropdown (filtered by current organization)
      */
     public function getUsersProperty()
     {
-        $userRepository = app(UserRepository::class);
-        return $userRepository->getAllWithFilters(perPage: 100)->items();
+        $organizationId = current_organization_id();
+
+        if (!$organizationId) {
+            return [];
+        }
+
+        return \App\Models\User::query()
+            ->where(function ($query) use ($organizationId) {
+                $query->whereHas('organizations', function ($q) use ($organizationId) {
+                    $q->where('organizations.id', $organizationId);
+                })
+                ->orWhere('default_organization_id', $organizationId);
+            })
+            ->orderBy('name')
+            ->get();
     }
 
     /**

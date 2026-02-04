@@ -6,16 +6,17 @@
         ['label' => 'Créer une facture']
     ]" />
 
+</x-slot>
+
+<div class="max-w-4xl mx-auto space-y-6">
+
     <div class="flex items-center justify-between mt-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Créer une Facture</h1>
             <p class="text-gray-500 mt-1">Créer une facture à partir d'une vente</p>
         </div>
     </div>
-</x-slot>
-
-<div class="max-w-4xl mx-auto space-y-6">
-
+    
     <x-card>
         <x-slot:header>
             <x-card-title title="Informations de la Facture" />
@@ -27,8 +28,7 @@
             </div>
         @endif
 
-        <form wire:submit.prevent="save">
-            <div class="space-y-6">
+        <form wire:submit.prevent="save">            <div class="space-y-6">
                 <!-- Sale Selection -->
                 <div>
                     <x-form.label for="saleId" required>Vente</x-form.label>
@@ -123,7 +123,7 @@
                     </x-form.select>
                     @error('status')
                         <x-form.error>{{ $message }}</x-form.error>
-                    @enderror>
+                    @enderror
                 </div>
 
                 <!-- Buttons -->

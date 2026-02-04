@@ -42,3 +42,9 @@ Schedule::command('subscriptions:check-expiring --process-expired')
     ->dailyAt('00:00')
     ->withoutOverlapping()
     ->description('Passer les abonnements expirés au plan gratuit');
+
+// Vérifier les limites d'abonnement et envoyer des alertes (tous les jours à 10h)
+Schedule::command('subscriptions:check-limits --threshold=80 --notify')
+    ->dailyAt('10:00')
+    ->withoutOverlapping()
+    ->description('Notifier les organisations approchant les limites de leur abonnement');
