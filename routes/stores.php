@@ -32,8 +32,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/switch/{store?}', [StoreController::class, 'switch'])->name('switch');
     });
 
-    // ===== Gestion des Transferts =====
-    Route::prefix('transfers')->name('transfers.')->middleware('permission:transfers.view')->group(function () {
+    // ===== Gestion des Transferts (requires module_transfers feature) =====
+    Route::prefix('transfers')->name('transfers.')->middleware(['permission:transfers.view', 'feature:module_transfers'])->group(function () {
         Route::get('/', TransferIndex::class)->name('index');
         Route::get('/{transferId}', TransferShow::class)->name('show');
 

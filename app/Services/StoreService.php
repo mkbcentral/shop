@@ -383,9 +383,9 @@ class StoreService
 
         if (!$organization->canAddStore()) {
             $usage = $organization->getStoresUsage();
+            $planLimitService = app(\App\Services\PlanLimitService::class);
             throw new \Exception(
-                "Limite de magasins atteinte ({$usage['current']}/{$usage['max']}). " .
-                "Passez à un plan supérieur pour ajouter plus de magasins."
+                $planLimitService->getLimitReachedMessage('stores', $usage['current'], $usage['max'])
             );
         }
     }

@@ -84,6 +84,8 @@ class Register extends Component
                 : PaymentStatus::PENDING;
 
             // 4. Create the organization
+            // Note: Les dates d'abonnement ne sont définies que pour les plans gratuits
+            // Pour les plans payants, elles seront définies lors de la confirmation du paiement
             $organization = Organization::create([
                 'name' => $step2['organization_name'],
                 'phone' => $step2['organization_phone'],
@@ -91,8 +93,8 @@ class Register extends Component
                 'owner_id' => $user->id,
                 'subscription_plan' => $plan,
                 'payment_status' => $paymentStatus,
-                'subscription_starts_at' => now(),
-                'subscription_ends_at' => now()->addMonth(),
+                'subscription_starts_at' => $isFree ? now() : null,
+                'subscription_ends_at' => $isFree ? now()->addMonth() : null,
                 'is_trial' => false,
                 'trial_days' => 0,
                 'max_stores' => $planData['max_stores'] ?? 1,
@@ -163,8 +165,6 @@ class Register extends Component
 
             // 13. Flash message pour la page de vérification
             session()->flash('success', 'Votre compte a été créé avec succès ! Veuillez vérifier votre adresse email pour continuer.');
-
-            DB::commit();
 
             // 14. Rediriger vers la vérification d'email avec Livewire
             // Utiliser redirectRoute() de Livewire pour une redirection fiable

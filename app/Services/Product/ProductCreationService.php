@@ -174,9 +174,9 @@ class ProductCreationService
         $planLimitService = app(\App\Services\PlanLimitService::class);
         
         if (!$planLimitService->canAddProduct($organization)) {
+            $usage = $organization->getProductsUsage();
             throw new \Exception(
-                'Vous avez atteint la limite de produits de votre plan. ' .
-                'Veuillez passer à un plan supérieur pour créer plus de produits.'
+                $planLimitService->getLimitReachedMessage('products', $usage['current'], $usage['max'])
             );
         }
     }

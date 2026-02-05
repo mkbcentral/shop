@@ -26,6 +26,7 @@
             @endif
         "
         @open-renewal-modal.window="$wire.openForRenewal($event.detail.organizationId)"
+        @open-upgrade-modal.window="$wire.openForUpgrade($event.detail.organizationId, $event.detail.targetPlan)"
         @payment-initiated.window="startStatusCheck()"
         @payment-completed.window="stopStatusCheck()">
 
@@ -39,8 +40,12 @@
                 <!-- Header compact -->
                 <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                     <div class="flex items-center">
-                        <div class="w-10 h-10 {{ $isRenewal ? 'bg-green-100' : 'bg-indigo-100' }} rounded-full flex items-center justify-center mr-3">
-                            @if($isRenewal)
+                        <div class="w-10 h-10 {{ $isUpgrade ? 'bg-purple-100' : ($isRenewal ? 'bg-green-100' : 'bg-indigo-100') }} rounded-full flex items-center justify-center mr-3">
+                            @if($isUpgrade)
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                                </svg>
+                            @elseif($isRenewal)
                                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
@@ -51,7 +56,10 @@
                             @endif
                         </div>
                         <div>
-                            @if($isRenewal)
+                            @if($isUpgrade)
+                                <h2 class="text-lg font-bold text-gray-900">Passer au plan {{ ucfirst($targetPlan) }}</h2>
+                                <p class="text-gray-500 text-xs">Débloquez plus de fonctionnalités pour votre organisation</p>
+                            @elseif($isRenewal)
                                 <h2 class="text-lg font-bold text-gray-900">Renouveler votre abonnement</h2>
                                 <p class="text-gray-500 text-xs">Prolongez votre abonnement de 30 jours supplémentaires</p>
                             @else
@@ -60,9 +68,9 @@
                             @endif
                         </div>
                     </div>
-                    @if($isRenewal)
-                        <button 
-                            type="button" 
+                    @if($isRenewal || $isUpgrade)
+                        <button
+                            type="button"
                             wire:click="closeModal"
                             class="text-gray-400 hover:text-gray-600 transition">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,6 +85,23 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Left Column: Plan Summary & Features -->
                         <div>
+                            <!-- Upgrade Info Banner -->
+                            @if($isUpgrade)
+                                <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                                    <div class="flex items-start">
+                                        <svg class="w-5 h-5 text-purple-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"/>
+                                        </svg>
+                                        <div>
+                                            <p class="text-sm font-medium text-purple-800">Upgrade vers {{ ucfirst($targetPlan) }}</p>
+                                            <p class="text-xs text-purple-600 mt-1">
+                                                Passez de <strong>{{ ucfirst($currentPlan) }}</strong> à <strong>{{ ucfirst($targetPlan) }}</strong> et débloquez plus de fonctionnalités !
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Renewal Info Banner -->
                             @if($isRenewal)
                                 <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
@@ -105,11 +130,17 @@
                                     <span class="text-sm font-semibold text-gray-900">{{ $organization->name }}</span>
                                 </div>
                                 <div class="flex justify-between items-center mb-3">
-                                    <span class="text-sm font-medium text-gray-500">Plan {{ $isRenewal ? 'actuel' : 'choisi' }}</span>
-                                    <span class="text-sm font-semibold text-indigo-600">
-                                        {{ $planData['name'] ?? $organization->subscription_plan->label() }}
+                                    <span class="text-sm font-medium text-gray-500">Plan {{ $isUpgrade ? 'cible' : ($isRenewal ? 'actuel' : 'choisi') }}</span>
+                                    <span class="text-sm font-semibold {{ $isUpgrade ? 'text-purple-600' : 'text-indigo-600' }}">
+                                        {{ $planData['name'] ?? ($isUpgrade ? ucfirst($targetPlan) : $organization->subscription_plan->label()) }}
                                     </span>
                                 </div>
+                                @if($isUpgrade && $currentPlan)
+                                    <div class="flex justify-between items-center mb-3">
+                                        <span class="text-sm font-medium text-gray-500">Plan actuel</span>
+                                        <span class="text-sm font-semibold text-gray-600">{{ ucfirst($currentPlan) }}</span>
+                                    </div>
+                                @endif
                                 @if($isRenewal && $organization->subscription_ends_at)
                                     <div class="flex justify-between items-center mb-3">
                                         <span class="text-sm font-medium text-gray-500">Expire le</span>
@@ -211,17 +242,17 @@
                                             @if($paymentStatus === 'pending' && $pendingTransactionId)
                                                 <button wire:click="confirmPaymentManually"
                                                         wire:loading.attr="disabled"
-                                                        wire:loading.class="opacity-50 cursor-wait"
-                                                        class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors">
+                                                        wire:target="confirmPaymentManually"
+                                                        class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-wait">
                                                     <svg wire:loading.remove wire:target="confirmPaymentManually" class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                     </svg>
                                                     <svg wire:loading wire:target="confirmPaymentManually" class="animate-spin w-3.5 h-3.5 mr-1.5" fill="none" viewBox="0 0 24 24">
                                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                     </svg>
-                                                    <span wire:loading.remove wire:target="confirmPaymentManually">J'ai payé</span>
-                                                    <span wire:loading wire:target="confirmPaymentManually">Confirmation...</span>
+                                                    <span wire:loading.remove wire:target="confirmPaymentManually">Vérifier le paiement</span>
+                                                    <span wire:loading wire:target="confirmPaymentManually">Vérification...</span>
                                                 </button>
                                                 <button wire:click="cancelPendingPayment" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-amber-700 bg-amber-100 hover:bg-amber-200 transition-colors">
                                                     <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

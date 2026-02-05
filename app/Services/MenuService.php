@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MenuItem;
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -10,20 +11,42 @@ use Illuminate\Support\Facades\Cache;
 class MenuService
 {
     /**
-     * Durée du cache en secondes (1 heure)
+     * Durée du cache en secondes (30 secondes - très court pour refléter rapidement les changements)
      */
-    private const CACHE_TTL = 3600;
+    private const CACHE_TTL = 30;
+
+    protected PlanLimitService $planLimitService;
+
+    public function __construct(PlanLimitService $planLimitService)
+    {
+        $this->planLimitService = $planLimitService;
+    }
 
     /**
      * Récupère tous les menus accessibles pour un utilisateur, groupés par section
      */
     public function getAccessibleMenusForUser(User $user): Collection
     {
-        $cacheKey = "user_menus_{$user->id}";
+        $organization = $this->planLimitService->getCurrentOrganization();
+        $orgId = $organization?->id ?? 0;
+        $planSlug = $organization?->subscription_plan?->value ?? 'none';
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
-            return $this->buildMenuStructure($user);
+        // Vérifier si le cache global a été invalidé
+        $globalVersion = Cache::get('menu_cache_version', 1);
+        $cacheKey = "user_menus_{$user->id}_{$orgId}_{$planSlug}_v{$globalVersion}";
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $organization) {
+            return $this->buildMenuStructure($user, $organization);
         });
+    }
+
+    /**
+     * Invalide tous les caches de menus en incrémentant la version
+     */
+    public static function invalidateAllMenuCaches(): void
+    {
+        $currentVersion = Cache::get('menu_cache_version', 1);
+        Cache::put('menu_cache_version', $currentVersion + 1, 86400); // 24h
     }
 
     /**
@@ -39,7 +62,7 @@ class MenuService
     /**
      * Construit la structure complète des menus
      */
-    private function buildMenuStructure(User $user): Collection
+    private function buildMenuStructure(User $user, ?Organization $organization): Collection
     {
         $userRoleIds = $user->roles->pluck('id')->toArray();
 
@@ -59,9 +82,42 @@ class MenuService
         ->orderBy('order')
         ->get();
 
+        // Filtrer les menus selon les fonctionnalités du plan
+        $filteredMenus = $this->filterMenusByPlanFeatures($menuItems, $organization);
+
         // Grouper par section
-        return $menuItems->groupBy(function ($item) {
+        return $filteredMenus->groupBy(function ($item) {
             return $item->section ?? 'no_section';
+        });
+    }
+
+    /**
+     * Filtre les menus selon les fonctionnalités disponibles dans le plan
+     */
+    private function filterMenusByPlanFeatures(Collection $menuItems, ?Organization $organization): Collection
+    {
+        return $menuItems->filter(function (MenuItem $menu) use ($organization) {
+            // Si pas de feature requise, le menu est accessible
+            if (empty($menu->required_feature)) {
+                return true;
+            }
+
+            // Vérifier si l'organisation a la fonctionnalité
+            return $this->planLimitService->hasFeature($menu->required_feature, $organization);
+        })->map(function (MenuItem $menu) use ($organization) {
+            // Filtrer aussi les enfants
+            if ($menu->children->isNotEmpty()) {
+                $menu->setRelation(
+                    'children',
+                    $menu->children->filter(function (MenuItem $child) use ($organization) {
+                        if (empty($child->required_feature)) {
+                            return true;
+                        }
+                        return $this->planLimitService->hasFeature($child->required_feature, $organization);
+                    })
+                );
+            }
+            return $menu;
         });
     }
 
@@ -70,17 +126,30 @@ class MenuService
      */
     public function hasAccessToMenu(User $user, string $menuCode): bool
     {
-        $cacheKey = "user_menu_access_{$user->id}_{$menuCode}";
+        $organization = $this->planLimitService->getCurrentOrganization();
+        $orgId = $organization?->id ?? 0;
+        $cacheKey = "user_menu_access_{$user->id}_{$menuCode}_{$orgId}";
 
-        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $menuCode) {
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $menuCode, $organization) {
             $userRoleIds = $user->roles->pluck('id')->toArray();
 
-            return MenuItem::where('code', $menuCode)
+            $menu = MenuItem::where('code', $menuCode)
                 ->active()
                 ->whereHas('roles', function ($query) use ($userRoleIds) {
                     $query->whereIn('roles.id', $userRoleIds);
                 })
-                ->exists();
+                ->first();
+
+            if (!$menu) {
+                return false;
+            }
+
+            // Vérifier si une fonctionnalité est requise
+            if (!empty($menu->required_feature)) {
+                return $this->planLimitService->hasFeature($menu->required_feature, $organization);
+            }
+
+            return true;
         });
     }
 

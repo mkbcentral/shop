@@ -72,6 +72,7 @@ class SubscriptionService
                 'max_users' => $plan->max_users,
                 'max_products' => $plan->max_products,
                 'features' => $plan->features ?? [],
+                'technical_features' => $plan->technical_features ?? [],
                 'is_popular' => $plan->is_popular,
                 'color' => $plan->color ?? 'gray',
             ];
@@ -212,6 +213,26 @@ class SubscriptionService
      */
     public function getPlanDetails(string $plan): array
     {
+        // Essayer de récupérer depuis la DB d'abord
+        $plansFromDb = self::getPlansFromDatabase();
+        if (isset($plansFromDb[$plan])) {
+            $dbPlan = $plansFromDb[$plan];
+            return [
+                'slug' => $plan,
+                'name' => $dbPlan['name'],
+                'price' => $dbPlan['price'],
+                'monthly_price' => $dbPlan['price'],
+                'yearly_price' => ($dbPlan['price'] * 12) * 0.8, // 20% de réduction annuelle
+                'limits' => [
+                    'max_stores' => $dbPlan['max_stores'],
+                    'max_users' => $dbPlan['max_users'],
+                    'max_products' => $dbPlan['max_products'],
+                ],
+                'features' => $dbPlan['features'] ?: $this->getPlanFeatures($plan),
+            ];
+        }
+
+        // Fallback sur les constantes
         $limits = self::PLAN_LIMITS[$plan] ?? self::PLAN_LIMITS['free'];
         $price = SubscriptionPayment::PLAN_PRICES[$plan] ?? 0;
 
@@ -219,6 +240,8 @@ class SubscriptionService
             'slug' => $plan,
             'name' => self::PLAN_LABELS[$plan] ?? $plan,
             'price' => $price,
+            'monthly_price' => $price,
+            'yearly_price' => ($price * 12) * 0.8,
             'limits' => $limits,
             'features' => $this->getPlanFeatures($plan),
         ];
@@ -274,6 +297,22 @@ class SubscriptionService
      * Obtenir tous les plans disponibles
      */
     public function getAvailablePlans(): array
+    {
+        // Utiliser les plans de la base de données
+        $plansFromDb = self::getPlansFromDatabase();
+
+        $plans = [];
+        foreach ($plansFromDb as $planSlug => $planData) {
+            $plans[$planSlug] = $this->getPlanDetails($planSlug);
+        }
+
+        return $plans ?: $this->getDefaultAvailablePlans();
+    }
+
+    /**
+     * Plans par défaut si la DB est vide
+     */
+    protected function getDefaultAvailablePlans(): array
     {
         $plans = [];
         foreach (array_keys(self::PLAN_LIMITS) as $plan) {
@@ -742,17 +781,17 @@ class SubscriptionService
         foreach ($organizations as $organization) {
             // Calculer les jours restants
             $daysRemaining = $organization->remaining_days ?? 0;
-            
+
             // Vérifier si on n'a pas déjà notifié récemment (sauf pour aujourd'hui)
             $cacheKey = "subscription_expiring_notified_{$organization->id}_{$daysRemaining}";
-            
+
             if (!Cache::has($cacheKey)) {
                 $organization->owner->notify(new SubscriptionExpiringNotification($organization, $daysRemaining));
-                
+
                 // Cache pour éviter les doubles notifications (24h pour les notifications normales)
                 $cacheDuration = $daysRemaining === 0 ? now()->addHours(12) : now()->addHours(24);
                 Cache::put($cacheKey, true, $cacheDuration);
-                
+
                 $count++;
             }
         }
@@ -962,7 +1001,22 @@ class SubscriptionService
     {
         $plan = SubscriptionPlan::findOrFail($planId);
 
-        return $plan->update($data);
+        $updated = $plan->update($data);
+
+        // Mettre à jour les limites de toutes les organisations qui utilisent ce plan
+        if ($updated && isset($data['max_stores'], $data['max_users'], $data['max_products'])) {
+            Organization::where('subscription_plan', $plan->slug)
+                ->update([
+                    'max_stores' => $data['max_stores'],
+                    'max_users' => $data['max_users'],
+                    'max_products' => $data['max_products'],
+                ]);
+
+            // Invalider le cache des plans
+            Cache::forget('subscription_plans');
+        }
+
+        return $updated;
     }
 
     /**

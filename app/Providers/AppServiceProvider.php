@@ -78,6 +78,65 @@ class AppServiceProvider extends ServiceProvider
             return auth()->check() && auth()->user()->hasAllPermissions((array) $permissions);
         });
 
+        // ===== Plan Feature Blade Directives =====
+
+        // @hasfeature('api_access') ... @endhasfeature
+        Blade::if('hasfeature', function ($feature) {
+            if (!auth()->check()) {
+                return false;
+            }
+            
+            $user = auth()->user();
+            
+            // Super-admin a accès à tout
+            if ($user->hasRole('super-admin')) {
+                return true;
+            }
+            
+            $organization = app()->bound('current_organization') 
+                ? app('current_organization') 
+                : $user->defaultOrganization;
+                
+            if (!$organization) {
+                return false;
+            }
+            
+            $planLimitService = app(\App\Services\PlanLimitService::class);
+            return $planLimitService->hasFeature($feature, $organization);
+        });
+
+        // @hasanyfeature(['api_access', 'export_pdf']) ... @endhasanyfeature
+        Blade::if('hasanyfeature', function ($features) {
+            if (!auth()->check()) {
+                return false;
+            }
+            
+            $user = auth()->user();
+            
+            // Super-admin a accès à tout
+            if ($user->hasRole('super-admin')) {
+                return true;
+            }
+            
+            $organization = app()->bound('current_organization') 
+                ? app('current_organization') 
+                : $user->defaultOrganization;
+                
+            if (!$organization) {
+                return false;
+            }
+            
+            $planLimitService = app(\App\Services\PlanLimitService::class);
+            
+            foreach ((array) $features as $feature) {
+                if ($planLimitService->hasFeature($feature, $organization)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        });
+
         // Share navigation data with all views
         View::composer('components.navigation-dynamic', function ($view) {
             $productRepository = app(ProductRepository::class);

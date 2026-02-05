@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\SubscriptionPlan;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Component;
@@ -18,9 +19,15 @@ class SubscriptionSettings extends Component
         'max_users' => 3,
         'max_products' => 100,
         'features' => [],
+        'technical_features' => [],
     ];
 
     public string $currency = 'CDF';
+
+    // Pour la gestion des fonctionnalités
+    public bool $showFeaturesModal = false;
+    public ?int $editingFeaturesForPlanId = null;
+    public array $selectedFeatures = [];
 
     public function mount(): void
     {
@@ -51,9 +58,120 @@ class SubscriptionSettings extends Component
             'max_users' => $plan->max_users,
             'max_products' => $plan->max_products,
             'features_text' => implode("\n", $plan->features ?? []),
+            'technical_features' => $plan->technical_features ?? [],
         ];
 
         $this->dispatch('open-plan-modal');
+    }
+
+    /**
+     * Ouvrir le modal de gestion des fonctionnalités techniques
+     */
+    public function openFeaturesModal(int $planId): void
+    {
+        $plan = SubscriptionPlan::find($planId);
+
+        if (!$plan) {
+            $this->dispatch('show-toast', message: 'Plan introuvable', type: 'error');
+            return;
+        }
+
+        $this->editingFeaturesForPlanId = $planId;
+        $this->selectedFeatures = $plan->technical_features ?? [];
+        $this->showFeaturesModal = true;
+    }
+
+    /**
+     * Fermer le modal des fonctionnalités
+     */
+    public function closeFeaturesModal(): void
+    {
+        $this->showFeaturesModal = false;
+        $this->editingFeaturesForPlanId = null;
+        $this->selectedFeatures = [];
+    }
+
+    /**
+     * Sauvegarder les fonctionnalités techniques
+     */
+    public function saveTechnicalFeatures(): void
+    {
+        if (!$this->editingFeaturesForPlanId) {
+            return;
+        }
+
+        $plan = SubscriptionPlan::find($this->editingFeaturesForPlanId);
+
+        if (!$plan) {
+            $this->dispatch('show-toast', message: 'Plan introuvable', type: 'error');
+            return;
+        }
+
+        $plan->update([
+            'technical_features' => array_values($this->selectedFeatures),
+        ]);
+
+        // Invalider tous les caches liés aux plans et menus
+        $this->invalidateAllRelatedCaches($plan->slug);
+
+        $this->closeFeaturesModal();
+        $this->dispatch('show-toast', message: 'Fonctionnalités mises à jour avec succès !', type: 'success');
+    }
+
+    /**
+     * Invalider tous les caches liés aux plans et menus
+     */
+    private function invalidateAllRelatedCaches(string $planSlug): void
+    {
+        // Invalider le cache des plans
+        Cache::forget('subscription_plans');
+
+        // Invalider tous les caches de menus via le versioning
+        \App\Services\MenuService::invalidateAllMenuCaches();
+    }
+
+    /**
+     * Basculer une fonctionnalité
+     */
+    public function toggleFeature(string $feature): void
+    {
+        if (in_array($feature, $this->selectedFeatures)) {
+            $this->selectedFeatures = array_values(array_filter(
+                $this->selectedFeatures,
+                fn($f) => $f !== $feature
+            ));
+        } else {
+            $this->selectedFeatures[] = $feature;
+        }
+    }
+
+    /**
+     * Sélectionner toutes les fonctionnalités
+     */
+    public function selectAllFeatures(): void
+    {
+        $this->selectedFeatures = array_keys(SubscriptionPlan::getAvailableFeatures());
+    }
+
+    /**
+     * Désélectionner toutes les fonctionnalités
+     */
+    public function deselectAllFeatures(): void
+    {
+        $this->selectedFeatures = [];
+    }
+
+    /**
+     * Obtenir le nom du plan en cours d'édition pour les fonctionnalités
+     */
+    public function getEditingFeaturesPlanNameProperty(): ?string
+    {
+        if (!$this->editingFeaturesForPlanId) {
+            return null;
+        }
+
+        $plan = SubscriptionPlan::find($this->editingFeaturesForPlanId);
+        return $plan?->name;
     }
 
     public function savePlan(): void
@@ -128,10 +246,14 @@ class SubscriptionSettings extends Component
     public function render()
     {
         $plans = SubscriptionService::getPlansFromDatabase();
+        $availableFeatures = SubscriptionPlan::getAvailableFeatures();
+        $featureCategories = SubscriptionPlan::getFeatureCategories();
 
         return view('livewire.admin.subscription-settings', [
             'plans' => $plans,
             'stats' => $this->stats,
+            'availableFeatures' => $availableFeatures,
+            'featureCategories' => $featureCategories,
         ]);
     }
 }

@@ -458,6 +458,10 @@ class Organization extends Model
 
     /**
      * Check if organization is accessible (paid or free plan)
+     * 
+     * Pour les plans payants, l'organisation est accessible si:
+     * - Le paiement a été complété
+     * - ET l'abonnement n'est pas expiré (ou les dates ne sont pas encore définies)
      */
     public function isAccessible(): bool
     {
@@ -467,7 +471,17 @@ class Organization extends Model
         }
 
         // Paid plans require payment completion
-        return $this->payment_status === PaymentStatus::COMPLETED;
+        if ($this->payment_status !== PaymentStatus::COMPLETED) {
+            return false;
+        }
+
+        // Si les dates d'abonnement sont définies, vérifier que l'abonnement n'est pas expiré
+        if ($this->subscription_ends_at) {
+            return $this->subscription_ends_at->endOfDay()->isFuture();
+        }
+
+        // Si pas de date de fin (nouveau paiement), accessible
+        return true;
     }
 
     /**
@@ -502,12 +516,19 @@ class Organization extends Model
             $amount = $planData['price'] ?? 0;
         }
 
+        // Définir les dates d'abonnement si elles ne sont pas encore définies
+        // (cas d'un premier paiement après inscription)
+        $subscriptionStartsAt = $this->subscription_starts_at ?? now();
+        $subscriptionEndsAt = $this->subscription_ends_at ?? now()->addMonth();
+
         // Mettre à jour l'organisation
         $this->update([
             'payment_status' => PaymentStatus::COMPLETED,
             'payment_reference' => $paymentReference,
             'payment_method' => $paymentMethod,
             'payment_completed_at' => now(),
+            'subscription_starts_at' => $subscriptionStartsAt,
+            'subscription_ends_at' => $subscriptionEndsAt,
             'is_active' => true,
         ]);
 
@@ -528,8 +549,8 @@ class Organization extends Model
             'transaction_id' => $paymentReference,
             'status' => SubscriptionPayment::STATUS_COMPLETED,
             'paid_at' => now(),
-            'period_starts_at' => $this->subscription_starts_at ?? now(),
-            'period_ends_at' => $this->subscription_ends_at ?? now()->addMonth(),
+            'period_starts_at' => $subscriptionStartsAt,
+            'period_ends_at' => $subscriptionEndsAt,
             'invoice_number' => 'INV-' . date('Ymd') . '-' . str_pad($this->id, 5, '0', STR_PAD_LEFT),
             'metadata' => array_merge($metadata, [
                 'shwary_reference' => $paymentReference,

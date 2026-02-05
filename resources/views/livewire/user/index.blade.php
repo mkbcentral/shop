@@ -13,13 +13,28 @@
             <h1 class="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
             <p class="text-gray-500 mt-1">Gérez les utilisateurs, leurs rôles et leurs affectations aux magasins</p>
         </div>
-        <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
-            class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-150">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Nouvel Utilisateur
-        </button>
+        @if($canAddUser)
+            <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
+                class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-150">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Nouvel Utilisateur
+            </button>
+        @else
+            <div class="inline-flex items-center px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg border border-amber-300">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Limite atteinte ({{ $usersUsage['current'] ?? 0 }}/{{ $usersUsage['max'] ?? 0 }})</span>
+                @php
+                    $currentOrg = auth()->user()->currentOrganization ?? auth()->user()->defaultOrganization;
+                @endphp
+                @if($currentOrg)
+                    <a href="{{ route('organizations.subscription', $currentOrg) }}" class="ml-2 text-amber-900 underline hover:no-underline">Upgrader</a>
+                @endif
+            </div>
+        @endif
     </div>
 
     <!-- Toast Notifications -->

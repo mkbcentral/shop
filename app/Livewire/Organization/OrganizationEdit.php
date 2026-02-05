@@ -4,6 +4,7 @@ namespace App\Livewire\Organization;
 
 use App\Livewire\Forms\OrganizationForm;
 use App\Models\Organization;
+use App\Models\SubscriptionPlan;
 use App\Services\OrganizationService;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -98,11 +99,15 @@ class OrganizationEdit extends Component
             'Africa/Lubumbashi' => 'Lubumbashi (UTC+2)',
         ];
 
+        // Charger les plans depuis la base de données
+        $subscriptionPlans = SubscriptionPlan::active()->ordered()->get();
+
         return view('livewire.organization.organization-edit', [
             'types' => $types,
             'legalForms' => $legalForms,
             'currencies' => $currencies,
             'timezones' => $timezones,
+            'subscriptionPlans' => $subscriptionPlans,
         ]);
     }
 }

@@ -43,12 +43,31 @@
                 </x-form.button>
             </x-slot>
 
-            <x-dropdown-item wire:click="exportExcel" icon="download" iconColor="green">
-                Exporter en Excel
-            </x-dropdown-item>
-            <x-dropdown-item wire:click="exportPdf" icon="document" iconColor="red">
-                Exporter en PDF
-            </x-dropdown-item>
+            @hasfeature('export_excel')
+                <x-dropdown-item wire:click="exportExcel" icon="download" iconColor="green">
+                    Exporter en Excel
+                </x-dropdown-item>
+            @else
+                <x-dropdown-item disabled class="opacity-50 cursor-not-allowed" icon="lock" iconColor="gray">
+                    <span class="flex items-center">
+                        Exporter en Excel
+                        <span class="ml-2 text-xs text-amber-600">(Plan Starter+)</span>
+                    </span>
+                </x-dropdown-item>
+            @endhasfeature
+            
+            @hasfeature('export_pdf')
+                <x-dropdown-item wire:click="exportPdf" icon="document" iconColor="red">
+                    Exporter en PDF
+                </x-dropdown-item>
+            @else
+                <x-dropdown-item disabled class="opacity-50 cursor-not-allowed" icon="lock" iconColor="gray">
+                    <span class="flex items-center">
+                        Exporter en PDF
+                        <span class="ml-2 text-xs text-amber-600">(Plan Pro+)</span>
+                    </span>
+                </x-dropdown-item>
+            @endhasfeature
         </x-dropdown>
     </div>
 

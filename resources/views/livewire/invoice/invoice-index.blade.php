@@ -123,6 +123,7 @@
                         style="display: none;"
                     >
                         <div class="py-1">
+                            @hasfeature('export_excel')
                             <button
                                 wire:click="exportExcel"
                                 @click="open = false"
@@ -133,6 +134,16 @@
                                 </svg>
                                 Export Excel
                             </button>
+                            @else
+                            <div class="flex items-center w-full px-4 py-2 text-sm text-gray-400 cursor-not-allowed" title="Fonctionnalité Starter+">
+                                <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                Export Excel
+                                <span class="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Starter+</span>
+                            </div>
+                            @endhasfeature
+                            @hasfeature('export_pdf')
                             <button
                                 wire:click="exportPdf"
                                 @click="open = false"
@@ -143,6 +154,15 @@
                                 </svg>
                                 Export PDF
                             </button>
+                            @else
+                            <div class="flex items-center w-full px-4 py-2 text-sm text-gray-400 cursor-not-allowed" title="Fonctionnalité Pro+">
+                                <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                Export PDF
+                                <span class="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Pro+</span>
+                            </div>
+                            @endhasfeature
                         </div>
                     </div>
                 </div>

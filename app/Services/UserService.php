@@ -96,6 +96,20 @@ class UserService
             // Create the user
             $user = $this->userRepository->create($data);
 
+            // Ajouter l'utilisateur à l'organisation via la table pivot organization_user
+            if (isset($data['default_organization_id']) && $data['default_organization_id']) {
+                $organization = \App\Models\Organization::find($data['default_organization_id']);
+                if ($organization && !$organization->hasMember($user)) {
+                    $organization->members()->attach($user->id, [
+                        'role' => 'member', // Rôle par défaut dans l'organisation
+                        'invited_at' => now(),
+                        'accepted_at' => now(),
+                        'invited_by' => auth()->id(),
+                        'is_active' => true,
+                    ]);
+                }
+            }
+
             // Assign roles if provided
             if (!empty($roles) && is_array($roles)) {
                 $user->assignRoles($roles);
@@ -409,7 +423,7 @@ class UserService
     protected function checkUserLimit(): void
     {
         $user = auth()->user();
-        
+
         if (!$user) {
             return; // Pas d'utilisateur connecté
         }
@@ -423,9 +437,9 @@ class UserService
 
         if (!$organization->canAddUser()) {
             $usage = $organization->getUsersUsage();
+            $planLimitService = app(\App\Services\PlanLimitService::class);
             throw new \Exception(
-                "Limite d'utilisateurs atteinte ({$usage['current']}/{$usage['max']}). " .
-                "Passez à un plan supérieur pour ajouter plus d'utilisateurs."
+                $planLimitService->getLimitReachedMessage('users', $usage['current'], $usage['max'])
             );
         }
     }

@@ -400,12 +400,25 @@ class Index extends Component
         // Charger les organisations pour le filtre (super admin uniquement)
         $organizations = $isSuperAdmin ? Organization::orderBy('name')->get() : collect();
 
+        // Vérifier si la limite d'utilisateurs est atteinte
+        $canAddUser = true;
+        $usersUsage = null;
+        if ($organizationId) {
+            $organization = Organization::find($organizationId);
+            if ($organization) {
+                $canAddUser = $organization->canAddUser();
+                $usersUsage = $organization->getUsersUsage();
+            }
+        }
+
         return view('livewire.user.index', [
             'users' => $users,
             'roles' => $roles,
             'stores' => $stores,
             'isSuperAdmin' => $isSuperAdmin,
             'organizations' => $organizations,
+            'canAddUser' => $canAddUser,
+            'usersUsage' => $usersUsage,
         ]);
     }
 

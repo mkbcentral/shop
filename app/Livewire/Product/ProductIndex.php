@@ -306,10 +306,27 @@ class ProductIndex extends Component
             sortDirection: $filters->sortDirection
         );
 
+        // Vérifier si la limite de produits est atteinte
+        $canAddProduct = true;
+        $productsUsage = null;
+        $currentOrg = null;
+
+        $user = auth()->user();
+        if ($user) {
+            $currentOrg = $user->currentOrganization ?? $user->defaultOrganization;
+            if ($currentOrg) {
+                $canAddProduct = $currentOrg->canAddProduct();
+                $productsUsage = $currentOrg->getProductsUsage();
+            }
+        }
+
         return view('livewire.product.product-index', [
             'products' => $products,
             'categories' => $categoryRepository->all(),
             'kpis' => $kpiService->calculateAllKPIs(),
+            'canAddProduct' => $canAddProduct,
+            'productsUsage' => $productsUsage,
+            'currentOrg' => $currentOrg,
         ]);
     }
 }

@@ -32,7 +32,7 @@ Route::prefix('auth')->name('api.auth.')->group(function () {
 // ===== Routes protégées par Sanctum =====
 Route::middleware('auth:sanctum')->group(function () {
 
-    // ===== Auth Routes (protégées) =====
+    // ===== Auth Routes (protégées) - Toujours accessibles =====
     Route::prefix('auth')->name('api.auth.')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('/logout-all', [AuthController::class, 'logoutAll'])->name('logout-all');
@@ -40,10 +40,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/refresh', [AuthController::class, 'refresh'])->name('refresh');
     });
 
-    // User info
+    // User info - Toujours accessible
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // ===== Routes nécessitant l'accès API (plan Professional+) =====
+    Route::middleware('feature:api_access')->group(function () {
 
     // ===== Store API Routes =====
     Route::prefix('stores')->name('api.stores.')->group(function () {
@@ -253,4 +256,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{id}/send-email', [MobileProformaController::class, 'sendEmail'])->name('send-email');
         });
         });
+
+    }); // Fin du groupe feature:api_access
 });

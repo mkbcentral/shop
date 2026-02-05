@@ -15,19 +15,83 @@ use Illuminate\Support\Facades\Auth;
 class PlanLimitService
 {
     /**
+     * Messages d'erreur standardisés pour les limites
+     */
+    public const LIMIT_MESSAGES = [
+        'stores' => [
+            'reached' => 'Limite de magasins atteinte (%d/%d). Passez à un plan supérieur pour créer plus de magasins.',
+            'warning' => 'Attention : vous approchez de la limite de magasins (%d/%d restants).',
+        ],
+        'users' => [
+            'reached' => 'Limite d\'utilisateurs atteinte (%d/%d). Passez à un plan supérieur pour inviter plus d\'utilisateurs.',
+            'warning' => 'Attention : vous approchez de la limite d\'utilisateurs (%d/%d restants).',
+        ],
+        'products' => [
+            'reached' => 'Limite de produits atteinte (%d/%d). Passez à un plan supérieur pour créer plus de produits.',
+            'warning' => 'Attention : vous approchez de la limite de produits (%d/%d restants).',
+        ],
+    ];
+
+    /**
+     * Labels des fonctionnalités pour l'affichage
+     */
+    public const FEATURE_LABELS = [
+        'basic_pos' => 'Point de vente',
+        'basic_inventory' => 'Gestion de stock de base',
+        'basic_reports' => 'Rapports de base',
+        'advanced_reports' => 'Rapports avancés',
+        'multi_store' => 'Multi-magasins',
+        'export_excel' => 'Export Excel',
+        'export_pdf' => 'Export PDF',
+        'api_access' => 'Accès API',
+        'custom_reports' => 'Rapports personnalisés',
+        'integrations' => 'Intégrations tierces',
+        'unlimited' => 'Ressources illimitées',
+        'dedicated_support' => 'Support dédié',
+        'custom_development' => 'Développement sur mesure',
+        'sla' => 'SLA garanti',
+    ];
+
+    /**
      * Récupère l'organisation courante
      */
     public function getCurrentOrganization(): ?Organization
     {
         $user = Auth::user();
-        
+
         if (!$user) {
             return null;
         }
 
         $organizationId = session('current_organization_id') ?? $user->default_organization_id;
-        
+
         return Organization::find($organizationId);
+    }
+
+    /**
+     * Génère un message d'erreur de limite atteinte
+     */
+    public function getLimitReachedMessage(string $type, int $current, int $max): string
+    {
+        $template = self::LIMIT_MESSAGES[$type]['reached'] ?? 'Limite atteinte (%d/%d).';
+        return sprintf($template, $current, $max);
+    }
+
+    /**
+     * Génère un message d'avertissement de limite proche
+     */
+    public function getLimitWarningMessage(string $type, int $current, int $remaining): string
+    {
+        $template = self::LIMIT_MESSAGES[$type]['warning'] ?? 'Limite proche (%d/%d restants).';
+        return sprintf($template, $current, $remaining);
+    }
+
+    /**
+     * Récupère le label d'une fonctionnalité
+     */
+    public function getFeatureLabel(string $feature): string
+    {
+        return self::FEATURE_LABELS[$feature] ?? $feature;
     }
 
     /**
@@ -36,7 +100,7 @@ class PlanLimitService
     public function getPlanLimits(string $planSlug): array
     {
         $plans = SubscriptionService::getPlansFromCache();
-        
+
         if (isset($plans[$planSlug])) {
             return [
                 'max_stores' => $plans[$planSlug]['max_stores'] ?? 1,
@@ -55,7 +119,7 @@ class PlanLimitService
     public function canAddStore(?Organization $organization = null): bool
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return false;
         }
@@ -70,7 +134,7 @@ class PlanLimitService
     public function canAddUser(?Organization $organization = null): bool
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return false;
         }
@@ -84,13 +148,13 @@ class PlanLimitService
     public function canAddProduct(?Organization $organization = null): bool
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return false;
         }
 
         $currentProductCount = $this->getProductCount($organization);
-        
+
         return $currentProductCount < $organization->max_products;
     }
 
@@ -100,7 +164,7 @@ class PlanLimitService
     public function getProductCount(?Organization $organization = null): int
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return 0;
         }
@@ -115,7 +179,7 @@ class PlanLimitService
     public function getUsageStats(?Organization $organization = null): array
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return [
                 'stores' => ['current' => 0, 'max' => 0, 'percentage' => 0, 'can_add' => false],
@@ -138,8 +202,8 @@ class PlanLimitService
                 'current' => $storeCount,
                 'max' => $organization->max_stores,
                 'remaining' => max(0, $organization->max_stores - $storeCount),
-                'percentage' => $organization->max_stores > 0 
-                    ? round(($storeCount / $organization->max_stores) * 100) 
+                'percentage' => $organization->max_stores > 0
+                    ? round(($storeCount / $organization->max_stores) * 100)
                     : 0,
                 'can_add' => $storeCount < $organization->max_stores,
             ],
@@ -147,8 +211,8 @@ class PlanLimitService
                 'current' => $userCount,
                 'max' => $organization->max_users,
                 'remaining' => max(0, $organization->max_users - $userCount),
-                'percentage' => $organization->max_users > 0 
-                    ? round(($userCount / $organization->max_users) * 100) 
+                'percentage' => $organization->max_users > 0
+                    ? round(($userCount / $organization->max_users) * 100)
                     : 0,
                 'can_add' => $userCount < $organization->max_users,
             ],
@@ -156,8 +220,8 @@ class PlanLimitService
                 'current' => $productCount,
                 'max' => $organization->max_products,
                 'remaining' => max(0, $organization->max_products - $productCount),
-                'percentage' => $organization->max_products > 0 
-                    ? round(($productCount / $organization->max_products) * 100) 
+                'percentage' => $organization->max_products > 0
+                    ? round(($productCount / $organization->max_products) * 100)
                     : 0,
                 'can_add' => $productCount < $organization->max_products,
             ],
@@ -177,7 +241,7 @@ class PlanLimitService
     {
         $organization = $organization ?? $this->getCurrentOrganization();
         $errors = [];
-        
+
         if (!$organization) {
             $errors[] = 'Aucune organisation trouvée.';
             return $errors;
@@ -207,72 +271,37 @@ class PlanLimitService
     public function hasFeature(string $feature, ?Organization $organization = null): bool
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return false;
         }
 
         $planSlug = $organization->subscription_plan->value;
+
+        // D'abord, essayer de récupérer depuis la base de données (source de vérité)
+        $plan = \App\Models\SubscriptionPlan::where('slug', $planSlug)->first();
+
+        if ($plan && !empty($plan->technical_features)) {
+            return in_array($feature, $plan->technical_features);
+        }
+
+        // Fallback: récupérer depuis le cache
         $plans = SubscriptionService::getPlansFromCache();
-        
-        // Récupérer les features du plan
+
+        // Vérifier les technical_features du cache
+        if (isset($plans[$planSlug]['technical_features'])) {
+            return in_array($feature, $plans[$planSlug]['technical_features']);
+        }
+
+        // Fallback ultime: features textuelles (recherche partielle)
         $planFeatures = $plans[$planSlug]['features'] ?? [];
-        
-        // Vérifier si la feature existe dans la liste (recherche partielle)
         foreach ($planFeatures as $planFeature) {
             if (stripos($planFeature, $feature) !== false) {
                 return true;
             }
         }
 
-        // Définition des fonctionnalités techniques par plan (non affichées mais actives)
-        $technicalFeatures = [
-            'free' => [
-                'basic_pos',
-                'basic_inventory',
-                'basic_reports',
-            ],
-            'starter' => [
-                'basic_pos',
-                'basic_inventory',
-                'basic_reports',
-                'advanced_reports',
-                'multi_store',
-                'export_excel',
-            ],
-            'professional' => [
-                'basic_pos',
-                'basic_inventory',
-                'basic_reports',
-                'advanced_reports',
-                'multi_store',
-                'export_excel',
-                'export_pdf',
-                'api_access',
-                'custom_reports',
-                'integrations',
-            ],
-            'enterprise' => [
-                'basic_pos',
-                'basic_inventory',
-                'basic_reports',
-                'advanced_reports',
-                'multi_store',
-                'export_excel',
-                'export_pdf',
-                'api_access',
-                'custom_reports',
-                'integrations',
-                'unlimited',
-                'dedicated_support',
-                'custom_development',
-                'sla',
-            ],
-        ];
-
-        $availableTechFeatures = $technicalFeatures[$planSlug] ?? [];
-        
-        return in_array($feature, $availableTechFeatures);
+        return false;
     }
 
     /**
@@ -282,7 +311,7 @@ class PlanLimitService
     {
         $organization = $organization ?? $this->getCurrentOrganization();
         $warnings = [];
-        
+
         if (!$organization) {
             return $warnings;
         }
@@ -314,7 +343,7 @@ class PlanLimitService
     public function getUpgradeSuggestion(?Organization $organization = null): ?array
     {
         $organization = $organization ?? $this->getCurrentOrganization();
-        
+
         if (!$organization) {
             return null;
         }
@@ -322,19 +351,19 @@ class PlanLimitService
         $stats = $this->getUsageStats($organization);
         $currentPlanSlug = $organization->subscription_plan->value;
         $plans = SubscriptionService::getPlansFromCache();
-        
+
         // Trouver le plan supérieur
         $planOrder = ['free' => 0, 'starter' => 1, 'professional' => 2, 'enterprise' => 3];
         $currentOrder = $planOrder[$currentPlanSlug] ?? 0;
-        
+
         // Si déjà au plan max, pas de suggestion
         if ($currentOrder >= 3) {
             return null;
         }
 
         // Si utilisation > 80%, suggérer une mise à niveau
-        $needsUpgrade = $stats['stores']['percentage'] >= 80 
-            || $stats['users']['percentage'] >= 80 
+        $needsUpgrade = $stats['stores']['percentage'] >= 80
+            || $stats['users']['percentage'] >= 80
             || $stats['products']['percentage'] >= 80;
 
         if (!$needsUpgrade) {

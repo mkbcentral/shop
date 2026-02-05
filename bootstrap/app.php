@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'organization.paid' => \App\Http\Middleware\EnsureOrganizationIsPaid::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'role' => \App\Http\Middleware\CheckRole::class,
+            'feature' => \App\Http\Middleware\CheckPlanFeature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

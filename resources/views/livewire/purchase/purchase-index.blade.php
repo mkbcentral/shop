@@ -81,12 +81,32 @@
                 </x-form.select>
 
                 <!-- Export Buttons -->
+                @hasfeature('export_pdf')
                 <x-form.button wire:click="exportPdf" variant="secondary" size="sm" icon="document">
                     PDF
                 </x-form.button>
+                @else
+                <button type="button" disabled class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed" title="Fonctionnalité Pro+">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    PDF
+                    <span class="ml-1.5 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Pro+</span>
+                </button>
+                @endhasfeature
+                @hasfeature('export_excel')
                 <x-form.button wire:click="exportExcel" variant="secondary" size="sm" icon="download">
                     Excel
                 </x-form.button>
+                @else
+                <button type="button" disabled class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed" title="Fonctionnalité Starter+">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Excel
+                    <span class="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Starter+</span>
+                </button>
+                @endhasfeature
                 <x-form.button wire:click="openEmailModal" variant="secondary" size="sm" icon="mail">
                     Email
                 </x-form.button>

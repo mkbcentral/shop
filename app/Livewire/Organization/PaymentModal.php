@@ -11,6 +11,7 @@ use App\Services\ShwaryPaymentService;
 use App\Services\SubscriptionService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 
 class PaymentModal extends Component
@@ -21,6 +22,9 @@ class PaymentModal extends Component
     public array $planData = [];
     public string $currency = '€';
     public bool $isRenewal = false; // Indique si c'est un renouvellement
+    public bool $isUpgrade = false; // Indique si c'est un upgrade de plan
+    public ?string $targetPlan = null; // Le plan cible pour l'upgrade
+    public ?string $currentPlan = null; // Le plan actuel
 
     // Shwary Mobile Money
     public string $phoneNumber = '';
@@ -190,9 +194,12 @@ class PaymentModal extends Component
             $this->paymentStatus = 'success';
             $this->paymentMessage = $shwaryService->getStatusMessage($transaction);
 
-            // Traiter le paiement selon le type (nouveau ou renouvellement)
+            // Traiter le paiement selon le type (nouveau, renouvellement ou upgrade)
             if ($this->organization) {
-                if ($this->isRenewal) {
+                if ($this->isUpgrade && $this->targetPlan) {
+                    // Upgrade: changer de plan
+                    $this->processUpgradeSuccess($transaction);
+                } elseif ($this->isRenewal) {
                     // Renouvellement: prolonger de 30 jours
                     $this->processRenewalSuccess($transaction);
                 } else {
@@ -214,14 +221,18 @@ class PaymentModal extends Component
             // Arrêter la vérification et rediriger
             $this->dispatch('payment-completed');
 
-            $successMessage = $this->isRenewal 
-                ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
-                : 'Paiement Mobile Money effectué avec succès ! Bienvenue à bord 🎉';
-            
+            $successMessage = $this->isUpgrade
+                ? 'Upgrade effectué avec succès ! Vous êtes maintenant sur le plan ' . ucfirst($this->targetPlan) . ' 🎉'
+                : ($this->isRenewal
+                    ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
+                    : 'Paiement Mobile Money effectué avec succès ! Bienvenue à bord 🎉');
+
             session()->flash('success', $successMessage);
 
             $this->showModal = false;
             $this->isRenewal = false;
+            $this->isUpgrade = false;
+            $this->targetPlan = null;
             return $this->redirect(route('dashboard'), navigate: true);
         }
 
@@ -243,8 +254,10 @@ class PaymentModal extends Component
 
     /**
      * Confirmation manuelle du paiement (pour les cas où le webhook ne fonctionne pas)
-     * Note: Cette méthode est utile en développement local ou quand l'API Shwary
-     * ne peut pas renvoyer le statut (authentification différente pour GET)
+     *
+     * IMPORTANT: Cette méthode vérifie OBLIGATOIREMENT le statut réel de la transaction
+     * auprès de l'API Shwary avant de valider le paiement. Un paiement ne sera jamais
+     * validé sans confirmation de l'API.
      */
     public function confirmPaymentManually(): void
     {
@@ -260,18 +273,49 @@ class PaymentModal extends Component
             return;
         }
 
-        // Marquer la transaction comme complétée
-        $transaction->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-        ]);
+        // SÉCURITÉ: Vérifier obligatoirement le statut auprès de l'API Shwary
+        $shwaryService = app(ShwaryPaymentService::class);
 
+        if (!$transaction->transaction_id) {
+            $this->paymentStatus = 'error';
+            $this->paymentMessage = 'Impossible de vérifier la transaction. Veuillez réessayer.';
+            return;
+        }
+
+        // Appeler l'API Shwary pour obtenir le statut réel
+        $result = $shwaryService->getTransaction($transaction->transaction_id);
+
+        // Recharger la transaction après la mise à jour par getTransaction()
+        $transaction->refresh();
+
+        // Vérifier si le paiement a réellement réussi côté Shwary
+        if (!$transaction->isCompleted()) {
+            // Le paiement n'a PAS réussi côté Mobile Money
+            if ($transaction->isFailed()) {
+                $this->paymentStatus = 'failed';
+                $this->paymentMessage = $shwaryService->getStatusMessage($transaction)
+                    ?: 'Le paiement a échoué. Veuillez réessayer.';
+                $this->pendingTransactionId = null;
+                // Arrêter le polling car le paiement a échoué
+                $this->dispatch('payment-completed');
+            } else {
+                // Toujours en attente - ne pas arrêter le polling
+                $this->paymentStatus = 'pending';
+                $this->paymentMessage = 'Le paiement n\'a pas encore été confirmé par votre opérateur Mobile Money. Veuillez valider sur votre téléphone.';
+            }
+            return;
+        }
+
+        // Le paiement est confirmé par l'API Shwary
         $this->paymentStatus = 'success';
         $this->paymentMessage = 'Paiement confirmé avec succès !';
 
-        // Traiter selon le type (renouvellement ou nouveau paiement)
+        // Traiter selon le type (upgrade, renouvellement ou nouveau paiement)
         if ($this->organization) {
-            if ($this->isRenewal) {
+            if ($this->isUpgrade && $this->targetPlan) {
+                // Upgrade: changer de plan
+                $this->processUpgradeSuccess($transaction);
+            } elseif ($this->isRenewal) {
                 // Renouvellement: prolonger de 30 jours
                 $this->processRenewalSuccess($transaction);
             } else {
@@ -285,7 +329,7 @@ class PaymentModal extends Component
                         'shwary_local_id' => $transaction->id,
                         'phone_number' => $transaction->phone_number,
                         'country_code' => $transaction->country_code,
-                        'confirmed_manually' => true,
+                        'verified_via_api' => true,
                     ]
                 );
             }
@@ -294,14 +338,18 @@ class PaymentModal extends Component
         // Arrêter la vérification et rediriger
         $this->dispatch('payment-completed');
 
-        $successMessage = $this->isRenewal 
-            ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
-            : 'Paiement Mobile Money confirmé avec succès ! Bienvenue à bord 🎉';
-        
+        $successMessage = $this->isUpgrade
+            ? 'Upgrade effectué avec succès ! Vous êtes maintenant sur le plan ' . ucfirst($this->targetPlan) . ' 🎉'
+            : ($this->isRenewal
+                ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
+                : 'Paiement Mobile Money confirmé avec succès ! Bienvenue à bord 🎉');
+
         session()->flash('success', $successMessage);
 
         $this->showModal = false;
         $this->isRenewal = false;
+        $this->isUpgrade = false;
+        $this->targetPlan = null;
 
         // Forcer une redirection complète (pas navigate)
         $this->redirectRoute('dashboard');
@@ -333,8 +381,8 @@ class PaymentModal extends Component
         if ($organizationId) {
             $this->organization = Organization::find($organizationId);
         } else {
-            $this->organization = app()->bound('current_organization') 
-                ? app('current_organization') 
+            $this->organization = app()->bound('current_organization')
+                ? app('current_organization')
                 : $user->defaultOrganization;
         }
 
@@ -362,18 +410,69 @@ class PaymentModal extends Component
     }
 
     /**
+     * Ouvrir le modal pour un upgrade de plan
+     */
+    #[On('open-upgrade-modal')]
+    public function openForUpgrade(int $organizationId, string $targetPlan): void
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return;
+        }
+
+        $this->organization = Organization::find($organizationId);
+
+        if (!$this->organization) {
+            return;
+        }
+
+        // Vérifier que c'est bien un upgrade
+        $subscriptionService = app(SubscriptionService::class);
+        $currentPlanSlug = $this->organization->subscription_plan->value;
+
+        if (!$subscriptionService->isUpgrade($currentPlanSlug, $targetPlan)) {
+            $this->dispatch('show-toast', message: 'Ce n\'est pas un upgrade de plan valide.', type: 'error');
+            return;
+        }
+
+        $this->isUpgrade = true;
+        $this->isRenewal = false;
+        $this->targetPlan = $targetPlan;
+        $this->currentPlan = $currentPlanSlug;
+        $this->showModal = true;
+
+        // Charger les données du plan cible
+        $allPlans = SubscriptionService::getPlansFromDatabase();
+        $this->planData = $allPlans[$targetPlan] ?? [];
+        $this->currency = SubscriptionService::getCurrencyFromCache();
+
+        // Réinitialiser les états
+        $this->paymentStatus = null;
+        $this->paymentMessage = null;
+        $this->pendingTransactionId = null;
+        $this->isProcessing = false;
+
+        // Vérifier si une transaction est en attente
+        $this->checkPendingTransaction();
+    }
+
+    /**
      * Fermer le modal
      */
     public function closeModal(): void
     {
-        // Ne pas permettre la fermeture si ce n'est pas un renouvellement
+        // Ne pas permettre la fermeture si ce n'est pas un renouvellement ou upgrade
         // (cas du premier paiement obligatoire)
-        if (!$this->isRenewal && $this->organization && !$this->organization->isAccessible()) {
+        if (!$this->isRenewal && !$this->isUpgrade && $this->organization && !$this->organization->isAccessible()) {
             return;
         }
 
         $this->showModal = false;
         $this->isRenewal = false;
+        $this->isUpgrade = false;
+        $this->targetPlan = null;
+        $this->currentPlan = null;
         $this->paymentStatus = null;
         $this->paymentMessage = null;
     }
@@ -483,7 +582,7 @@ class PaymentModal extends Component
         $baseDate = $this->organization->hasActiveSubscription() && $oldEndsAt
             ? $oldEndsAt
             : now();
-        
+
         $newEndsAt = $baseDate->copy()->addDays(30)->endOfDay();
         $newStartsAt = $this->organization->hasActiveSubscription() && $oldStartsAt
             ? $oldStartsAt
@@ -513,6 +612,51 @@ class PaymentModal extends Component
                 $newEndsAt->format('d/m/Y')
             )
         );
+    }
+
+    /**
+     * Traiter le succès d'un upgrade de plan
+     */
+    protected function processUpgradeSuccess($transaction): void
+    {
+        if (!$this->organization || !$this->targetPlan) {
+            return;
+        }
+
+        $subscriptionService = app(SubscriptionService::class);
+        $oldPlan = $this->organization->subscription_plan->value;
+
+        try {
+            // Utiliser le service d'abonnement pour effectuer l'upgrade
+            $subscriptionService->upgrade(
+                organization: $this->organization,
+                newPlan: $this->targetPlan,
+                durationMonths: 1,
+                paymentMethod: 'mobile_money',
+                transactionId: $transaction->reference ?? $transaction->transaction_id
+            );
+
+            // Recharger l'organisation
+            $this->organization->refresh();
+
+            // Enregistrer dans l'historique
+            SubscriptionHistory::record(
+                organization: $this->organization,
+                action: SubscriptionHistory::ACTION_UPGRADED,
+                notes: sprintf(
+                    'Upgrade %s → %s via Mobile Money. Référence: %s',
+                    ucfirst($oldPlan),
+                    ucfirst($this->targetPlan),
+                    $transaction->reference ?? $transaction->transaction_id
+                )
+            );
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de l\'upgrade: ' . $e->getMessage(), [
+                'organization_id' => $this->organization->id,
+                'target_plan' => $this->targetPlan,
+                'transaction_id' => $transaction->id,
+            ]);
+        }
     }
 
     public function render()

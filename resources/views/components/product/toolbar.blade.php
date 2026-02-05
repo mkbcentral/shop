@@ -52,19 +52,38 @@
         </button>
         <div x-show="open" @click.away="open = false" x-cloak
              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-            <button wire:click="exportExcel" @click="open = false" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center">
-                <svg class="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <span class="font-medium text-gray-700">Exporter Excel</span>
-            </button>
-            <a href="{{ route('reports.products', ['category_id' => $categoryFilter, 'status' => $statusFilter]) }}"
-               @click="open = false" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center">
-                <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                </svg>
-                <span class="font-medium text-gray-700">Exporter PDF</span>
-            </a>
+            @hasfeature('export_excel')
+                <button wire:click="exportExcel" @click="open = false" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center">
+                    <svg class="w-5 h-5 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="font-medium text-gray-700">Exporter Excel</span>
+                </button>
+            @else
+                <div class="w-full text-left px-4 py-2.5 text-sm text-gray-400 flex items-center cursor-not-allowed">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <span class="font-medium">Excel <span class="text-xs text-amber-600">(Starter+)</span></span>
+                </div>
+            @endhasfeature
+            
+            @hasfeature('export_pdf')
+                <a href="{{ route('reports.products', ['category_id' => $categoryFilter, 'status' => $statusFilter]) }}"
+                   @click="open = false" class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center">
+                    <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    <span class="font-medium text-gray-700">Exporter PDF</span>
+                </a>
+            @else
+                <div class="w-full text-left px-4 py-2.5 text-sm text-gray-400 flex items-center cursor-not-allowed">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <span class="font-medium">PDF <span class="text-xs text-amber-600">(Pro+)</span></span>
+                </div>
+            @endhasfeature
         </div>
     </div>
 

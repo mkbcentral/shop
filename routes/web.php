@@ -90,29 +90,29 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', SaleEdit::class)->name('edit')->middleware('permission:sales.edit');
     });
 
-    // Purchases Management
-    Route::prefix('purchases')->name('purchases.')->middleware('permission:purchases.view')->group(function () {
+    // Purchases Management (requires module_purchases feature)
+    Route::prefix('purchases')->name('purchases.')->middleware(['permission:purchases.view', 'feature:module_purchases'])->group(function () {
         Route::get('/', PurchaseIndex::class)->name('index');
         Route::get('/create', PurchaseCreate::class)->name('create')->middleware('permission:purchases.create');
         Route::get('/{id}/edit', PurchaseEdit::class)->name('edit')->middleware('permission:purchases.edit');
     });
 
-    // Clients Management
-    Route::get('/clients', ClientIndex::class)->name('clients.index')->middleware('permission:clients.view');
+    // Clients Management (requires module_clients feature)
+    Route::get('/clients', ClientIndex::class)->name('clients.index')->middleware(['permission:clients.view', 'feature:module_clients']);
 
-    // Suppliers Management
-    Route::get('/suppliers', SupplierIndex::class)->name('suppliers.index')->middleware('permission:suppliers.view');
+    // Suppliers Management (requires module_suppliers feature)
+    Route::get('/suppliers', SupplierIndex::class)->name('suppliers.index')->middleware(['permission:suppliers.view', 'feature:module_suppliers']);
 
-    // Invoices Management
-    Route::prefix('invoices')->name('invoices.')->middleware('permission:sales.view')->group(function () {
+    // Invoices Management (requires module_invoices feature)
+    Route::prefix('invoices')->name('invoices.')->middleware(['permission:sales.view', 'feature:module_invoices'])->group(function () {
         Route::get('/', InvoiceIndex::class)->name('index');
         Route::get('/create', InvoiceCreate::class)->name('create')->middleware('permission:sales.create');
         Route::get('/{id}', InvoiceShow::class)->name('show');
         Route::get('/{id}/edit', InvoiceEdit::class)->name('edit')->middleware('permission:sales.edit');
     });
 
-    // Proforma Invoices Management
-    Route::prefix('proformas')->name('proformas.')->middleware('permission:sales.view')->group(function () {
+    // Proforma Invoices Management (requires module_proformas feature)
+    Route::prefix('proformas')->name('proformas.')->middleware(['permission:sales.view', 'feature:module_proformas'])->group(function () {
         Route::get('/', ProformaIndex::class)->name('index');
         Route::get('/create', ProformaCreate::class)->name('create')->middleware('permission:sales.create');
         Route::get('/{proforma}', ProformaShow::class)->name('show');
@@ -131,27 +131,36 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/printer-config', PrinterConfiguration::class)->name('printer.config');
     // Stock Management
-    Route::prefix('stock')->name('stock.')->middleware('permission:products.view')->group(function () {
+    Route::prefix('stock')->name('stock.')->middleware(['permission:products.view', 'feature:module_stock'])->group(function () {
         Route::get('/', StockIndex::class)->name('index');
         Route::get('/overview', action: StockOverview::class)->name('overview');
         Route::get('/dashboard', StockDashboard::class)->name('dashboard');
         Route::get('/alerts', StockAlerts::class)->name('alerts');
         Route::get('/history/{variantId}', StockHistory::class)->name('history');
 
-        // Exports
-        Route::get('/export/excel', [\App\Http\Controllers\StockExportController::class, 'exportExcel'])->name('export.excel');
-        Route::get('/export/pdf', [\App\Http\Controllers\StockExportController::class, 'exportPdf'])->name('export.pdf');
+        // Exports (protégés par plan)
+        Route::get('/export/excel', [\App\Http\Controllers\StockExportController::class, 'exportExcel'])
+            ->name('export.excel')
+            ->middleware('feature:export_excel');
+        Route::get('/export/pdf', [\App\Http\Controllers\StockExportController::class, 'exportPdf'])
+            ->name('export.pdf')
+            ->middleware('feature:export_pdf');
     });
 
     // Reports PDF
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.sales,reports.stock')->group(function () {
+        // Rapports de base (disponibles pour tous les plans)
         Route::get('/products', [ReportController::class, 'products'])->name('products');
         Route::get('/sales', [ReportController::class, 'sales'])->name('sales');
-        Route::get('/invoices', [ReportController::class, 'invoices'])->name('invoices');
         Route::get('/stock', [ReportController::class, 'stock'])->name('stock');
-        Route::get('/stock-movements', [ReportController::class, 'stockMovements'])->name('stock-movements');
-        Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory');
-        Route::get('/stock-alerts', [ReportController::class, 'stockAlerts'])->name('stock-alerts');
+
+        // Rapports avancés (nécessitent plan Starter+)
+        Route::middleware('feature:advanced_reports')->group(function () {
+            Route::get('/invoices', [ReportController::class, 'invoices'])->name('invoices');
+            Route::get('/stock-movements', [ReportController::class, 'stockMovements'])->name('stock-movements');
+            Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory');
+            Route::get('/stock-alerts', [ReportController::class, 'stockAlerts'])->name('stock-alerts');
+        });
     });
 
     // User Management - Admin only

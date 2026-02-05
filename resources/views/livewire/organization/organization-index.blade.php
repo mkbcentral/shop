@@ -2,7 +2,7 @@
      wire:poll.30s
      @organization-created.window="$wire.$refresh()"
      @organization-updated.window="$wire.$refresh()"
-     @organization-deleted.window="$wire.$refresh()">>
+     @organization-deleted.window="$wire.$refresh()">
     <x-slot name="header">
         <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Organisations']]" />
     </x-slot>
@@ -12,9 +12,6 @@
             <h1 class="text-3xl font-bold text-gray-900">Mes Organisations</h1>
             <p class="text-gray-500 mt-1">Gérez vos organisations et leurs magasins</p>
         </div>
-        <x-form.button href="{{ route('organizations.create') }}" icon="plus">
-            Nouvelle Organisation
-        </x-form.button>
     </div>
 
     <!-- Toast Notifications -->
@@ -63,7 +60,7 @@
                         </div>
                         <div class="flex items-center space-x-2">
                             {{-- Bouton paiement pour tous les utilisateurs --}}
-                            <button 
+                            <button
                                 x-data
                                 @click="$dispatch('open-renewal-modal', { organizationId: {{ $organization->id }} })"
                                 class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition"
@@ -75,7 +72,7 @@
                             </button>
                             {{-- Bouton admin pour modifier les dates manuellement --}}
                             @if(auth()->user()->isSuperAdmin())
-                                <button 
+                                <button
                                     wire:click="openSubscriptionModal({{ $organization->id }})"
                                     class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 transition"
                                     title="Modifier manuellement"
@@ -99,7 +96,7 @@
                         </div>
                         <div class="flex items-center space-x-2">
                             {{-- Bouton paiement pour tous les utilisateurs --}}
-                            <button 
+                            <button
                                 x-data
                                 @click="$dispatch('open-renewal-modal', { organizationId: {{ $organization->id }} })"
                                 class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-orange-600 text-white hover:bg-orange-700 transition"
@@ -111,7 +108,7 @@
                             </button>
                             {{-- Bouton admin pour modifier les dates manuellement --}}
                             @if(auth()->user()->isSuperAdmin())
-                                <button 
+                                <button
                                     wire:click="openSubscriptionModal({{ $organization->id }})"
                                     class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
                                     title="Modifier manuellement"
@@ -196,11 +193,19 @@
                                             {{ $organization->plan_label }}
                                         </span>
                                     </div>
-                                    
+
                                     {{-- Subscription Status --}}
                                     @if($organization->subscription_plan->value !== 'free')
                                         <div class="flex items-center">
-                                            @if($organization->hasActiveSubscription())
+                                            @if($organization->isPaymentPending())
+                                                {{-- Paiement en attente --}}
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                                    <svg class="w-3 h-3 mr-1 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    Paiement en attente
+                                                </span>
+                                            @elseif($organization->hasActiveSubscription())
                                                 @if($organization->isSubscriptionExpiringToday())
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 animate-pulse">
                                                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,9 +237,17 @@
                                                 </span>
                                             @endif
                                         </div>
-                                        
+
                                         {{-- Expiration Date --}}
-                                        @if($organization->subscription_ends_at)
+                                        @if($organization->isPaymentPending())
+                                            {{-- Paiement en attente - pas de date d'expiration --}}
+                                            <div class="flex items-center text-xs text-amber-600">
+                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Finalisez le paiement pour activer
+                                            </div>
+                                        @elseif($organization->subscription_ends_at)
                                             <div class="flex items-center text-xs {{ $organization->isSubscriptionExpiringToday() ? 'text-orange-600 font-semibold' : ($organization->isSubscriptionExpiringSoon() ? 'text-yellow-600' : ($organization->hasActiveSubscription() ? 'text-gray-500' : 'text-red-600')) }}">
                                                 <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -287,9 +300,9 @@
 
                             {{-- Subscription Management Button (Super Admin Only) --}}
                             @if(auth()->user()->isSuperAdmin())
-                                <x-form.button 
+                                <x-form.button
                                     wire:click="openSubscriptionModal({{ $organization->id }})"
-                                    variant="secondary" 
+                                    variant="secondary"
                                     size="sm"
                                     title="Gérer l'abonnement"
                                 >
@@ -299,9 +312,9 @@
                                 </x-form.button>
 
                                 {{-- Subscription History Button --}}
-                                <x-form.button 
+                                <x-form.button
                                     wire:click="openHistoryModal({{ $organization->id }})"
-                                    variant="secondary" 
+                                    variant="secondary"
                                     size="sm"
                                     title="Historique des abonnements"
                                 >
@@ -366,8 +379,8 @@
         <div x-data="{ showModal: false, isEditing: true }"
              @open-subscription-modal.window="showModal = true"
              @close-subscription-modal.window="showModal = false; $wire.resetSubscriptionModal()">
-            <x-ui.alpine-modal 
-                name="subscription" 
+            <x-ui.alpine-modal
+                name="subscription"
                 title="Gérer l'abonnement"
                 editTitle="Gérer l'abonnement"
                 maxWidth="md"
@@ -391,9 +404,9 @@
                             <label for="subscriptionStartsAt" class="block text-sm font-medium text-gray-700 mb-1">
                                 Date de début d'abonnement
                             </label>
-                            <input 
-                                type="date" 
-                                id="subscriptionStartsAt" 
+                            <input
+                                type="date"
+                                id="subscriptionStartsAt"
                                 wire:model.live="subscriptionStartsAt"
                                 value="{{ $subscriptionStartsAt }}"
                                 class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
@@ -413,9 +426,9 @@
                             <label for="subscriptionEndsAt" class="block text-sm font-medium text-gray-700 mb-1">
                                 Date de fin d'abonnement
                             </label>
-                            <input 
-                                type="date" 
-                                id="subscriptionEndsAt" 
+                            <input
+                                type="date"
+                                id="subscriptionEndsAt"
                                 wire:model.live="subscriptionEndsAt"
                                 value="{{ $subscriptionEndsAt }}"
                                 class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
@@ -438,36 +451,36 @@
                         <div class="border-t border-gray-200 pt-4">
                             <p class="text-sm font-medium text-gray-700 mb-2">Actions rapides</p>
                             <div class="flex flex-wrap gap-2">
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     wire:click="$set('subscriptionEndsAt', '{{ now()->addMonth()->format('Y-m-d') }}')"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
                                 >
                                     +1 mois
                                 </button>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     wire:click="$set('subscriptionEndsAt', '{{ now()->addMonths(3)->format('Y-m-d') }}')"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
                                 >
                                     +3 mois
                                 </button>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     wire:click="$set('subscriptionEndsAt', '{{ now()->addMonths(6)->format('Y-m-d') }}')"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
                                 >
                                     +6 mois
                                 </button>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     wire:click="$set('subscriptionEndsAt', '{{ now()->addYear()->format('Y-m-d') }}')"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 transition"
                                 >
                                     +1 an
                                 </button>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     wire:click="$set('subscriptionEndsAt', null)"
                                     class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-gray-50 text-gray-700 hover:bg-gray-100 transition"
                                 >
@@ -479,14 +492,14 @@
 
                     {{-- Modal Footer --}}
                     <div class="flex-shrink-0 flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             @click="showModal = false; $wire.resetSubscriptionModal()"
                             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
                         >
                             Annuler
                         </button>
-                        <button 
+                        <button
                             type="submit"
                             class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
                         >
@@ -508,8 +521,8 @@
         <div x-data="{ showModal: false, isEditing: true }"
              @open-history-modal.window="showModal = true"
              @close-history-modal.window="showModal = false; $wire.resetHistoryModal()">
-            <x-ui.alpine-modal 
-                name="subscription-history" 
+            <x-ui.alpine-modal
+                name="subscription-history"
                 title="Historique des abonnements"
                 editTitle="Historique des abonnements"
                 maxWidth="3xl"
@@ -532,8 +545,8 @@
                     {{-- Filter --}}
                     <div class="mb-4">
                         <label for="historyActionFilter" class="block text-sm font-medium text-gray-700 mb-1">Filtrer par action</label>
-                        <select 
-                            id="historyActionFilter" 
+                        <select
+                            id="historyActionFilter"
                             wire:model.live="historyActionFilter"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         >
@@ -549,7 +562,7 @@
                         @forelse($subscriptionHistory as $entry)
                             <div class="relative pl-8 pb-4 {{ !$loop->last ? 'border-l-2 border-gray-200' : '' }}" wire:key="history-{{ $entry->id }}">
                                 {{-- Timeline Dot --}}
-                                <div class="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full 
+                                <div class="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full
                                     @switch($entry->action_color)
                                         @case('blue') bg-blue-500 @break
                                         @case('green') bg-green-500 @break
@@ -652,8 +665,8 @@
 
                 {{-- Modal Footer --}}
                 <div class="flex-shrink-0 flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         @click="showModal = false; $wire.resetHistoryModal()"
                         class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition"
                     >

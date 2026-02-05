@@ -29,6 +29,7 @@ class MenuItem extends Model
         'is_active',
         'badge_type',
         'badge_color',
+        'required_feature',
     ];
 
     protected $casts = [
