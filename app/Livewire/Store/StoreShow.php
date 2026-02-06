@@ -41,9 +41,10 @@ class StoreShow extends Component
         $this->storeId = $storeId;
     }
 
-    public function openEditModal(StoreRepository $repository)
+    public function openEditModal()
     {
         try {
+            $repository = app(StoreRepository::class);
             $store = $repository->find($this->storeId);
             if (!$store) {
                 $this->dispatch('show-toast', message: 'Magasin introuvable.', type: 'error');
@@ -52,7 +53,7 @@ class StoreShow extends Component
             $this->form->setStore($store);
             $this->showEditModal = true;
         } catch (\Exception $e) {
-            $this->dispatch('show-toast', message: 'Une erreur est survenue.', type: 'error');
+            $this->dispatch('show-toast', message: 'Une erreur est survenue : ' . $e->getMessage(), type: 'error');
         }
     }
 

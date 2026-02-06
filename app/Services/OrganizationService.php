@@ -64,9 +64,15 @@ class OrganizationService
             }
         }
 
-        // Appliquer les limites si le plan change
+        // Appliquer les limites UNIQUEMENT si le plan change réellement
         if (isset($data['subscription_plan'])) {
-            $data = $this->applyPlanLimits($data);
+            $currentPlan = $organization->subscription_plan instanceof \App\Enums\SubscriptionPlan
+                ? $organization->subscription_plan->value
+                : $organization->subscription_plan;
+
+            if ($data['subscription_plan'] !== $currentPlan) {
+                $data = $this->applyPlanLimits($data);
+            }
         }
 
         return $this->repository->update($organization, $data);

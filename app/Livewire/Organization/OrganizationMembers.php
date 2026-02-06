@@ -3,6 +3,7 @@
 namespace App\Livewire\Organization;
 
 use App\Models\Organization;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\OrganizationService;
 use Livewire\Component;
@@ -28,9 +29,11 @@ class OrganizationMembers extends Component
     public bool $showConfirmModal = false;
     public ?int $memberToRemove = null;
 
+    // Transfert de propriété
+    public ?int $newOwnerId = null;
+
     protected $rules = [
         'inviteEmail' => 'required|email',
-        'inviteRole' => 'required|in:admin,manager,accountant,member',
     ];
 
     protected $messages = [
@@ -62,7 +65,7 @@ class OrganizationMembers extends Component
 
         $this->reset(['inviteEmail', 'inviteRole']);
         $this->inviteRole = 'member';
-        
+
         $this->dispatch('open-invite-modal');
     }
 
@@ -76,9 +79,14 @@ class OrganizationMembers extends Component
     {
         $this->authorize('inviteMembers', $this->organization);
 
+        $validRoleSlugs = Role::where('is_active', true)
+            ->where('slug', '!=', 'super-admin')
+            ->pluck('slug')
+            ->implode(',');
+
         $this->validate([
             'inviteEmail' => 'required|email',
-            'inviteRole' => 'required|in:admin,manager,accountant,member',
+            'inviteRole' => "required|in:{$validRoleSlugs}",
         ]);
 
         try {
@@ -89,10 +97,10 @@ class OrganizationMembers extends Component
                 auth()->user()
             );
 
-            session()->flash('success', "Invitation envoyée à {$this->inviteEmail} !");
             $this->closeInviteModal();
+            $this->dispatch('show-toast', message: "Invitation envoyée à {$this->inviteEmail} !", type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -104,9 +112,9 @@ class OrganizationMembers extends Component
 
         try {
             $service->cancelInvitation($invitation);
-            session()->flash('success', 'Invitation annulée.');
+            $this->dispatch('show-toast', message: 'Invitation annulée.', type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -118,9 +126,9 @@ class OrganizationMembers extends Component
 
         try {
             $service->resendInvitation($invitation);
-            session()->flash('success', 'Invitation renvoyée !');
+            $this->dispatch('show-toast', message: 'Invitation renvoyée !', type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -137,7 +145,7 @@ class OrganizationMembers extends Component
         $member = $this->organization->members()->where('user_id', $memberId)->first();
 
         if (!$member) {
-            session()->flash('error', 'Membre non trouvé.');
+            $this->dispatch('show-toast', message: 'Membre non trouvé.', type: 'error');
             return;
         }
 
@@ -152,22 +160,21 @@ class OrganizationMembers extends Component
         $this->reset(['editingMemberId', 'newRole']);
     }
 
-    public function updateRole(OrganizationService $service): void
+    public function updateRole(int $memberId, string $newRole, OrganizationService $service): void
     {
         $this->authorize('updateMemberRoles', $this->organization);
 
-        if (!$this->editingMemberId || !$this->newRole) {
+        if (!$memberId || !$newRole) {
             return;
         }
 
         try {
-            $user = User::findOrFail($this->editingMemberId);
-            $service->updateMemberRole($this->organization, $user, $this->newRole);
+            $user = User::findOrFail($memberId);
+            $service->updateMemberRole($this->organization, $user, $newRole);
 
-            session()->flash('success', 'Rôle mis à jour avec succès.');
-            $this->closeRoleModal();
+            $this->dispatch('show-toast', message: 'Rôle mis à jour avec succès.', type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -203,10 +210,10 @@ class OrganizationMembers extends Component
             $user = User::findOrFail($this->memberToRemove);
             $service->removeMember($this->organization, $user);
 
-            session()->flash('success', 'Membre retiré de l\'organisation.');
             $this->closeConfirmModal();
+            $this->dispatch('show-toast', message: 'Membre retiré de l\'organisation.', type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -225,9 +232,36 @@ class OrganizationMembers extends Component
             $newStatus = $service->toggleMemberStatus($this->organization, $user);
 
             $statusText = $newStatus ? 'activé' : 'désactivé';
-            session()->flash('success', "Membre {$statusText}.");
+            $this->dispatch('show-toast', message: "Membre {$statusText}.", type: 'success');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transfert de propriété
+    |--------------------------------------------------------------------------
+    */
+
+    public function transferOwnership(OrganizationService $service): void
+    {
+        $this->authorize('transferOwnership', $this->organization);
+
+        if (!$this->newOwnerId) {
+            $this->dispatch('show-toast', message: 'Veuillez sélectionner un nouveau propriétaire.', type: 'error');
+            return;
+        }
+
+        try {
+            $newOwner = User::findOrFail($this->newOwnerId);
+            $service->transferOwnership($this->organization, $newOwner);
+
+            $this->newOwnerId = null;
+            $this->dispatch('close-transfer-modal');
+            $this->dispatch('show-toast', message: "La propriété a été transférée à {$newOwner->name}.", type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('show-toast', message: $e->getMessage(), type: 'error');
         }
     }
 
@@ -246,20 +280,12 @@ class OrganizationMembers extends Component
             ->latest()
             ->get();
 
-        $roles = [
-            'admin' => 'Administrateur',
-            'manager' => 'Manager',
-            'accountant' => 'Comptable',
-            'member' => 'Membre',
-        ];
-
-        $roleLabels = [
-            'owner' => 'Propriétaire',
-            'admin' => 'Administrateur',
-            'manager' => 'Manager',
-            'accountant' => 'Comptable',
-            'member' => 'Membre',
-        ];
+        // Fetch roles from database (excluding super-admin)
+        $roles = Role::where('is_active', true)
+            ->where('slug', '!=', 'super-admin')
+            ->orderBy('name')
+            ->pluck('name', 'slug')
+            ->toArray();
 
         $currentUser = auth()->user();
         $canManage = $this->organization->isManagerOrHigher($currentUser);
@@ -269,7 +295,7 @@ class OrganizationMembers extends Component
             'members' => $members,
             'pendingInvitations' => $pendingInvitations,
             'roles' => $roles,
-            'roleLabels' => $roleLabels,
+            'roleLabels' => $roles,
             'canManage' => $canManage,
             'canAdmin' => $canAdmin,
             'usage' => $this->organization->getUsersUsage(),

@@ -16,8 +16,8 @@ class SubscriptionSettings extends Component
         'name' => '',
         'price' => 0,
         'max_stores' => 1,
-        'max_users' => 3,
-        'max_products' => 100,
+        'max_users' => 2,
+        'max_products' => 10,
         'features' => [],
         'technical_features' => [],
     ];

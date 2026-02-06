@@ -1,4 +1,4 @@
-<div x-data="{ showModal: false, showDeleteModal: false, storeToDelete: null, storeName: '', isEditing: false }"
+<div x-data="{ showModal: false, showDeleteModal: false, storeToDelete: null, storeName: '', isEditing: false, showToggleModal: false, storeToToggle: null, toggleStoreName: '', toggleStoreStatus: false }"
      @open-store-modal.window="showModal = true"
      @open-edit-modal.window="isEditing = true; showModal = true"
      @close-store-modal.window="showModal = false; isEditing = false">
@@ -20,11 +20,14 @@
                 Nouveau Magasin
             </button>
         @else
-            <div class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-500 font-medium rounded-lg">
-                <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="inline-flex items-center px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg border border-amber-300">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                Limite de {{ $organization->max_stores ?? '∞' }} magasin(s) atteinte
+                <span>Limite atteinte ({{ $storesUsage['current'] ?? 0 }}/{{ $storesUsage['max'] ?? '∞' }})</span>
+                @if($organization)
+                    <a href="{{ route('organizations.subscription', $organization) }}" class="ml-2 text-amber-900 underline hover:no-underline">Upgrader</a>
+                @endif
             </div>
         @endif
     </div>
@@ -149,7 +152,7 @@
                             <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $store->is_active ? 'bg-green-500' : 'bg-red-500' }}"></span>
                             {{ $store->is_active ? 'Actif' : 'Inactif' }}
                         </span>
-                        <button wire:click="toggleStatus({{ $store->id }})"
+                        <button @click="showToggleModal = true; storeToToggle = {{ $store->id }}; toggleStoreName = '{{ addslashes($store->name) }}'; toggleStoreStatus = {{ $store->is_active ? 'true' : 'false' }}"
                             class="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline transition">
                             {{ $store->is_active ? 'Désactiver' : 'Activer' }}
                         </button>
@@ -233,6 +236,77 @@
         on-cancel="showDeleteModal = false; storeToDelete = null"
         on-confirm="$wire.deleteStore(storeToDelete); showDeleteModal = false; storeToDelete = null"
     />
+
+    <!-- Toggle Status Confirmation Modal -->
+    <div x-show="showToggleModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div x-show="showToggleModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="showToggleModal = false; storeToToggle = null; toggleStoreName = ''"
+            class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm"></div>
+
+        <!-- Modal -->
+        <div class="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div x-show="showToggleModal"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
+                @click.stop
+                @keydown.escape.window="showToggleModal = false"
+                class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto p-6">
+
+                <!-- Icon -->
+                <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-5"
+                    :class="toggleStoreStatus ? 'bg-amber-100' : 'bg-green-100'">
+                    <!-- Deactivate icon -->
+                    <svg x-show="toggleStoreStatus" class="h-7 w-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                    <!-- Activate icon -->
+                    <svg x-show="!toggleStoreStatus" class="h-7 w-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+
+                <!-- Content -->
+                <div class="text-center">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2" x-text="toggleStoreStatus ? 'Désactiver ce magasin' : 'Activer ce magasin'"></h3>
+                    <div class="text-sm text-gray-600">
+                        <p x-show="toggleStoreStatus">
+                            Êtes-vous sûr de vouloir désactiver le magasin <strong x-text="toggleStoreName"></strong> ?
+                            Les utilisateurs ne pourront plus y accéder.
+                        </p>
+                        <p x-show="!toggleStoreStatus">
+                            Êtes-vous sûr de vouloir activer le magasin <strong x-text="toggleStoreName"></strong> ?
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 justify-center mt-6">
+                    <button type="button"
+                        @click="showToggleModal = false; storeToToggle = null; toggleStoreName = ''"
+                        class="px-5 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
+                        Annuler
+                    </button>
+                    <button type="button"
+                        @click="$wire.toggleStatus(storeToToggle); showToggleModal = false; storeToToggle = null; toggleStoreName = ''"
+                        class="px-5 py-2.5 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        :class="toggleStoreStatus ? 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500' : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'"
+                        x-text="toggleStoreStatus ? 'Désactiver' : 'Activer'">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Store -->
     <x-ui.alpine-modal name="store" max-width="2xl"

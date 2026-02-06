@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Store;
 use App\Models\Organization;
 use App\Services\UserService;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -137,7 +138,7 @@ class Index extends Component
         ]);
 
         try {
-            $userService = app(UserService::class);
+            $userService = app(abstract: UserService::class);
 
             $storesData = [];
             foreach ($this->selectedStores as $storeId) {
@@ -157,7 +158,7 @@ class Index extends Component
             $this->closeAssignModal();
             $this->dispatch('show-toast', message: 'Assignations mises à jour avec succès.', type: 'success');
         } catch (\Exception $e) {
-            \Log::error('Error updating assignments: ' . $e->getMessage());
+            Log::error('Error updating assignments: ' . $e->getMessage());
             $this->dispatch('show-toast', message: 'Erreur: ' . $e->getMessage(), type: 'error');
         }
     }
@@ -189,7 +190,7 @@ class Index extends Component
                 $this->dispatch('show-toast', message: "Utilisateur {$status} avec succès.", type: 'success');
             }
         } catch (\Exception $e) {
-            \Log::error('Error toggling user status: ' . $e->getMessage());
+            Log::error('Error toggling user status: ' . $e->getMessage());
             $this->dispatch('show-toast', message: 'Erreur: ' . $e->getMessage(), type: 'error');
         }
     }
@@ -249,7 +250,7 @@ class Index extends Component
 
     public function createUser()
     {
-        \Log::info('CreateUser method called', [
+        Log::info('CreateUser method called', [
             'name' => $this->name,
             'email' => $this->email,
             'selectedRoles' => $this->selectedRoles,
@@ -259,7 +260,7 @@ class Index extends Component
         // Filter out empty or null values from selectedRoles
         $this->selectedRoles = array_filter($this->selectedRoles, fn($value) => !empty($value));
 
-        \Log::info('After filtering selectedRoles', ['selectedRoles' => $this->selectedRoles]);
+        Log::info('After filtering selectedRoles', ['selectedRoles' => $this->selectedRoles]);
 
         $this->validate([
             'name' => 'required|string|max:255',
@@ -277,7 +278,7 @@ class Index extends Component
             'selectedRoles.min' => 'Au moins un rôle doit être sélectionné.',
         ]);
 
-        \Log::info('Validation passed');
+        Log::info('Validation passed');
 
         try {
             $userService = app(UserService::class);
@@ -302,7 +303,7 @@ class Index extends Component
             $this->closeModal();
             $this->dispatch('show-toast', message: 'Utilisateur créé avec succès.', type: 'success');
         } catch (\Exception $e) {
-            \Log::error('Error creating user: ' . $e->getMessage());
+            Log::error('Error creating user: ' . $e->getMessage());
             $this->dispatch('show-toast', message: 'Erreur: ' . $e->getMessage(), type: 'error');
         }
     }

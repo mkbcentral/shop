@@ -1,4 +1,6 @@
-<div x-data="{ activeTab: @entangle('activeTab').live }">
+<div x-data="{ activeTab: @entangle('activeTab').live, showModal: false, isEditing: true }"
+     @open-store-edit-modal.window="showModal = true"
+     @close-store-edit-modal.window="showModal = false">
     <x-slot name="header">
         <x-breadcrumb :items="[
             ['label' => 'Accueil', 'url' => route('dashboard')],
@@ -39,9 +41,6 @@
                 </div>
             </div>
         </div>
-        <x-form.button wire:click="openEditModal" icon="edit">
-            Modifier
-        </x-form.button>
     </div>
 
     <!-- Tabs -->
@@ -211,16 +210,17 @@
                         </x-table.head>
                         <x-table.body>
                             @forelse ($stockItems as $item)
+                                @if($item->variant && $item->variant->product)
                                 <x-table.row>
                                     <x-table.cell>
                                         <div>
                                             <div class="text-sm font-medium text-gray-900">
-                                                {{ $item->productVariant->product->name }}
+                                                {{ $item->variant->product->name }}
                                             </div>
-                                            <div class="text-xs text-gray-500">{{ $item->productVariant->name }}</div>
+                                            <div class="text-xs text-gray-500">{{ $item->variant->name }}</div>
                                         </div>
                                     </x-table.cell>
-                                    <x-table.cell>{{ $item->productVariant->sku }}</x-table.cell>
+                                    <x-table.cell>{{ $item->variant->sku }}</x-table.cell>
                                     <x-table.cell>
                                         <span class="font-semibold">{{ $item->quantity }}</span>
                                     </x-table.cell>
@@ -243,6 +243,7 @@
                                         @endif
                                     </x-table.cell>
                                 </x-table.row>
+                                @endif
                             @empty
                                 <x-table.row>
                                     <x-table.cell colspan="4">
@@ -512,11 +513,10 @@
                         <x-table.body>
                             @forelse ($sales as $sale)
                                 <x-table.row>
-                                    <x-table.cell>{{ $sale->reference }}</x-table.cell>
+                                    <x-table.cell>{{ $sale->sale_number }}</x-table.cell>
                                     <x-table.cell>{{ $sale->client->name ?? 'Client anonyme' }}</x-table.cell>
-                                    <x-table.cell>@currency($sale->total_amount)
-                                    </x-table.cell>
-                                    <x-table.cell>{{ $sale->created_at->format('d/m/Y') }}</x-table.cell>
+                                    <x-table.cell>@currency($sale->total)</x-table.cell>
+                                    <x-table.cell>{{ $sale->sale_date->format('d/m/Y') }}</x-table.cell>
                                 </x-table.row>
                             @empty
                                 <x-table.row>
@@ -582,16 +582,4 @@
             @endif
         </div>
     </div>
-
-    <!-- Edit Modal -->
-    <x-modal name="showEditModal" title="Modifier le Magasin" maxWidth="2xl">
-        <form wire:submit="saveStore">
-            <x-store.form
-                :is-editing="true"
-                submit-action="saveStore"
-                cancel-action="closeEditModal"
-                form-prefix="form"
-            />
-        </form>
-    </x-modal>
 </div>

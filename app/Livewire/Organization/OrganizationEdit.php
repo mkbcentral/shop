@@ -31,14 +31,8 @@ class OrganizationEdit extends Component
 
         $data = $this->form->toArray();
 
-        // Upload du nouveau logo si fourni
-        if ($this->form->logo) {
-            // Supprimer l'ancien logo
-            if ($this->form->current_logo && Storage::disk('public')->exists($this->form->current_logo)) {
-                Storage::disk('public')->delete($this->form->current_logo);
-            }
-            $data['logo'] = $this->form->logo->store('organizations/logos', 'public');
-        }
+        // Le logo est géré séparément via updatedFormLogo()
+        unset($data['logo']);
 
         try {
             $service->update($this->organization, $data);
@@ -63,8 +57,40 @@ class OrganizationEdit extends Component
 
         $service->update($this->organization, ['logo' => null]);
         $this->form->current_logo = null;
+        $this->organization->refresh();
 
         $this->dispatch('show-toast', message: 'Le logo a été supprimé.', type: 'success');
+    }
+
+    public function updatedFormLogo(OrganizationService $service): void
+    {
+        $this->validateOnly('form.logo');
+
+        if (!$this->form->logo) {
+            return;
+        }
+
+        try {
+            // Supprimer l'ancien logo
+            if ($this->form->current_logo && Storage::disk('public')->exists($this->form->current_logo)) {
+                Storage::disk('public')->delete($this->form->current_logo);
+            }
+
+            // Stocker le nouveau logo
+            $logoPath = $this->form->logo->store('organizations/logos', 'public');
+
+            // Mettre à jour en base de données
+            $service->update($this->organization, ['logo' => $logoPath]);
+
+            // Mettre à jour les propriétés
+            $this->form->current_logo = $logoPath;
+            $this->organization->refresh();
+            $this->form->logo = null;
+
+            $this->dispatch('show-toast', message: 'Le logo a été mis à jour.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('show-toast', message: 'Erreur lors de la mise à jour du logo.', type: 'error');
+        }
     }
 
     public function render()

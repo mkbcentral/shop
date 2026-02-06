@@ -21,13 +21,14 @@ use Illuminate\Support\Facades\Log;
 class SubscriptionService
 {
     /**
-     * Limites par plan
+     * Limites par plan (valeurs par défaut, les vraies limites viennent de la DB)
+     * @deprecated Utilisez getPlanLimitsFromDatabase() pour obtenir les limites actuelles
      */
     public const PLAN_LIMITS = [
-        'free' => ['max_stores' => 1, 'max_users' => 3, 'max_products' => 100],
-        'starter' => ['max_stores' => 3, 'max_users' => 10, 'max_products' => 1000],
-        'professional' => ['max_stores' => 10, 'max_users' => 50, 'max_products' => 10000],
-        'enterprise' => ['max_stores' => 100, 'max_users' => 500, 'max_products' => 100000],
+        'free' => ['max_stores' => 1, 'max_users' => 1, 'max_products' => 10],
+        'starter' => ['max_stores' => 1, 'max_users' => 2, 'max_products' => 10],
+        'professional' => ['max_stores' => 3, 'max_users' => 5, 'max_products' => 100],
+        'enterprise' => ['max_stores' => -1, 'max_users' => -1, 'max_products' => -1],
     ];
 
     /**
@@ -53,6 +54,55 @@ class SubscriptionService
     public function __construct(
         private OrganizationRepository $organizationRepository
     ) {}
+
+    /**
+     * Récupérer les limites d'un plan depuis la base de données
+     */
+    public static function getPlanLimitsFromDatabase(string $planSlug): array
+    {
+        $plan = SubscriptionPlan::where('slug', $planSlug)->first();
+
+        if ($plan) {
+            return [
+                'max_stores' => $plan->max_stores,
+                'max_users' => $plan->max_users,
+                'max_products' => $plan->max_products,
+            ];
+        }
+
+        // Fallback sur les constantes
+        return self::PLAN_LIMITS[$planSlug] ?? self::PLAN_LIMITS['free'];
+    }
+
+    /**
+     * Synchroniser les limites d'une organisation avec son plan actuel
+     */
+    public function syncOrganizationLimits(Organization $organization): void
+    {
+        $limits = self::getPlanLimitsFromDatabase($organization->subscription_plan->value);
+
+        $organization->update([
+            'max_stores' => $limits['max_stores'],
+            'max_users' => $limits['max_users'],
+            'max_products' => $limits['max_products'],
+        ]);
+    }
+
+    /**
+     * Synchroniser toutes les organisations avec leurs plans respectifs
+     */
+    public function syncAllOrganizationsLimits(): int
+    {
+        $count = 0;
+        $organizations = Organization::all();
+
+        foreach ($organizations as $organization) {
+            $this->syncOrganizationLimits($organization);
+            $count++;
+        }
+
+        return $count;
+    }
 
     /**
      * Récupérer tous les plans depuis la base de données

@@ -250,6 +250,10 @@ class Organization extends Model
      */
     public function canAddStore(): bool
     {
+        // -1 signifie illimité
+        if ($this->max_stores === -1) {
+            return true;
+        }
         return $this->stores()->count() < $this->max_stores;
     }
 
@@ -258,6 +262,10 @@ class Organization extends Model
      */
     public function canAddUser(): bool
     {
+        // -1 signifie illimité
+        if ($this->max_users === -1) {
+            return true;
+        }
         return $this->members()->count() < $this->max_users;
     }
 
@@ -266,6 +274,10 @@ class Organization extends Model
      */
     public function canAddProduct(): bool
     {
+        // -1 signifie illimité
+        if ($this->max_products === -1) {
+            return true;
+        }
         $currentProductCount = Product::whereIn('store_id', $this->stores()->pluck('id'))->count();
         return $currentProductCount < $this->max_products;
     }
@@ -284,11 +296,13 @@ class Organization extends Model
     public function getProductsUsage(): array
     {
         $current = $this->getProductsCount();
+        $isUnlimited = $this->max_products === -1;
         return [
             'current' => $current,
-            'max' => $this->max_products,
-            'remaining' => max(0, $this->max_products - $current),
-            'percentage' => $this->max_products > 0 ? round(($current / $this->max_products) * 100) : 0,
+            'max' => $isUnlimited ? '∞' : $this->max_products,
+            'remaining' => $isUnlimited ? '∞' : max(0, $this->max_products - $current),
+            'percentage' => $isUnlimited ? 0 : ($this->max_products > 0 ? round(($current / $this->max_products) * 100) : 0),
+            'unlimited' => $isUnlimited,
         ];
     }
 
@@ -298,11 +312,13 @@ class Organization extends Model
     public function getStoresUsage(): array
     {
         $current = $this->stores()->count();
+        $isUnlimited = $this->max_stores === -1;
         return [
             'current' => $current,
-            'max' => $this->max_stores,
-            'remaining' => max(0, $this->max_stores - $current),
-            'percentage' => $this->max_stores > 0 ? round(($current / $this->max_stores) * 100) : 0,
+            'max' => $isUnlimited ? '∞' : $this->max_stores,
+            'remaining' => $isUnlimited ? '∞' : max(0, $this->max_stores - $current),
+            'percentage' => $isUnlimited ? 0 : ($this->max_stores > 0 ? round(($current / $this->max_stores) * 100) : 0),
+            'unlimited' => $isUnlimited,
         ];
     }
 
@@ -312,11 +328,13 @@ class Organization extends Model
     public function getUsersUsage(): array
     {
         $current = $this->members()->count();
+        $isUnlimited = $this->max_users === -1;
         return [
             'current' => $current,
-            'max' => $this->max_users,
-            'remaining' => max(0, $this->max_users - $current),
-            'percentage' => $this->max_users > 0 ? round(($current / $this->max_users) * 100) : 0,
+            'max' => $isUnlimited ? '∞' : $this->max_users,
+            'remaining' => $isUnlimited ? '∞' : max(0, $this->max_users - $current),
+            'percentage' => $isUnlimited ? 0 : ($this->max_users > 0 ? round(($current / $this->max_users) * 100) : 0),
+            'unlimited' => $isUnlimited,
         ];
     }
 
@@ -458,7 +476,7 @@ class Organization extends Model
 
     /**
      * Check if organization is accessible (paid or free plan)
-     * 
+     *
      * Pour les plans payants, l'organisation est accessible si:
      * - Le paiement a été complété
      * - ET l'abonnement n'est pas expiré (ou les dates ne sont pas encore définies)

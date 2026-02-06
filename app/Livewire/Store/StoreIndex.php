@@ -180,13 +180,15 @@ class StoreIndex extends Component
         // Get organization for quota check
         $organizationId = session('current_organization_id') ?? auth()->user()->default_organization_id;
         $organization = Organization::find($organizationId);
-        $canCreateStore = $organization ? auth()->user()->can('createStore', $organization) : false;
+        $canCreateStore = $organization ? $organization->canAddStore() && auth()->user()->can('createStore', $organization) : false;
+        $storesUsage = $organization ? $organization->getStoresUsage() : null;
 
         return view('livewire.store.index', [
             'stores' => $stores,
             'statistics' => $statistics,
             'organization' => $organization,
             'canCreateStore' => $canCreateStore,
+            'storesUsage' => $storesUsage,
         ]);
     }
 }

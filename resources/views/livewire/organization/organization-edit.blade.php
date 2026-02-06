@@ -310,22 +310,43 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Logo</label>
                                 <div class="flex items-center space-x-4">
-                                    @if($form->logo)
-                                        <img src="{{ $form->logo->temporaryUrl() }}" class="w-14 h-14 rounded-lg object-cover border">
-                                    @elseif($organization->logo)
-                                        <img src="{{ Storage::url($organization->logo) }}" class="w-14 h-14 rounded-lg object-cover border">
-                                    @else
-                                        <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center border border-dashed border-gray-300">
-                                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    <div class="relative">
+                                        @if($organization->logo)
+                                            <img src="{{ Storage::url($organization->logo) }}" class="w-14 h-14 rounded-lg object-cover border">
+                                        @else
+                                            <div class="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center border border-dashed border-gray-300">
+                                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                        @endif
+                                        <!-- Loading overlay -->
+                                        <div wire:loading wire:target="form.logo" class="absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                                            <svg class="animate-spin h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
                                         </div>
-                                    @endif
+                                    </div>
                                     <div class="flex-1">
                                         <input type="file" wire:model="form.logo" id="logo" class="hidden" accept="image/*">
                                         <label for="logo" class="cursor-pointer inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition">
-                                            Changer
+                                            <span wire:loading.remove wire:target="form.logo">Changer</span>
+                                            <span wire:loading wire:target="form.logo" class="inline-flex items-center">
+                                                <svg class="animate-spin -ml-1 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Chargement...
+                                            </span>
                                         </label>
+                                        @if($organization->logo)
+                                            <button type="button" wire:click="removeLogo" wire:loading.attr="disabled" wire:target="removeLogo"
+                                                class="ml-2 inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium rounded-lg transition">
+                                                <span wire:loading.remove wire:target="removeLogo">Supprimer</span>
+                                                <span wire:loading wire:target="removeLogo">Suppression...</span>
+                                            </button>
+                                        @endif
                                         <p class="text-[10px] text-gray-400 mt-1">PNG, JPG max 2Mo</p>
                                     </div>
                                 </div>
