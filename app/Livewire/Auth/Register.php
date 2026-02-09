@@ -87,10 +87,13 @@ class Register extends Component
             // 4. Create the organization
             // Note: Les dates d'abonnement ne sont définies que pour les plans gratuits
             // Pour les plans payants, elles seront définies lors de la confirmation du paiement
+            $baseSlug = Str::slug($step2['organization_name']);
+            $slug = $this->generateUniqueSlug($baseSlug);
+
             $organization = Organization::create([
                 'name' => $step2['organization_name'],
                 'phone' => $step2['organization_phone'],
-                'slug' => Str::slug(title: $step2['organization_name']),
+                'slug' => $slug,
                 'owner_id' => $user->id,
                 'business_activity' => $step2['business_activity'] ?? 'retail',
                 'subscription_plan' => $plan,
@@ -196,5 +199,22 @@ class Register extends Component
     public function render()
     {
         return view('livewire.auth.register');
+    }
+
+    /**
+     * Generate a unique slug for the organization
+     */
+    private function generateUniqueSlug(string $baseSlug): string
+    {
+        $slug = $baseSlug;
+        $counter = 1;
+
+        // Keep checking until we find a unique slug
+        while (Organization::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 }
