@@ -9,7 +9,7 @@
     <div class="flex items-center justify-between mt-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Catégories</h1>
-            <p class="text-gray-500 mt-1">Gérez les catégories de produits</p>
+            <p class="text-gray-500 mt-1">Gérez les catégories de {{ strtolower(products_label()) }}</p>
         </div>
         <button @click="isEditing = false; showModal = true; $wire.openCreateModal()"
             class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-150">
@@ -25,7 +25,7 @@
 
     <!-- Search and Filters -->
     <div class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Search -->
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -37,6 +37,20 @@
                 <input type="text" wire:model.live.debounce.300ms="search"
                     class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition"
                     placeholder="Rechercher une catégorie...">
+            </div>
+
+            <!-- Product Type Filter -->
+            <div class="flex items-center space-x-2">
+                <label for="productTypeFilter" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Type :
+                </label>
+                <select id="productTypeFilter" wire:model.live="productTypeFilter"
+                    class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <option value="">Tous les types</option>
+                    @foreach($productTypes as $type)
+                        <option value="{{ $type->id }}">{{ $type->icon }} {{ $type->name }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <!-- Per Page Selector -->
@@ -63,7 +77,7 @@
                 <tr>
                     <x-table.header>Nom</x-table.header>
                     <x-table.header>Type de produit</x-table.header>
-                    <x-table.header>Nombre de Produits</x-table.header>
+                    <x-table.header>Nombre de {{ products_label() }}</x-table.header>
                     <x-table.header>Date de création</x-table.header>
                     <x-table.header align="center">Actions</x-table.header>
                 </tr>
@@ -85,7 +99,7 @@
                                 </div>
                             </div>
                         </x-table.cell>
-                        
+
                         <x-table.cell>
                             @if($category->productType)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -98,12 +112,12 @@
                                 <span class="text-xs text-gray-400 italic">Aucun type</span>
                             @endif
                         </x-table.cell>
-                        
+
                         <x-table.cell>
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                                 {{ $category->products_count }}
-                                {{ $category->products_count > 1 ? 'produits' : 'produit' }}
+                                {{ $category->products_count > 1 ? strtolower(products_label()) : strtolower(product_label()) }}
                             </span>
                         </x-table.cell>
                         <x-table.cell>
@@ -145,7 +159,7 @@
                     </x-table.row>
                 @empty
                     <x-table.empty-state colspan="5" title="Aucune catégorie trouvée"
-                        description="Commencez par créer votre première catégorie de produits.">
+                        description="Commencez par créer votre première catégorie de {{ strtolower(products_label()) }}.">
                         <x-slot name="action">
                             <x-form.button @click="isEditing = false; showModal = true; $wire.openCreateModal()" size="sm">
                                 <svg class="w-4 h-4 mr-2 inline-block" fill="none" stroke="currentColor"

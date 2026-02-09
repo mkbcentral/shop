@@ -224,7 +224,7 @@ export default {
 
         if (price < minPrice) {
             Alpine.store('toast').show(
-                `Remise max autorisée : ${maxDiscount.toFixed(2)}`,
+                `Remise max autorisée : ${Math.round(maxDiscount)}`,
                 'error'
             );
             return;
@@ -232,7 +232,7 @@ export default {
 
         if (price > originalPrice) {
             Alpine.store('toast').show(
-                `Prix maximum : ${originalPrice.toFixed(2)}`,
+                `Prix maximum : ${Math.round(originalPrice)}`,
                 'error'
             );
             return;

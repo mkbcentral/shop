@@ -26,9 +26,14 @@ class NotifyLowStockListener implements ShouldQueue
     {
         // Vérifier le stock de chaque article vendu
         foreach ($event->sale->items as $item) {
-            $variant = ProductVariant::find($item->product_variant_id);
-            
+            $variant = ProductVariant::with('product.productType')->find($item->product_variant_id);
+
             if (!$variant) {
+                continue;
+            }
+
+            // Skip service products - they don't have stock management
+            if ($variant->product->productType?->is_service) {
                 continue;
             }
 

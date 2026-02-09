@@ -3,13 +3,13 @@
      @open-edit-modal.window="isEditing = true; showModal = true"
      @close-producttype-modal.window="showModal = false; isEditing = false">
     <x-slot name="header">
-        <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Types de Produits']]" />
+        <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => product_type_label()]]" />
     </x-slot>
 
     <div class="flex items-center justify-between mt-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Types de Produits</h1>
-            <p class="text-gray-500 mt-1">Gérez les types de produits et leurs caractéristiques</p>
+            <h1 class="text-3xl font-bold text-gray-900">{{ product_type_label() }}</h1>
+            <p class="text-gray-500 mt-1">Gérez les types de {{ strtolower(products_label()) }} et leurs caractéristiques</p>
         </div>
         <button @click="isEditing = false; $wire.openCreateModal()"
             class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-150">
@@ -57,7 +57,7 @@
                     <x-table.header>Type</x-table.header>
                     <x-table.header>Organisation</x-table.header>
                     <x-table.header>Caractéristiques</x-table.header>
-                    <x-table.header>Produits</x-table.header>
+                    <x-table.header>{{ products_label() }}</x-table.header>
                     <x-table.header>Statut</x-table.header>
                     <x-table.header align="center">Actions</x-table.header>
                 </tr>

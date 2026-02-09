@@ -132,22 +132,28 @@ class DashboardRepository
     }
 
     /**
-     * Get count of low stock products
+     * Get count of low stock products (excludes service products)
      */
     public function getLowStockCount(): int
     {
         $query = ProductVariant::whereRaw('stock_quantity <= low_stock_threshold')
-            ->where('stock_quantity', '>', 0);
+            ->where('stock_quantity', '>', 0)
+            ->whereHas('product.productType', function($q) {
+                $q->where('is_service', false);
+            });
         $this->applyStoreFilterViaProduct($query);
         return $query->count();
     }
 
     /**
-     * Get count of out of stock products
+     * Get count of out of stock products (excludes service products)
      */
     public function getOutOfStockCount(): int
     {
-        $query = ProductVariant::where('stock_quantity', 0);
+        $query = ProductVariant::where('stock_quantity', 0)
+            ->whereHas('product.productType', function($q) {
+                $q->where('is_service', false);
+            });
         $this->applyStoreFilterViaProduct($query);
         return $query->count();
     }

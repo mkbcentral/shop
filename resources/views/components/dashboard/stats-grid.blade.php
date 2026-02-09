@@ -24,10 +24,10 @@
     </x-stat-card>
 
     <x-stat-card
-        title="Total Produits"
+        :title="'Total ' . products_label()"
         :value="number_format($totalProducts)"
         color="green"
-        :trend="'Valeur: ' . format_currency($totalStockValue)"
+        :trend="has_stock_management() ? 'Valeur: ' . format_currency($totalStockValue) : 'Services actifs'"
         :trendUp="true">
         <x-slot:icon>
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,6 +36,7 @@
         </x-slot:icon>
     </x-stat-card>
 
+    @if(has_stock_management())
     <x-stat-card
         title="Stock Bas"
         :value="number_format($lowStockAlerts)"
@@ -48,6 +49,20 @@
             </svg>
         </x-slot:icon>
     </x-stat-card>
+    @else
+    <x-stat-card
+        title="Rendez-vous"
+        value="-"
+        color="orange"
+        trend="Services à venir"
+        :trendUp="true">
+        <x-slot:icon>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+        </x-slot:icon>
+    </x-stat-card>
+    @endif
 
     <x-stat-card
         title="Ventes ce Mois"

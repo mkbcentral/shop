@@ -4,11 +4,36 @@
 ])
 
 @php
+    // Vérifier si l'organisation gère le stock
+    $showStock = has_stock_management();
+
     // Use the model's getTotalStockAttribute which handles store-specific stock
     $totalStock = $product->total_stock;
     $stockClass = $totalStock == 0 ? 'bg-red-100 text-red-800 border-red-300' :
                  ($totalStock <= $product->stock_alert_threshold ? 'bg-orange-100 text-orange-800 border-orange-300' :
                  'bg-green-100 text-green-800 border-green-300');
+
+    // Expiry date status
+    $expiryStatus = null;
+    $expiryClass = '';
+    $expiryLabel = '';
+    $daysUntilExpiry = null;
+
+    if ($product->expiry_date) {
+        $expiryDate = \Carbon\Carbon::parse($product->expiry_date);
+        $now = now();
+        $daysUntilExpiry = (int) $now->diffInDays($expiryDate, false);
+
+        if ($daysUntilExpiry < 0) {
+            $expiryStatus = 'expired';
+            $expiryClass = 'bg-red-600 text-white';
+            $expiryLabel = 'EXPIRÉ';
+        } elseif ($daysUntilExpiry <= 30) {
+            $expiryStatus = 'expiring_soon';
+            $expiryClass = 'bg-orange-500 text-white';
+            $expiryLabel = $daysUntilExpiry . 'j';
+        }
+    }
 @endphp
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 group relative">
@@ -18,16 +43,30 @@
     </div>
 
     <!-- Stock Badge -->
-    @if($totalStock == 0)
-        <div class="absolute top-3 right-3 z-10">
-            <span class="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg">
-                RUPTURE
-            </span>
-        </div>
-    @elseif($totalStock <= $product->stock_alert_threshold)
-        <div class="absolute top-3 right-3 z-10">
-            <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
-                ALERTE
+    @if($showStock)
+        @if($totalStock == 0)
+            <div class="absolute top-3 right-3 z-10">
+                <span class="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg">
+                    RUPTURE
+                </span>
+            </div>
+        @elseif($totalStock <= $product->stock_alert_threshold)
+            <div class="absolute top-3 right-3 z-10">
+                <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+                    ALERTE
+                </span>
+            </div>
+        @endif
+    @endif
+
+    <!-- Expiry Badge -->
+    @if($expiryStatus)
+        <div class="absolute top-12 right-3 z-10">
+            <span class="px-2 py-1 {{ $expiryClass }} text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {{ $expiryLabel }}
             </span>
         </div>
     @endif
@@ -70,16 +109,32 @@
             </span>
         </div>
 
+        @if($product->expiry_date)
+            <div class="flex items-center text-xs {{ $expiryStatus === 'expired' ? 'text-red-600' : ($expiryStatus === 'expiring_soon' ? 'text-orange-600' : 'text-gray-500') }}">
+                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Exp: {{ \Carbon\Carbon::parse($product->expiry_date)->format('d/m/Y') }}
+                @if($expiryStatus === 'expired')
+                    <span class="ml-1 font-semibold">(expiré il y a {{ abs($daysUntilExpiry) }}j)</span>
+                @elseif($expiryStatus === 'expiring_soon')
+                    <span class="ml-1 font-semibold">(dans {{ $daysUntilExpiry }}j)</span>
+                @endif
+            </div>
+        @endif
+
         <div class="flex items-center justify-between pt-2 border-t border-gray-100">
             <div>
                 <p class="text-lg font-bold text-gray-900">{{ format_currency($product->price) }}</p>
-                @if($product->cost_price)
+                @if($showStock && $product->cost_price)
                     <p class="text-xs text-gray-500">Coût: {{ format_currency($product->cost_price) }}</p>
                 @endif
             </div>
+            @if($showStock)
             <span class="px-3 py-1 rounded-full text-xs font-medium border {{ $stockClass }}">
                 {{ $totalStock }}
             </span>
+            @endif
         </div>
 
         <!-- Actions -->

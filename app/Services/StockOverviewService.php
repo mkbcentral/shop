@@ -16,7 +16,7 @@ class StockOverviewService
 
     /**
      * Calculate all KPIs for stock overview dashboard.
-     * 
+     *
      * @param int|null $storeId Override the current store ID (useful for API calls)
      */
     public function calculateKPIs(?int $storeId = null): array
@@ -24,7 +24,9 @@ class StockOverviewService
         $currentStoreId = $storeId ?? current_store_id();
 
         $query = $this->variantRepository->query()
-            ->with(['product', 'storeStocks']);
+            ->with(['product.productType', 'storeStocks'])
+            // Exclude service products from stock calculations
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false));
 
         // Filter by current store using storeStocks relation
         if ($currentStoreId !== null) {
@@ -51,6 +53,18 @@ class StockOverviewService
             $storeQty = $currentStoreId !== null ? $v->getStoreStock($currentStoreId) : $v->stock_quantity;
             return $storeQty > 0 && $storeQty <= $v->low_stock_threshold;
         });
+
+        // Count expired products (expiry_date in the past) - regardless of stock
+        $expiredCount = $allVariants->filter(function($v) {
+            return $v->product->expiry_date && \Carbon\Carbon::parse($v->product->expiry_date)->isPast();
+        })->count();
+
+        // Count expiring soon (within 30 days) - regardless of stock
+        $expiringSoonCount = $allVariants->filter(function($v) {
+            if (!$v->product->expiry_date) return false;
+            $expiryDate = \Carbon\Carbon::parse($v->product->expiry_date);
+            return !$expiryDate->isPast() && $expiryDate->diffInDays(now()) <= 30;
+        })->count();
 
         // Calculate total stock value (cost) - use store-specific quantities
         $totalStockValue = $inStock->sum(function ($variant) use ($currentStoreId) {
@@ -83,13 +97,15 @@ class StockOverviewService
             'in_stock_count' => $inStock->count(),
             'out_of_stock_count' => $outOfStock->count(),
             'low_stock_count' => $lowStock->count(),
+            'expired_count' => $expiredCount,
+            'expiring_soon_count' => $expiringSoonCount,
             'total_units' => $totalUnits,
         ];
     }
 
     /**
      * Get variants for inventory overview with filters.
-     * 
+     *
      * @param array $filters Filters to apply
      * @param int|null $storeId Override the current store ID (useful for API calls)
      */
@@ -98,7 +114,9 @@ class StockOverviewService
         $currentStoreId = $storeId ?? current_store_id();
 
         $query = $this->variantRepository->query()
-            ->with(['product.category', 'storeStocks']);
+            ->with(['product.category', 'product.productType', 'storeStocks'])
+            // Exclude service products from inventory
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false));
 
         // Filter by current store using storeStocks relation
         if ($currentStoreId !== null) {
@@ -172,8 +190,10 @@ class StockOverviewService
     public function getStockValueByCategory(): Collection
     {
         $query = $this->variantRepository->query()
-            ->with('product.category')
-            ->where('stock_quantity', '>', 0);
+            ->with(['product.category', 'product.productType'])
+            ->where('stock_quantity', '>', 0)
+            // Exclude service products
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false));
 
         // Filter by current store
         if (current_store_id()) {
@@ -208,8 +228,10 @@ class StockOverviewService
     public function getTopProductsByValue(int $limit = 10): Collection
     {
         $query = $this->variantRepository->query()
-            ->with('product')
-            ->where('stock_quantity', '>', 0);
+            ->with(['product', 'product.productType'])
+            ->where('stock_quantity', '>', 0)
+            // Exclude service products
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false));
 
         // Filter by current store
         if (current_store_id()) {
@@ -237,7 +259,9 @@ class StockOverviewService
     public function getVariantsNeedingRestock(): Collection
     {
         $query = $this->variantRepository->query()
-            ->with('product')
+            ->with(['product', 'product.productType'])
+            // Exclude service products from restock needs
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false))
             ->where(function ($query) {
                 $query->where('stock_quantity', '<=', 0)
                       ->orWhereColumn('stock_quantity', '<=', 'low_stock_threshold');

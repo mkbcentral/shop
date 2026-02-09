@@ -11,6 +11,7 @@ use App\Repositories\CategoryRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\ProductVariantRepository;
 use App\Repositories\ClientRepository;
+use App\Models\OrganizationTax;
 use Livewire\Component;
 use Livewire\Attributes\On;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,9 @@ class CashRegisterAlpine extends Component
     public array $products = [];
     public array $clients = [];
     public array $categories = [];
+    public array $taxes = [];
     public ?int $defaultClientId = null;
+    public bool $hasTaxes = false;
 
     // Stats du jour
     public array $todayStats = [
@@ -102,6 +105,7 @@ class CashRegisterAlpine extends Component
         $query = $this->productRepository->query()
             ->with([
                 'category:id,name',
+                'productType:id,is_service',
                 'variants' => function($q) use ($storeId, $canAccessAllStores) {
                     $q->select('id', 'product_id', 'size', 'color', 'sku', 'stock_quantity');
 
@@ -114,25 +118,18 @@ class CashRegisterAlpine extends Component
                         // Charger tous les storeStocks si accès à tous les stores
                         $q->with('storeStocks');
                     }
-
-                    // Filtrer les variantes avec du stock
-                    if ($storeId && !$canAccessAllStores) {
-                        $q->whereHas('storeStocks', function($sq) use ($storeId) {
-                            $sq->where('store_id', $storeId)->where('quantity', '>', 0);
-                        });
-                    } else {
-                        $q->where('stock_quantity', '>', 0);
-                    }
                 }
             ])
-            ->select('id', 'name', 'reference', 'price', 'max_discount_amount', 'stock_alert_threshold', 'category_id', 'status', 'image', 'store_id')
+            ->select('id', 'name', 'reference', 'price', 'max_discount_amount', 'stock_alert_threshold', 'category_id', 'status', 'image', 'store_id', 'product_type_id')
             ->where('status', 'active');
 
-        // Filtre par magasin - produit doit avoir du stock dans le magasin OU être créé par ce magasin
+        // Filtre par magasin - produit doit avoir du stock dans le magasin OU être créé par ce magasin OU être un service
         if (!$canAccessAllStores && $storeId) {
             $query->where(function($q) use ($storeId) {
-                // Produit créé par ce magasin
-                $q->where('store_id', $storeId)
+                // Service products (no stock management)
+                $q->whereHas('productType', fn($pt) => $pt->where('is_service', true))
+                // OU Produit créé par ce magasin
+                ->orWhere('store_id', $storeId)
                 // OU produit ayant du stock dans ce magasin
                 ->orWhereHas('variants.storeStocks', function($sq) use ($storeId) {
                     $sq->where('store_id', $storeId)->where('quantity', '>', 0);
@@ -144,11 +141,25 @@ class CashRegisterAlpine extends Component
 
         $this->products = $query->orderBy('name')
         ->get()
-        ->filter(function($product) {
-            // Garder uniquement les produits qui ont des variants avec du stock
+        ->filter(function($product) use ($storeId, $canAccessAllStores) {
+            // Services are always shown (no stock check)
+            if ($product->productType?->is_service) {
+                return $product->variants->count() > 0;
+            }
+            // For physical products, check stock
+            if ($storeId && !$canAccessAllStores) {
+                // Filter variants with stock in store
+                $product->setRelation('variants', $product->variants->filter(function($v) {
+                    return $v->storeStocks->isNotEmpty() && $v->storeStocks->first()->quantity > 0;
+                }));
+            } else {
+                // Filter variants with global stock
+                $product->setRelation('variants', $product->variants->filter(fn($v) => $v->stock_quantity > 0));
+            }
             return $product->variants->count() > 0;
         })
         ->map(function($product) use ($storeId) {
+            $isService = $product->productType?->is_service ?? false;
             return [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -159,11 +170,14 @@ class CashRegisterAlpine extends Component
                 'stock_alert_threshold' => (int) ($product->stock_alert_threshold ?? 10),
                 'category_id' => $product->category_id,
                 'category' => $product->category?->name ?? 'Sans catégorie',
-                'variants' => $product->variants->map(function($variant) use ($product, $storeId) {
-                    // Obtenir le stock du magasin actif
-                    $stockQuantity = $storeId && $variant->storeStocks->isNotEmpty()
-                        ? $variant->storeStocks->first()->quantity
-                        : $variant->stock_quantity;
+                'is_service' => $isService,
+                'variants' => $product->variants->map(function($variant) use ($product, $storeId, $isService) {
+                    // Obtenir le stock du magasin actif (services have unlimited stock)
+                    $stockQuantity = $isService
+                        ? 999999
+                        : ($storeId && $variant->storeStocks->isNotEmpty()
+                            ? $variant->storeStocks->first()->quantity
+                            : $variant->stock_quantity);
 
                     return [
                         'id' => $variant->id,
@@ -217,6 +231,45 @@ class CashRegisterAlpine extends Component
         $this->categories = $this->getCachedCategories($storeId)
             ->map(fn($cat) => ['id' => $cat->id, 'name' => $cat->name])
             ->toArray();
+
+        // Charger les taxes de l'organisation
+        $this->loadOrganizationTaxes($organizationId);
+    }
+
+    /**
+     * Charge les taxes actives de l'organisation
+     */
+    private function loadOrganizationTaxes(?int $organizationId): void
+    {
+        if (!$organizationId) {
+            $this->taxes = [];
+            $this->hasTaxes = false;
+            return;
+        }
+
+        $this->taxes = Cache::remember(
+            "pos.taxes.org.{$organizationId}",
+            3600,
+            fn() => OrganizationTax::where('organization_id', $organizationId)
+                ->active()
+                ->validAt(now())
+                ->ordered()
+                ->get()
+                ->map(fn($tax) => [
+                    'id' => $tax->id,
+                    'name' => $tax->name,
+                    'code' => $tax->code,
+                    'type' => $tax->type,
+                    'rate' => (float) $tax->rate,
+                    'fixed_amount' => (float) $tax->fixed_amount,
+                    'is_default' => $tax->is_default,
+                    'is_compound' => $tax->is_compound,
+                    'is_included_in_price' => $tax->is_included_in_price,
+                ])
+                ->toArray()
+        );
+
+        $this->hasTaxes = !empty($this->taxes);
     }
 
     /**
@@ -313,6 +366,7 @@ class CashRegisterAlpine extends Component
             $storeId = session('active_store_id');
             foreach ($saleData['cart'] as $item) {
                 $variant = $this->variantRepository->query()
+                    ->with('product.productType')
                     ->where('id', $item['variant_id'])
                     ->where('store_id', $storeId)
                     ->first();
@@ -325,7 +379,9 @@ class CashRegisterAlpine extends Component
                     ];
                 }
 
-                if ($variant->stock_quantity < $item['quantity']) {
+                // Skip stock validation for services
+                $isService = $variant->product->productType?->is_service ?? false;
+                if (!$isService && $variant->stock_quantity < $item['quantity']) {
                     DB::rollBack();
                     return [
                         'success' => false,
@@ -443,19 +499,26 @@ class CashRegisterAlpine extends Component
                       });
             })
             ->where('store_id', $storeId)
-            ->where('stock_quantity', '>', 0)
-            ->with('product')
+            ->where(function($q) {
+                // Services don't need stock, physical products do
+                $q->where('stock_quantity', '>', 0)
+                  ->orWhereHas('product.productType', fn($pt) => $pt->where('is_service', true));
+            })
+            ->with(['product', 'product.productType'])
             ->first();
 
         if (!$variant) {
             return null;
         }
 
+        $isService = $variant->product->productType?->is_service ?? false;
+
         return [
             'id' => $variant->id,
             'size' => $variant->size,
             'color' => $variant->color,
-            'stock_quantity' => $variant->stock_quantity,
+            'stock_quantity' => $isService ? 999999 : $variant->stock_quantity,
+            'is_service' => $isService,
             'product' => [
                 'id' => $variant->product->id,
                 'name' => $variant->product->name,
@@ -492,7 +555,7 @@ class CashRegisterAlpine extends Component
     {
         $this->refreshStats();
         $this->loadInitialData(); // Recharger les produits avec le nouveau stock
-        
+
         // Dispatcher un événement pour mettre à jour Alpine.js
         $this->dispatch('products-updated', products: $this->products);
     }

@@ -129,10 +129,19 @@ class ProductTypeIndex extends Component
 
             $productName = $productType->name;
             $productsCount = $productType->products_count ?? $productType->products()->count();
+            $categoriesCount = $productType->categories_count ?? $productType->categories()->count();
 
             if ($productsCount > 0) {
                 $this->dispatch('show-toast',
                     message: "Impossible de supprimer \"{$productName}\". Ce type contient {$productsCount} produit(s).",
+                    type: 'warning'
+                );
+                return;
+            }
+
+            if ($categoriesCount > 0) {
+                $this->dispatch('show-toast',
+                    message: "Impossible de supprimer \"{$productName}\". Ce type contient {$categoriesCount} catégorie(s). Supprimez ou réaffectez-les d'abord.",
                     type: 'warning'
                 );
                 return;
@@ -151,7 +160,7 @@ class ProductTypeIndex extends Component
                 'error' => $e->getMessage(),
             ]);
             $this->dispatch('show-toast',
-                message: 'Erreur lors de la suppression.',
+                message: 'Erreur lors de la suppression : ' . $e->getMessage(),
                 type: 'error'
             );
         }

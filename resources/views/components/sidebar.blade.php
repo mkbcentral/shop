@@ -1,7 +1,7 @@
 @props(['logo' => 'SF', 'appName' => null])
 
 <!-- Sidebar -->
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-xl transform transition-all duration-300 lg:translate-x-0 lg:static lg:inset-0 -translate-x-full">
+<aside id="sidebar" class="sidebar-width fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-xl lg:translate-x-0 lg:static lg:inset-0 -translate-x-full flex-shrink-0 overflow-hidden">
     <div class="flex flex-col h-full">
         <!-- Logo & Collapse Button -->
         <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
@@ -149,9 +149,20 @@
                 background: #d1d5db;
             }
 
+            /* Sidebar default width */
+            .sidebar-width {
+                width: 256px !important; /* 16rem = w-64 */
+                min-width: 256px !important;
+                max-width: 256px !important;
+                transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+            }
+
             /* Sidebar collapsed state */
-            #sidebar.collapsed {
+            #sidebar.collapsed,
+            aside#sidebar.collapsed {
                 width: 80px !important;
+                min-width: 80px !important;
+                max-width: 80px !important;
             }
             #sidebar.collapsed .sidebar-text {
                 display: none !important;
@@ -162,6 +173,27 @@
             /* Hide dropdowns in collapsed state */
             #sidebar.collapsed [data-dropdown-container] .dropdown-content {
                 display: none !important;
+            }
+            /* Center icons in collapsed state */
+            #sidebar.collapsed .sidebar-logo {
+                justify-content: center;
+            }
+            #sidebar.collapsed .sidebar-item {
+                justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            #sidebar.collapsed nav {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            #sidebar.collapsed .sidebar-section-title {
+                display: none !important;
+            }
+            /* User profile in collapsed state */
+            #sidebar.collapsed .border-t > div {
+                justify-content: center;
+                padding: 0.75rem;
             }
 
             /* Tooltip - hidden by default */

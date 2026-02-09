@@ -43,7 +43,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
-                            Ajouter des produits
+                            Ajouter des {{ strtolower(products_label()) }}
                         </h4>
 
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
@@ -139,7 +139,7 @@
                     <!-- Items List -->
                     @if (count($items) > 0)
                         <div class="border-t border-gray-200 pt-4">
-                            <h4 class="text-sm font-semibold text-gray-900 mb-3">Produits à transférer</h4>
+                            <h4 class="text-sm font-semibold text-gray-900 mb-3">{{ products_label() }} à transférer</h4>
 
                             <div class="space-y-2">
                                 @foreach ($items as $index => $item)
@@ -197,13 +197,13 @@
 
                             <div class="mt-3 flex items-center justify-between text-sm">
                                 <span class="text-gray-600">Total articles:</span>
-                                <span class="font-semibold text-gray-900">{{ count($items) }} produit(s)</span>
+                                <span class="font-semibold text-gray-900">{{ count($items) }} {{ strtolower(product_label()) }}(s)</span>
                             </div>
                         </div>
                     @else
                         <div class="border-t border-gray-200 pt-4">
                             <p class="text-sm text-gray-500 text-center py-4">
-                                Aucun produit ajouté. Recherchez et ajoutez des produits ci-dessus.
+                                Aucun {{ strtolower(product_label()) }} ajouté. Recherchez et ajoutez des {{ strtolower(products_label()) }} ci-dessus.
                             </p>
                         </div>
                     @endif

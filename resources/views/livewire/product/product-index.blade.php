@@ -9,13 +9,13 @@
     <livewire:product.label-modal />
 
     <x-slot name="header">
-        <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => 'Produits']]" />
+        <x-breadcrumb :items="[['label' => 'Accueil', 'url' => route('dashboard')], ['label' => products_label()]]" />
     </x-slot>
 
     <div class="flex items-center justify-between mt-2">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Gestion des Produits</h1>
-            <p class="text-gray-500 mt-1">Gérez votre catalogue de produits</p>
+            <h1 class="text-3xl font-bold text-gray-900">Gestion des {{ products_label() }}</h1>
+            <p class="text-gray-500 mt-1">Gérez votre catalogue de {{ strtolower(products_label()) }}</p>
         </div>
         <div class="flex items-center space-x-3">
             <button wire:click="generateAllLabels"
@@ -28,7 +28,7 @@
             @permission('products.create')
             @if($canAddProduct)
                 <x-form.button wire:click="$dispatch('openProductModal')" icon="plus">
-                    Nouveau Produit
+                    {{ is_service_organization() ? 'Nouveau Service' : 'Nouveau Produit' }}
                 </x-form.button>
             @else
                 <div class="inline-flex items-center px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg border border-amber-300">
@@ -56,7 +56,7 @@
         <x-card>
             <x-slot:header>
                 <div class="flex items-center justify-between">
-                    <x-card-title title="Liste des Produits ({{ $products->total() }})">
+                    <x-card-title title="Liste des {{ products_label() }} ({{ $products->total() }})">
                         <x-slot:action>
                             <x-product.toolbar :selected="$selected" :viewMode="$viewMode" :densityMode="$densityMode" :categoryFilter="$categoryFilter"
                                 :statusFilter="$statusFilter" :perPage="$perPage" />

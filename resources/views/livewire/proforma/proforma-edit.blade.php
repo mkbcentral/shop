@@ -69,9 +69,11 @@
                                                     <div class="text-sm font-semibold text-indigo-600">
                                                         {{ number_format($result['price'], 0, ',', ' ') }} {{ current_currency() }}
                                                     </div>
-                                                    <div class="text-xs text-gray-500">
-                                                        Stock: {{ $result['stock'] }}
-                                                    </div>
+                                                    @if(has_stock_management())
+                                                        <div class="text-xs text-gray-500">
+                                                            Stock: {{ $result['stock'] }}
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </button>

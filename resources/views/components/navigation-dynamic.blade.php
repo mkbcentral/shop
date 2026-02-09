@@ -4,6 +4,15 @@
     $menuService = app(MenuService::class);
     $user = auth()->user();
     $menusBySection = $user ? $menuService->getAccessibleMenusForUser($user) : collect();
+
+    // Fonction helper pour remplacer dynamiquement les labels selon le type d'organisation
+    $getDynamicMenuName = function($name) {
+        $replacements = [
+            'Produits' => products_label(),
+            'Liste des produits' => 'Liste des ' . strtolower(products_label()),
+        ];
+        return $replacements[$name] ?? $name;
+    };
 @endphp
 
 <x-sidebar>
@@ -19,12 +28,12 @@
                         :icon="$menu->icon"
                         :badge="$menu->badge_type === 'text' ? ($menu->badge_value ?? null) : null"
                         :badgeColor="$menu->badge_color">
-                        {{ $menu->name }}
+                        {{ $getDynamicMenuName($menu->name) }}
                     </x-sidebar-item>
                 @else
                     {{-- Menu avec enfants (dropdown) --}}
                     <x-sidebar-dropdown
-                        title="{{ $menu->name }}"
+                        title="{{ $getDynamicMenuName($menu->name) }}"
                         :badge="$menu->badge_type === 'count' ? (${$menu->code . '_count'} ?? 0) : null"
                         :badgeColor="$menu->badge_color"
                         activePattern="{{ $menu->code }}/*"
@@ -38,7 +47,7 @@
                                 :badge="$child->badge_type === 'count' ? (${$child->code . '_count'} ?? null) : null"
                                 :badgeColor="$child->badge_color"
                                 :animate="$child->badge_type === 'count' && isset(${$child->code . '_count'}) && ${$child->code . '_count'} > 0">
-                                {{ $child->name }}
+                                {{ $getDynamicMenuName($child->name) }}
                             </x-sidebar-item>
                         @endforeach
                     </x-sidebar-dropdown>
@@ -60,12 +69,12 @@
                                 :badge="$menu->badge_type === 'text' ? ($menu->badge_value ?? 'POS') : null"
                                 :badgeColor="$menu->badge_color"
                                 :animate="$menu->badge_type === 'text'">
-                                {{ $menu->name }}
+                                {{ $getDynamicMenuName($menu->name) }}
                             </x-sidebar-item>
                         @else
                             {{-- Menu avec enfants (dropdown) --}}
                             <x-sidebar-dropdown
-                                title="{{ $menu->name }}"
+                                title="{{ $getDynamicMenuName($menu->name) }}"
                                 :badge="$menu->badge_type === 'count' ? (${$menu->code . '_count'} ?? (${'total_' . $menu->code} ?? 0)) : null"
                                 :badgeColor="$menu->badge_color"
                                 activePattern="{{ $menu->code }}/*"
@@ -79,7 +88,7 @@
                                         :badge="$child->badge_type === 'count' ? (${$child->code . '_count'} ?? ($low_stock_alerts ?? null)) : null"
                                         :badgeColor="$child->badge_color"
                                         :animate="$child->badge_color === 'red' && isset($low_stock_alerts) && $low_stock_alerts > 0">
-                                        {{ $child->name }}
+                                        {{ $getDynamicMenuName($child->name) }}
                                     </x-sidebar-item>
                                 @endforeach
                             </x-sidebar-dropdown>

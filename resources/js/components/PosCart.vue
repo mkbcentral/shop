@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col bg-white">
+    <div class="flex flex-col bg-white h-full">
         <!-- Cart Header Compact -->
         <div class="px-3 py-2 border-b border-gray-200 bg-white sticky top-0 z-10 flex-shrink-0">
             <div class="flex items-center justify-between">
@@ -203,7 +203,7 @@
                                     <span>-{{ formatPrice(store.discount) }}</span>
                                 </div>
                                 <div v-if="store.tax > 0" class="flex justify-between">
-                                    <span>Taxe:</span>
+                                    <span>{{ selectedTaxLabel }}:</span>
                                     <span>{{ formatPrice(store.tax) }}</span>
                                 </div>
                                 <div class="flex justify-between font-bold text-base border-t border-gray-400 pt-2 mt-2">
@@ -239,7 +239,7 @@
         </Teleport>
 
         <!-- Cart Items -->
-        <div class="px-2 py-2 space-y-1.5 flex-1 overflow-y-auto">
+        <div class="px-2 py-2 space-y-1.5 overflow-y-auto" style="max-height: calc(100vh - 400px);">
             <!-- Empty Cart Message -->
             <div v-if="store.isEmpty" class="text-center py-8">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 mb-3">
@@ -379,7 +379,7 @@
         </div>
 
         <!-- Cart Summary - Ultra Compact -->
-        <div class="border-t-2 border-gray-300 bg-gradient-to-b from-gray-50 to-white px-3 py-2.5">
+        <div class="border-t-2 border-gray-300 bg-gradient-to-b from-gray-50 to-white px-3 py-2.5 flex-shrink-0">
             <!-- Discount & Tax en ligne compacte -->
             <div class="flex gap-2 mb-2">
                 <div class="flex-1">
@@ -395,17 +395,32 @@
                     <p class="text-[10px] text-gray-400 mt-0.5">Remise globale</p>
                 </div>
 
-                <div class="flex-1">
+                <!-- Tax Section - Only if organization has taxes -->
+                <div class="flex-1" v-if="props.hasTaxes && props.taxes.length > 0">
                     <div class="flex items-center gap-1">
                         <label class="text-xs font-semibold text-gray-600 whitespace-nowrap">Taxe</label>
-                        <input type="number"
-                            v-model.number="store.globalTax"
-                            @change="store.setGlobalTax($event.target.value)"
-                            placeholder="0"
-                            class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
-                            min="0" step="100">
+                        <select
+                            v-model="selectedTaxId"
+                            @change="applySelectedTax"
+                            class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+                            <option :value="null">Sans taxe</option>
+                            <option v-for="tax in props.taxes" :key="tax.id" :value="tax.id">
+                                {{ tax.name }} ({{ tax.type === 'percentage' ? tax.rate + '%' : tax.fixed_amount + ' fixe' }})
+                            </option>
+                        </select>
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-0.5">Taxe globale</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Taxe applicable</p>
+                </div>
+                <!-- No taxes available - Disabled state -->
+                <div class="flex-1" v-else>
+                    <div class="flex items-center gap-1">
+                        <label class="text-xs font-semibold text-gray-400 whitespace-nowrap">Taxe</label>
+                        <input type="text"
+                            value="N/A"
+                            disabled
+                            class="w-full px-2 py-1 text-xs border border-gray-100 rounded bg-gray-50 text-gray-400 cursor-not-allowed font-semibold">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Aucune taxe configurée</p>
                 </div>
             </div>
 
@@ -432,7 +447,7 @@
                 </div>
                 <!-- Tax -->
                 <div v-if="store.tax > 0" class="flex justify-between text-xs">
-                    <span class="text-gray-600">TVA</span>
+                    <span class="text-gray-600">{{ selectedTaxLabel }}</span>
                     <span class="font-semibold text-gray-700">{{ formatPrice(store.tax) }}</span>
                 </div>
             </div>
@@ -449,7 +464,7 @@
         </div>
 
         <!-- Payment Buttons - Ultra Compact (2 boutons) -->
-        <div v-if="!store.isEmpty" class="px-3 py-3 bg-white border-t-2 border-gray-300 space-y-2">
+        <div v-if="!store.isEmpty" class="px-3 py-3 bg-white border-t-2 border-gray-300 space-y-2 flex-shrink-0">
             <!-- Boutons d'action -->
             <div class="flex gap-2">
                 <!-- Bouton Valider seul (sans impression) -->
@@ -494,7 +509,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { usePosStore } from '../stores/posStore'
 
 const props = defineProps({
@@ -505,6 +520,14 @@ const props = defineProps({
     currency: {
         type: String,
         default: 'USD'
+    },
+    taxes: {
+        type: Array,
+        default: () => []
+    },
+    hasTaxes: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -513,14 +536,72 @@ const showClientModal = ref(false)
 const showReceiptModal = ref(false)
 const showPriceEdit = reactive({})
 const priceInputs = reactive({})
+const selectedTaxId = ref(null)
+
+// Apply selected tax to the store
+const applySelectedTax = () => {
+    if (!selectedTaxId.value) {
+        store.setGlobalTax(0)
+        store.selectedTaxId = null
+        store.selectedTaxRate = 0
+        store.selectedTaxType = null
+        return
+    }
+
+    const tax = props.taxes.find(t => t.id === selectedTaxId.value)
+    if (tax) {
+        store.selectedTaxId = tax.id
+        store.selectedTaxRate = tax.rate
+        store.selectedTaxType = tax.type
+        store.selectedTaxIsCompound = tax.is_compound
+        store.selectedTaxIsIncludedInPrice = tax.is_included_in_price
+
+        // Calculate tax amount based on subtotal
+        if (tax.type === 'percentage') {
+            const taxAmount = store.subtotal * (tax.rate / 100)
+            store.setGlobalTax(taxAmount)
+        } else {
+            store.setGlobalTax(tax.fixed_amount)
+        }
+    }
+}
+
+// Watch subtotal changes to recalculate tax
+watch(() => store.subtotal, () => {
+    if (selectedTaxId.value && props.hasTaxes) {
+        applySelectedTax()
+    }
+})
 
 // Load cart from session on mount
 store.loadFromSession()
+
+// Initialize default tax after loading cart
+onMounted(() => {
+    if (props.hasTaxes && props.taxes.length > 0) {
+        const defaultTax = props.taxes.find(t => t.is_default)
+        if (defaultTax) {
+            selectedTaxId.value = defaultTax.id
+            applySelectedTax()
+        }
+    }
+})
 
 const selectedClientName = computed(() => {
     if (!store.selectedClientId) return ''
     const client = props.clients.find(c => c.id == store.selectedClientId)
     return client?.name || ''
+})
+
+// Computed property for tax label on receipt
+const selectedTaxLabel = computed(() => {
+    if (!selectedTaxId.value || !props.hasTaxes) return 'Taxe'
+    const tax = props.taxes.find(t => t.id === selectedTaxId.value)
+    if (!tax) return 'Taxe'
+    if (tax.type === 'percentage' && tax.rate) {
+        return `${tax.name} (${tax.rate}%)`
+    }
+    return tax.name
 })
 
 const formatPrice = (value) => {
@@ -548,6 +629,11 @@ const handleReceiptPreview = () => {
 // Print receipt from preview modal
 const printReceiptFromPreview = async () => {
     try {
+        // Get selected tax info
+        const selectedTax = selectedTaxId.value
+            ? props.taxes.find(t => t.id === selectedTaxId.value)
+            : null
+
         const printData = {
             invoice_number: 'APERÇU-' + Date.now(),
             date: new Date().toLocaleString('fr-FR'),
@@ -560,6 +646,13 @@ const printReceiptFromPreview = async () => {
             subtotal: store.subtotal,
             discount: store.discount || 0,
             tax: store.tax || 0,
+            // Tax details for receipt
+            tax_info: selectedTax ? {
+                name: selectedTax.name,
+                code: selectedTax.code,
+                rate: selectedTax.rate,
+                type: selectedTax.type
+            } : null,
             total: store.total,
             paid: store.total,
             change: 0,
@@ -705,6 +798,13 @@ const handleProcessSale = async (shouldPrint = false) => {
                     subtotal: parseFloat(result.sale.subtotal) || 0,
                     discount: parseFloat(result.sale.discount) || 0,
                     tax: parseFloat(result.sale.tax) || 0,
+                    // Tax details for receipt
+                    tax_info: result.sale.tax_info || (store.selectedTaxId && props.hasTaxes ? {
+                        name: props.taxes.find(t => t.id === store.selectedTaxId)?.name,
+                        code: props.taxes.find(t => t.id === store.selectedTaxId)?.code,
+                        rate: store.selectedTaxRate,
+                        type: store.selectedTaxType
+                    } : null),
                     total: parseFloat(result.sale.total) || 0,
                     paid: parseFloat(result.sale.paid_amount) || parseFloat(result.sale.total) || 0,
                     change: parseFloat(result.sale.change) || 0,

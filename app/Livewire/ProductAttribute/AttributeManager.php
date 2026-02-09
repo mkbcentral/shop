@@ -51,7 +51,7 @@ class AttributeManager extends Component
     #[Computed]
     public function productTypes()
     {
-        return ProductType::orderBy('name')->get();
+        return ProductType::forCurrentOrganization()->orderBy('name')->get();
     }
 
     public function updatingSearch()

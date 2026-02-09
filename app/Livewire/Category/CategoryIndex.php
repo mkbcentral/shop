@@ -22,17 +22,33 @@ class CategoryIndex extends Component
 
     public $search = '';
     public $perPage = 10;
+    public $productTypeFilter = '';
     public $selectedCategoryId = null;
     public $isEditMode = false;
 
     public function mount() {}
 
+    public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedProductTypeFilter()
+    {
+        $this->resetPage();
+    }
+
     public function render(CategoryRepository $categoryRepository)
     {
-        $categories = $categoryRepository->paginate($this->search, $this->perPage);
-        
-        // Charger les types de produits actifs
-        $productTypes = ProductType::active()
+        $categories = $categoryRepository->paginate(
+            $this->search, 
+            $this->perPage,
+            $this->productTypeFilter ? (int) $this->productTypeFilter : null
+        );
+
+        // Charger les types de produits actifs pour le type d'organisation
+        $productTypes = ProductType::forCurrentOrganization()
+            ->active()
             ->ordered()
             ->get(['id', 'name', 'icon']);
 
@@ -53,16 +69,16 @@ class CategoryIndex extends Component
     {
         try {
             $category = $categoryRepository->findOrFail($id);
-            
+
             // Vérifier si l'utilisateur peut modifier cette catégorie
             if (!$category->canBeModifiedBy(auth()->user())) {
-                $this->dispatch('show-toast', 
-                    message: 'Vous ne pouvez pas modifier cette catégorie car elle appartient à une autre organisation.', 
+                $this->dispatch('show-toast',
+                    message: 'Vous ne pouvez pas modifier cette catégorie car elle appartient à une autre organisation.',
                     type: 'warning'
                 );
                 return;
             }
-            
+
             $this->form->reset();
             $this->selectedCategoryId = $category->id;
             $this->isEditMode = true;
@@ -137,8 +153,8 @@ class CategoryIndex extends Component
 
             // Vérifier si l'utilisateur peut supprimer cette catégorie
             if (!$category->canBeModifiedBy(auth()->user())) {
-                $this->dispatch('show-toast', 
-                    message: "Vous ne pouvez pas supprimer la catégorie \"{$categoryName}\" car elle appartient à une autre organisation.", 
+                $this->dispatch('show-toast',
+                    message: "Vous ne pouvez pas supprimer la catégorie \"{$categoryName}\" car elle appartient à une autre organisation.",
                     type: 'warning'
                 );
                 return;

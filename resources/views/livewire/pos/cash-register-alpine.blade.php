@@ -131,104 +131,142 @@
     <!-- Main Content -->
     <div class="flex-1 flex overflow-hidden" style="height: calc(100vh - 64px);">
         <!-- Left: Products Grid -->
-        <div class="flex-1 flex flex-col overflow-hidden bg-white">
-            <div class="p-4 border-b">
+        <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+            <div class="p-3 bg-white border-b shadow-sm">
                 <!-- Recherche et Filtre catégorie sur la même ligne -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                     <!-- Recherche de produits -->
                     <div class="relative flex-1">
                         <input type="text"
                             x-model="searchQuery"
                             @input.debounce.300ms="filterProducts()"
-                            placeholder="Rechercher un produit (nom, référence, code-barres)..."
-                            class="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
-                        <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            placeholder="Rechercher..."
+                            class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition text-sm">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                     </div>
 
                     <!-- Select Catégorie -->
-                    <div class="relative min-w-[200px]">
+                    <div class="relative min-w-[160px]">
                         <select x-model="selectedCategory"
                             @change="filterProducts()"
-                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition appearance-none bg-white pr-10 font-medium text-gray-700">
-                            <option value="">📦 Toutes les catégories</option>
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition appearance-none bg-white pr-8 text-sm text-gray-700">
+                            <option value="">Toutes catégories</option>
                             @forelse($categories as $category)
                                 <option value="{{ $category['id'] }}">{{ $category['name'] }}</option>
                             @empty
                                 <option value="" disabled>Aucune catégorie</option>
                             @endforelse
                         </select>
-                        <svg class="w-5 h-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </div>
+
+                    <!-- Product count -->
+                    <span class="text-xs text-gray-500 whitespace-nowrap" x-text="filteredProducts.length + ' produits'"></span>
                 </div>
             </div>
 
             <!-- Grille de produits -->
             <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     <template x-for="product in filteredProducts" :key="product.id">
-                        <div class="bg-white border-2 rounded-xl p-4 hover:shadow-lg transition cursor-pointer relative"
+                        <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer relative overflow-hidden group"
                             :class="{
-                                'border-red-300 bg-red-50': getTotalStock(product) === 0,
-                                'border-orange-300 bg-orange-50': getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10),
-                                'border-gray-200 hover:border-blue-400': getTotalStock(product) > (product.stock_alert_threshold || 10)
+                                'ring-2 ring-red-400 bg-red-50': !product.is_service && getTotalStock(product) === 0,
+                                'ring-2 ring-orange-400 bg-orange-50': !product.is_service && getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10),
+                                'ring-1 ring-gray-200 hover:ring-2 hover:ring-blue-400': product.is_service || getTotalStock(product) > (product.stock_alert_threshold || 10)
                             }"
                             @click="addProductToCart(product)">
-                            <!-- Badge état stock en haut à droite -->
-                            <div class="absolute top-2 right-2">
-                                <span x-show="getTotalStock(product) === 0" class="flex items-center gap-1 text-xs bg-red-500 text-white px-2 py-1 rounded-full font-semibold">
-                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Rupture
-                                </span>
-                                <span x-show="getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10)" class="flex items-center gap-1 text-xs bg-orange-500 text-white px-2 py-1 rounded-full font-semibold">
-                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                    </svg>
-                                    Faible
-                                </span>
+
+                            <!-- Badge stock en haut (seulement pour produits physiques avec problème de stock) -->
+                            <template x-if="!product.is_service && getTotalStock(product) === 0">
+                                <div class="absolute top-0 right-0 z-10">
+                                    <span class="inline-flex items-center gap-1 text-xs bg-red-500 text-white px-2 py-0.5 rounded-bl-lg font-semibold">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Rupture
+                                    </span>
+                                </div>
+                            </template>
+                            <template x-if="!product.is_service && getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10)">
+                                <div class="absolute top-0 right-0 z-10">
+                                    <span class="inline-flex items-center gap-1 text-xs bg-orange-500 text-white px-2 py-0.5 rounded-bl-lg font-semibold">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Faible
+                                    </span>
+                                </div>
+                            </template>
+
+                            <!-- Contenu de la carte -->
+                            <div class="p-4">
+                                <!-- Badge Service en haut du contenu -->
+                                <template x-if="product.is_service">
+                                    <span class="inline-flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold mb-2">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Service
+                                    </span>
+                                </template>
+
+                                <!-- Nom du produit -->
+                                <h3 class="font-bold text-gray-800 text-sm leading-snug line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors min-h-[2.5rem]" x-text="product.name"></h3>
+
+                                <!-- Catégorie -->
+                                <p class="text-xs text-gray-400 mb-3 truncate" x-text="product.category || 'Sans catégorie'"></p>
+
+                                <!-- Prix -->
+                                <div class="flex items-end justify-between">
+                                    <span class="text-xl font-bold text-blue-600" x-text="formatPrice(product.price)"></span>
+
+                                    <!-- Stock badge -->
+                                    <template x-if="!product.is_service">
+                                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                                            :class="{
+                                                'bg-red-100 text-red-700': getTotalStock(product) === 0,
+                                                'bg-orange-100 text-orange-700': getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10),
+                                                'bg-green-100 text-green-700': getTotalStock(product) > (product.stock_alert_threshold || 10)
+                                            }"
+                                            x-text="getTotalStock(product) + ' unités'"></span>
+                                    </template>
+                                </div>
+
+                                <!-- Variantes -->
+                                <p class="text-xs text-gray-400 mt-2" x-show="product.variants && product.variants.length > 1">
+                                    <span class="inline-flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                        </svg>
+                                        <span x-text="product.variants.length + ' variantes'"></span>
+                                    </span>
+                                </p>
                             </div>
 
-                            <h3 class="font-semibold text-gray-800 text-sm mb-1 pr-20 line-clamp-2 uppercase" x-text="product.name"></h3>
-                            <p class="text-xs text-gray-500 mb-2" x-text="product.category || 'Sans catégorie'"></p>
-                            <div class="flex items-center justify-between">
-                                <span class="text-lg font-bold text-blue-600" x-text="formatPrice(product.price)"></span>
-                                <span class="text-xs px-2 py-1 rounded-full font-medium"
-                                    :class="{
-                                        'bg-red-100 text-red-700': getTotalStock(product) === 0,
-                                        'bg-orange-100 text-orange-700': getTotalStock(product) > 0 && getTotalStock(product) <= (product.stock_alert_threshold || 10),
-                                        'bg-green-100 text-green-700': getTotalStock(product) > (product.stock_alert_threshold || 10)
-                                    }"
-                                    x-text="getTotalStock(product) + ' en stock'"></span>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1" x-show="product.variants && product.variants.length > 1"
-                                x-text="product.variants.length + ' variantes'"></p>
+                            <!-- Hover overlay -->
+                            <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                         </div>
                     </template>
                 </div>
 
                 <!-- Message si aucun produit -->
-                <div x-show="filteredProducts.length === 0" class="text-center py-12 text-gray-400">
-                    <svg class="w-16 h-16 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                <div x-show="filteredProducts.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <svg class="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                     </svg>
-                    <p class="text-sm font-semibold">Aucun produit trouvé</p>
-                    <p class="text-xs mt-2">Vérifiez que :</p>
-                    <ul class="text-xs mt-2 space-y-1">
-                        <li>✓ Des produits actifs existent</li>
-                        <li>✓ Ils ont des variantes avec du stock</li>
-                        <li>✓ Une organisation et un magasin sont sélectionnés</li>
-                    </ul>
+                    <p class="text-sm font-medium">Aucun produit trouvé</p>
+                    <p class="text-xs mt-1 text-gray-300">Modifiez votre recherche ou vérifiez le stock</p>
                 </div>
             </div>
         </div>
 
         <!-- Right: Cart + Payment -->
-        <div class="w-[520px] bg-gradient-to-b from-white to-gray-50 border-l-2 border-gray-200 shadow-2xl flex flex-col overflow-hidden"
+        <div class="w-[480px] min-w-[480px] bg-white border-l border-gray-200 shadow-lg flex flex-col overflow-hidden"
             style="height: calc(100vh - 64px);"
             wire:ignore
             x-data="{
@@ -274,7 +312,7 @@
                 console.log('[POS Alpine] Vente complétée, rafraîchissement des stats...');
                 @this.call('refreshStats');
             });
-            
+
             // Écouter l'événement Livewire pour mettre à jour les produits
             Livewire.on('products-updated', (data) => {
                 console.log('[POS Alpine] Mise à jour des produits après vente:', data.products?.length || 0);
@@ -406,7 +444,12 @@
                 },
 
                 formatPrice(price) {
-                    return parseFloat(price).toFixed(2) + ' {{ current_currency() }}';
+                    const currency = '{{ current_currency() }}';
+                    // CDF n'utilise pas de décimales
+                    if (currency === 'CDF') {
+                        return Math.round(parseFloat(price)).toLocaleString('fr-FR') + ' ' + currency;
+                    }
+                    return parseFloat(price).toFixed(2).replace('.', ',') + ' ' + currency;
                 },
 
                 handleKeyboard(event) {

@@ -4,7 +4,11 @@
         ['label' => 'Proformas', 'url' => route('proformas.index')],
         ['label' => 'Créer']
     ]" />
+</x-slot>
 
+<div class="max-w-7xl mx-auto">
+    <!-- Toast -->
+    <x-toast />
     <div class="flex items-center justify-between mt-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Nouvelle Proforma</h1>
@@ -14,12 +18,6 @@
             Retour
         </x-form.button>
     </div>
-</x-slot>
-
-<div class="max-w-7xl mx-auto">
-    <!-- Toast -->
-    <x-toast />
-
     <!-- Messages -->
     @if (session()->has('success'))
         <x-form.alert type="success" :message="session('success')" class="mb-6" />
@@ -49,7 +47,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- Corps --}}
                     <div class="p-6">
                         {{-- Barre de recherche --}}
@@ -64,7 +62,7 @@
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 </div>
-                                
+
                                 <input
                                     type="text"
                                     wire:model.live.debounce.300ms="productSearch"
@@ -74,7 +72,7 @@
                                     autocomplete="off"
                                     class="block w-full pl-12 pr-12 py-4 text-base border-2 border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 hover:border-gray-300"
                                 >
-                                
+
                                 @if(strlen($productSearch) > 0)
                                     <button
                                         wire:click="$set('productSearch', '')"
@@ -91,7 +89,7 @@
 
                             {{-- Dropdown résultats --}}
                             @if(strlen($productSearch) >= 2)
-                                <div 
+                                <div
                                     x-show="open"
                                     x-cloak
                                     x-transition:enter="transition ease-out duration-200"
@@ -132,19 +130,21 @@
                                                             <div class="text-sm font-bold text-indigo-600">
                                                                 {{ format_currency($result['price']) }}
                                                             </div>
-                                                            <div class="text-xs font-medium mt-0.5 {{ $result['stock'] > 10 ? 'text-green-600' : ($result['stock'] > 0 ? 'text-amber-600' : 'text-red-600') }}">
-                                                                @if($result['stock'] > 0)
-                                                                    <span class="inline-flex items-center gap-1">
-                                                                        <span class="w-1.5 h-1.5 rounded-full {{ $result['stock'] > 10 ? 'bg-green-500' : 'bg-amber-500' }}"></span>
-                                                                        {{ $result['stock'] }} en stock
-                                                                    </span>
-                                                                @else
-                                                                    <span class="inline-flex items-center gap-1 text-red-600">
-                                                                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                                                        Rupture
-                                                                    </span>
-                                                                @endif
-                                                            </div>
+                                                            @if(has_stock_management())
+                                                                <div class="text-xs font-medium mt-0.5 {{ $result['stock'] > 10 ? 'text-green-600' : ($result['stock'] > 0 ? 'text-amber-600' : 'text-red-600') }}">
+                                                                    @if($result['stock'] > 0)
+                                                                        <span class="inline-flex items-center gap-1">
+                                                                            <span class="w-1.5 h-1.5 rounded-full {{ $result['stock'] > 10 ? 'bg-green-500' : 'bg-amber-500' }}"></span>
+                                                                            {{ $result['stock'] }} en stock
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="inline-flex items-center gap-1 text-red-600">
+                                                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                                            Rupture
+                                                                        </span>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </button>
@@ -176,11 +176,11 @@
                                     </div>
                                     <span class="font-semibold text-gray-800">Configurer l'article</span>
                                 </div>
-                                
+
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Quantité</label>
-                                        <input type="number" wire:model.live="selectedQuantity" min="1" 
+                                        <input type="number" wire:model.live="selectedQuantity" min="1"
                                                class="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-center font-semibold">
                                     </div>
                                     <div>
@@ -194,7 +194,7 @@
                                                class="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-right">
                                     </div>
                                     <div class="flex items-end">
-                                        <button type="button" wire:click="addItem" 
+                                        <button type="button" wire:click="addItem"
                                                 class="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -228,7 +228,7 @@
                             </span>
                         @endif
                     </div>
-                    
+
                     <div class="p-4">
                         @if(count($items) > 0)
                             <div class="space-y-3">
@@ -240,7 +240,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                                             </svg>
                                         </div>
-                                        
+
                                         {{-- Info produit --}}
                                         <div class="flex-1 min-w-0">
                                             <h4 class="font-semibold text-gray-900 truncate">{{ $item['name'] }}</h4>
@@ -258,7 +258,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        
+
                                         {{-- Prix et action --}}
                                         <div class="flex items-center gap-4">
                                             <div class="text-right">
@@ -282,11 +282,11 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm text-gray-500">Aucun article ajouté - Recherchez et ajoutez des produits</p>
+                                    <p class="text-sm text-gray-500">Aucun article ajouté - Recherchez et ajoutez des {{ strtolower(products_label()) }}</p>
                                 </div>
                             </div>
                         @endif
-                        
+
                         @error('items')
                             <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                                 <p class="text-sm text-red-600">{{ $message }}</p>
@@ -314,14 +314,14 @@
                     <div class="p-6 space-y-4">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
-                            <textarea wire:model="notes" rows="3" 
+                            <textarea wire:model="notes" rows="3"
                                       placeholder="Notes internes ou pour le client..."
                                       class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"></textarea>
                         </div>
 
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Conditions générales</label>
-                            <textarea wire:model="terms_conditions" rows="3" 
+                            <textarea wire:model="terms_conditions" rows="3"
                                       placeholder="Conditions de paiement, livraison, etc."
                                       class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"></textarea>
                         </div>
@@ -438,12 +438,12 @@
                             <span class="text-sm font-medium text-gray-700">Sous-total</span>
                             <span class="text-base font-bold text-gray-900">{{ format_currency($subtotal) }}</span>
                         </div>
-                        
+
                         <div class="flex justify-between items-center pb-3 border-b border-indigo-200">
                             <span class="text-sm font-medium text-gray-700">Remises</span>
                             <span class="text-base font-bold text-red-600">-{{ format_currency(collect($items)->sum('discount')) }}</span>
                         </div>
-                        
+
                         <div class="flex justify-between items-center pt-2">
                             <span class="text-lg font-bold text-gray-900">Total</span>
                             <div class="text-right">

@@ -14,11 +14,11 @@
                         </svg>
                         <span class="text-sm font-medium">
                             <strong>⚠️ Abonnement expiré !</strong>
-                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> a expiré le {{ $currentOrg->subscription_ends_at->format('d/m/Y') }}.
+                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> a expiré{{ $currentOrg->subscription_ends_at ? ' le ' . $currentOrg->subscription_ends_at->format('d/m/Y') : '' }}.
                             Certaines fonctionnalités sont désactivées.
                         </span>
                     </div>
-                    <button 
+                    <button
                         type="button"
                         x-data
                         @click="$dispatch('open-renewal-modal', { organizationId: {{ $currentOrg->id }} })"
@@ -41,10 +41,10 @@
                         </svg>
                         <span class="text-sm font-medium">
                             <strong>⏰ Attention !</strong>
-                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> expire <strong>AUJOURD'HUI</strong> à {{ $currentOrg->subscription_ends_at->format('H:i') }}.
+                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> expire <strong>AUJOURD'HUI</strong>{{ $currentOrg->subscription_ends_at ? ' à ' . $currentOrg->subscription_ends_at->format('H:i') : '' }}.
                         </span>
                     </div>
-                    <button 
+                    <button
                         type="button"
                         x-data
                         @click="$dispatch('open-renewal-modal', { organizationId: {{ $currentOrg->id }} })"
@@ -67,18 +67,18 @@
                         </svg>
                         <span class="text-sm font-medium">
                             <strong>📅 Rappel :</strong>
-                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> expire dans <strong>{{ $currentOrg->remaining_days }} jour(s)</strong> (le {{ $currentOrg->subscription_ends_at->format('d/m/Y') }}).
+                            L'abonnement de <strong>{{ $currentOrg->name }}</strong> expire dans <strong>{{ $currentOrg->remaining_days }} jour(s)</strong>{{ $currentOrg->subscription_ends_at ? ' (le ' . $currentOrg->subscription_ends_at->format('d/m/Y') . ')' : '' }}.
                         </span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <button 
+                        <button
                             type="button"
                             x-data
                             @click="$dispatch('open-renewal-modal', { organizationId: {{ $currentOrg->id }} })"
                             class="flex-shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-white text-yellow-600 hover:bg-yellow-50 transition">
                             Renouveler
                         </button>
-                        <button 
+                        <button
                             x-data
                             @click="$el.closest('.bg-yellow-500').remove()"
                             class="text-white/80 hover:text-white transition"

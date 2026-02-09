@@ -9,13 +9,24 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckPlanFeature
 {
+    /**
+     * Stock-related features that should be disabled for service organizations
+     */
+    protected array $stockRelatedFeatures = [
+        'module_stock',
+        'basic_inventory',
+        'advanced_inventory',
+        'stock_management',
+        'inventory_tracking',
+    ];
+
     public function __construct(
         protected PlanLimitService $planLimitService
     ) {}
 
     /**
      * Handle an incoming request.
-     * 
+     *
      * Vérifie si l'organisation a accès à une fonctionnalité selon son plan.
      * Usage: ->middleware('feature:api_access') ou ->middleware('feature:advanced_reports,export_pdf')
      *
@@ -37,8 +48,8 @@ class CheckPlanFeature
         }
 
         // Récupérer l'organisation courante
-        $organization = app()->bound('current_organization') 
-            ? app('current_organization') 
+        $organization = app()->bound('current_organization')
+            ? app('current_organization')
             : $user->defaultOrganization;
 
         if (!$organization) {
@@ -47,6 +58,27 @@ class CheckPlanFeature
 
         // Vérifier chaque fonctionnalité requise
         $requiredFeatures = array_map('trim', explode(',', $features));
+
+        // Vérifier si c'est une fonctionnalité liée au stock et si c'est une organisation de services
+        if ($this->isStockFeatureForServiceOrg($requiredFeatures, $organization)) {
+            $message = "La gestion de stock n'est pas disponible pour les organisations de type \"Services\". Les services ne nécessitent pas de gestion de stock.";
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'reason' => 'service_organization_no_stock',
+                    'business_activity' => $organization->business_activity instanceof \App\Enums\BusinessActivityType
+                        ? $organization->business_activity->value
+                        : $organization->business_activity,
+                ], 403);
+            }
+
+            return redirect()
+                ->route('dashboard')
+                ->with('warning', $message);
+        }
+
         $missingFeatures = [];
 
         foreach ($requiredFeatures as $feature) {
@@ -82,6 +114,22 @@ class CheckPlanFeature
     }
 
     /**
+     * Check if the requested features are stock-related and the organization is a service organization
+     */
+    protected function isStockFeatureForServiceOrg(array $features, $organization): bool
+    {
+        // Check if any requested feature is stock-related
+        $hasStockFeature = !empty(array_intersect($features, $this->stockRelatedFeatures));
+
+        if (!$hasStockFeature) {
+            return false;
+        }
+
+        // Check if the organization is a service-only organization
+        return $organization->isServiceOrganization();
+    }
+
+    /**
      * Convertit les clés de fonctionnalités en labels lisibles
      */
     protected function getFeatureLabels(array $features): array
@@ -112,14 +160,14 @@ class CheckPlanFeature
     protected function buildErrorMessage(array $featureLabels, string $planName): string
     {
         $count = count($featureLabels);
-        
+
         if ($count === 1) {
             return "La fonctionnalité \"{$featureLabels[0]}\" n'est pas disponible avec votre plan {$planName}. Passez à un plan supérieur pour y accéder.";
         }
 
         $lastFeature = array_pop($featureLabels);
         $featuresText = implode(', ', $featureLabels) . ' et ' . $lastFeature;
-        
+
         return "Les fonctionnalités {$featuresText} ne sont pas disponibles avec votre plan {$planName}. Passez à un plan supérieur pour y accéder.";
     }
 }

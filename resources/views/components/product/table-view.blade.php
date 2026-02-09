@@ -1,5 +1,12 @@
 @props(['products', 'densityMode', 'selectAll'])
 
+@php
+    // Vérifier si au moins un produit a une date d'expiration
+    $hasExpiryProducts = $products->contains(fn($p) => !empty($p->expiry_date));
+    // Vérifier si l'organisation gère le stock
+    $showStock = has_stock_management();
+@endphp
+
 <x-table.table>
     <x-table.head>
         <tr class="{{ $densityMode === 'compact' ? 'text-xs' : ($densityMode === 'spacious' ? 'text-base' : 'text-sm') }}">
@@ -9,7 +16,12 @@
             <x-table.header sortable :sortKey="'name'">Produit</x-table.header>
             <x-table.header sortable :sortKey="'reference'">Référence</x-table.header>
             <x-table.header sortable :sortKey="'price'">Prix</x-table.header>
+            @if($showStock)
             <x-table.header sortable :sortKey="'stock'">Stock</x-table.header>
+            @endif
+            @if($hasExpiryProducts)
+                <x-table.header sortable :sortKey="'expiry_date'">Expiration</x-table.header>
+            @endif
             <x-table.header sortable :sortKey="'status'">Statut</x-table.header>
             <x-table.header align="right">Actions</x-table.header>
         </tr>
@@ -73,12 +85,13 @@
                     <div class="{{ $textSize }} font-semibold text-gray-900">
                         {{ format_currency($product->price) }}
                     </div>
-                    @if ($product->cost_price)
+                    @if ($showStock && $product->cost_price)
                         <div class="{{ $densityMode === 'compact' ? 'text-[10px]' : 'text-xs' }} text-gray-500">
                             Coût: {{ format_currency($product->cost_price) }}
                         </div>
                     @endif
                 </x-table.cell>
+                @if($showStock)
                 <x-table.cell>
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border {{ $stockClass }}">
                         <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,6 +105,53 @@
                         <span class="ml-2 text-xs text-orange-600 font-medium">Alerte</span>
                     @endif
                 </x-table.cell>
+                @endif
+                @if($hasExpiryProducts)
+                <x-table.cell>
+                    @if($product->expiry_date)
+                        @php
+                            $expiryDate = \Carbon\Carbon::parse($product->expiry_date);
+                            $now = now();
+                            $daysUntilExpiry = (int) $now->diffInDays($expiryDate, false);
+
+                            if ($daysUntilExpiry < 0) {
+                                $expiryStatus = 'expired';
+                                $expiryClass = 'bg-red-100 text-red-800 border-red-300';
+                                $expiryLabel = 'Expiré';
+                                $expiryIcon = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z';
+                            } elseif ($daysUntilExpiry <= 30) {
+                                $expiryStatus = 'expiring_soon';
+                                $expiryClass = 'bg-orange-100 text-orange-800 border-orange-300';
+                                $expiryLabel = 'Expire bientôt';
+                                $expiryIcon = 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z';
+                            } else {
+                                $expiryStatus = 'ok';
+                                $expiryClass = 'bg-green-100 text-green-800 border-green-300';
+                                $expiryLabel = 'OK';
+                                $expiryIcon = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
+                            }
+                        @endphp
+                        <div class="flex flex-col gap-1">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border {{ $expiryClass }}">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $expiryIcon }}"/>
+                                </svg>
+                                {{ $expiryLabel }}
+                            </span>
+                            <span class="text-xs text-gray-500">
+                                {{ $expiryDate->format('d/m/Y') }}
+                                @if($expiryStatus === 'expired')
+                                    <span class="text-red-600">({{ abs($daysUntilExpiry) }}j)</span>
+                                @elseif($expiryStatus === 'expiring_soon')
+                                    <span class="text-orange-600">({{ $daysUntilExpiry }}j)</span>
+                                @endif
+                            </span>
+                        </div>
+                    @else
+                        <span class="text-xs text-gray-400">-</span>
+                    @endif
+                </x-table.cell>
+                @endif
                 <x-table.cell>
                     <x-table.badge :color="$product->status === 'active' ? 'green' : 'gray'" dot>
                         {{ $product->status === 'active' ? 'Actif' : 'Inactif' }}
@@ -132,7 +192,7 @@
                 </x-table.cell>
             </x-table.row>
         @empty
-            <x-table.empty-state colspan="7" title="Aucun produit"
+            <x-table.empty-state :colspan="($showStock ? 7 : 6) + ($hasExpiryProducts ? 1 : 0)" :title="'Aucun ' . strtolower(product_label())"
                 description="Commencez par créer un nouveau produit.">
                 <x-slot name="icon">
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor"

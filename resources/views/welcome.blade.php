@@ -361,7 +361,7 @@
                 </button>
 
                 @auth
-                    <a href="{{ route('dashboard') }}" class="btn-secondary px-6 py-2.5 rounded-lg font-medium">
+                    <a href="{{ auth()->user()->hasRole('super-admin') ? route('admin.dashboard') : route('dashboard') }}" class="btn-secondary px-6 py-2.5 rounded-lg font-medium">
                         Tableau de bord
                     </a>
                 @else
@@ -402,7 +402,7 @@
 
                     <div class="flex flex-wrap gap-3 sm:gap-4">
                         @auth
-                            <a href="{{ route('dashboard') }}" class="btn-primary px-4 sm:px-6 lg:px-8 py-3 sm:py-4 rounded-xl font-semibold text-sm sm:text-base lg:text-lg shadow-xl flex items-center gap-2">
+                            <a href="{{ auth()->user()->hasRole('super-admin') ? route('admin.dashboard') : route('dashboard') }}" class="btn-primary px-4 sm:px-6 lg:px-8 py-3 sm:py-4 rounded-xl font-semibold text-sm sm:text-base lg:text-lg shadow-xl flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
                                 </svg>
@@ -680,7 +680,7 @@
 
                         <div class="space-y-4">
                             @auth
-                                <a href="{{ route('dashboard') }}" class="w-full btn-primary py-4 rounded-xl font-semibold text-center block">
+                                <a href="{{ auth()->user()->hasRole('super-admin') ? route('admin.dashboard') : route('dashboard') }}" class="w-full btn-primary py-4 rounded-xl font-semibold text-center block">
                                     Accéder à mon espace
                                 </a>
                             @else

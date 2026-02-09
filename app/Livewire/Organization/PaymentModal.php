@@ -36,12 +36,14 @@ class PaymentModal extends Component
     public int $checkStatusInterval = 5000; // 5 secondes
 
     protected $rules = [
-        'phoneNumber' => 'required|string|min:9|max:15',
+        'phoneNumber' => ['required', 'string', 'min:9', 'max:12', 'regex:/^[0-9\s]+$/'],
     ];
 
     protected $messages = [
         'phoneNumber.required' => 'Le numéro de téléphone est requis',
-        'phoneNumber.min' => 'Le numéro de téléphone doit avoir au moins 9 caractères',
+        'phoneNumber.min' => 'Le numéro de téléphone doit avoir au moins 9 chiffres',
+        'phoneNumber.max' => 'Le numéro de téléphone ne doit pas dépasser 12 chiffres',
+        'phoneNumber.regex' => 'Le numéro de téléphone ne doit contenir que des chiffres',
     ];
 
     public function mount()
@@ -74,7 +76,7 @@ class PaymentModal extends Component
     }
 
     /**
-     * Vérifier si une transaction Shwary est en attente
+     * Vérifier si une transaction Shwary est en attente (non expirée)
      */
     public function checkPendingTransaction(): void
     {
@@ -82,8 +84,24 @@ class PaymentModal extends Component
             return;
         }
 
+        // Expirer automatiquement les transactions de plus de 10 minutes
+        $expiredCount = ShwaryTransaction::pending()
+            ->forOrganization($this->organization->id)
+            ->where('created_at', '<', now()->subMinutes(10))
+            ->update([
+                'status' => ShwaryTransaction::STATUS_EXPIRED,
+                'failed_at' => now(),
+                'failure_reason' => 'Transaction expirée (délai dépassé)',
+            ]);
+
+        if ($expiredCount > 0) {
+            Log::info('Expired stale pending transactions', ['count' => $expiredCount]);
+        }
+
+        // Charger uniquement les transactions récentes (< 10 min)
         $pendingTransaction = ShwaryTransaction::pending()
             ->forOrganization($this->organization->id)
+            ->where('created_at', '>=', now()->subMinutes(10))
             ->latest()
             ->first();
 
@@ -131,10 +149,25 @@ class PaymentModal extends Component
                 return;
             }
 
+            // Construire le numéro complet avec le préfixe du pays
+            $phonePrefix = $this->phonePrefix;
+            $phoneNumber = $this->phoneNumber;
+
+            // Nettoyer le numéro (enlever espaces, tirets, etc.)
+            $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+
+            // Enlever le 0 initial si présent
+            if (str_starts_with($phoneNumber, '0')) {
+                $phoneNumber = substr($phoneNumber, 1);
+            }
+
+            // Construire le numéro complet
+            $fullPhoneNumber = $phonePrefix . $phoneNumber;
+
             // Initier le paiement
             $result = $shwaryService->initiatePayment(
                 amount: (float) $amount,
-                phoneNumber: $this->phoneNumber,
+                phoneNumber: $fullPhoneNumber,
                 metadata: [
                     'organization_id' => $this->organization->id,
                     'plan' => $this->organization->subscription_plan->value,
@@ -147,16 +180,19 @@ class PaymentModal extends Component
                 $this->paymentMessage = $result['message'];
                 $this->pendingTransactionId = $result['transaction_id'];
 
+                $this->dispatch('show-toast', message: 'Paiement initié ! Veuillez valider sur votre téléphone.', type: 'info');
                 $this->dispatch('payment-initiated', [
                     'transactionId' => $result['transaction_id'],
                 ]);
             } else {
                 $this->paymentStatus = 'error';
                 $this->paymentMessage = $result['message'];
+                $this->dispatch('show-toast', message: $result['message'] ?? 'Erreur lors de l\'initiation du paiement', type: 'error');
             }
         } catch (\Exception $e) {
             $this->paymentStatus = 'error';
             $this->paymentMessage = 'Erreur: ' . $e->getMessage();
+            $this->dispatch('show-toast', message: 'Une erreur est survenue. Veuillez réessayer.', type: 'error');
         } finally {
             $this->isProcessing = false;
         }
@@ -176,6 +212,7 @@ class PaymentModal extends Component
         if (!$transaction) {
             $this->paymentStatus = 'error';
             $this->paymentMessage = 'Transaction non trouvée';
+            $this->dispatch('show-toast', message: 'Transaction non trouvée', type: 'error');
             return;
         }
 
@@ -186,60 +223,69 @@ class PaymentModal extends Component
         if ($transaction->transaction_id && $transaction->isPending()) {
             $result = $shwaryService->getTransaction($transaction->transaction_id);
 
+            Log::info('Shwary status check result', [
+                'transaction_id' => $transaction->transaction_id,
+                'local_id' => $transaction->id,
+                'result' => $result,
+                'status_before' => $transaction->status,
+            ]);
+
+            // Gérer les erreurs API - vérifier si le webhook a mis à jour le statut
+            if (!($result['success'] ?? false)) {
+                $httpStatus = $result['http_status'] ?? null;
+                
+                Log::warning('Shwary API error during polling, checking local status', [
+                    'http_status' => $httpStatus,
+                    'transaction_id' => $transaction->transaction_id,
+                ]);
+                
+                // Recharger la transaction - le webhook pourrait l'avoir mise à jour
+                $transaction->refresh();
+                
+                // Si le webhook a mis à jour le statut, on traite
+                if ($transaction->isCompleted()) {
+                    $this->handlePaymentSuccess($transaction, ['verified_via_webhook' => true]);
+                    return;
+                }
+                
+                if ($transaction->isFailed()) {
+                    $this->paymentStatus = 'failed';
+                    $this->paymentMessage = $transaction->failure_reason ?: 'Le paiement a échoué.';
+                    $this->pendingTransactionId = null;
+                    $this->dispatch('show-toast', message: $this->paymentMessage, type: 'error');
+                    $this->dispatch('payment-completed');
+                    return;
+                }
+                
+                // Toujours en attente, continuer le polling silencieusement
+                return;
+            }
+
             // Recharger la transaction après la mise à jour
             $transaction->refresh();
+
+            Log::info('Shwary status after refresh', [
+                'status_after' => $transaction->status,
+                'is_completed' => $transaction->isCompleted(),
+                'is_pending' => $transaction->isPending(),
+            ]);
         }
 
         if ($transaction->isCompleted()) {
-            $this->paymentStatus = 'success';
-            $this->paymentMessage = $shwaryService->getStatusMessage($transaction);
-
-            // Traiter le paiement selon le type (nouveau, renouvellement ou upgrade)
-            if ($this->organization) {
-                if ($this->isUpgrade && $this->targetPlan) {
-                    // Upgrade: changer de plan
-                    $this->processUpgradeSuccess($transaction);
-                } elseif ($this->isRenewal) {
-                    // Renouvellement: prolonger de 30 jours
-                    $this->processRenewalSuccess($transaction);
-                } else {
-                    // Nouveau paiement
-                    $this->organization->markPaymentCompleted(
-                        paymentReference: $transaction->reference ?? $transaction->transaction_id,
-                        paymentMethod: 'mobile_money',
-                        amount: (float) $transaction->amount,
-                        metadata: [
-                            'shwary_transaction_id' => $transaction->transaction_id,
-                            'shwary_local_id' => $transaction->id,
-                            'phone_number' => $transaction->phone_number,
-                            'country_code' => $transaction->country_code,
-                        ]
-                    );
-                }
-            }
-
-            // Arrêter la vérification et rediriger
-            $this->dispatch('payment-completed');
-
-            $successMessage = $this->isUpgrade
-                ? 'Upgrade effectué avec succès ! Vous êtes maintenant sur le plan ' . ucfirst($this->targetPlan) . ' 🎉'
-                : ($this->isRenewal
-                    ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
-                    : 'Paiement Mobile Money effectué avec succès ! Bienvenue à bord 🎉');
-
-            session()->flash('success', $successMessage);
-
-            $this->showModal = false;
-            $this->isRenewal = false;
-            $this->isUpgrade = false;
-            $this->targetPlan = null;
-            return $this->redirect(route('dashboard'), navigate: true);
+            $this->handlePaymentSuccess($transaction);
+            return;
         }
 
         if ($transaction->isFailed()) {
             $this->paymentStatus = 'failed';
             $this->paymentMessage = $shwaryService->getStatusMessage($transaction);
             $this->pendingTransactionId = null;
+
+            // Dispatch toast d'erreur
+            $this->dispatch('show-toast', 
+                message: $this->paymentMessage ?: 'Le paiement a échoué. Veuillez réessayer.', 
+                type: 'error'
+            );
 
             // Dispatch un événement pour arrêter la vérification
             $this->dispatch('payment-completed');
@@ -255,9 +301,8 @@ class PaymentModal extends Component
     /**
      * Confirmation manuelle du paiement (pour les cas où le webhook ne fonctionne pas)
      *
-     * IMPORTANT: Cette méthode vérifie OBLIGATOIREMENT le statut réel de la transaction
-     * auprès de l'API Shwary avant de valider le paiement. Un paiement ne sera jamais
-     * validé sans confirmation de l'API.
+     * Cette méthode tente de vérifier le statut via l'API Shwary.
+     * Si l'API est indisponible (401/404), elle vérifie si le webhook a mis à jour le statut.
      */
     public function confirmPaymentManually(): void
     {
@@ -270,15 +315,25 @@ class PaymentModal extends Component
         if (!$transaction) {
             $this->paymentStatus = 'error';
             $this->paymentMessage = 'Transaction non trouvée';
+            $this->dispatch('show-toast', message: 'Transaction non trouvée', type: 'error');
             return;
         }
 
-        // SÉCURITÉ: Vérifier obligatoirement le statut auprès de l'API Shwary
+        // Vérifier d'abord si la transaction est déjà complétée localement
+        if ($transaction->isCompleted()) {
+            Log::info('Transaction already completed locally, processing success', [
+                'transaction_id' => $transaction->id,
+            ]);
+            $this->handlePaymentSuccess($transaction, ['verified_locally' => true]);
+            return;
+        }
+
         $shwaryService = app(ShwaryPaymentService::class);
 
         if (!$transaction->transaction_id) {
             $this->paymentStatus = 'error';
             $this->paymentMessage = 'Impossible de vérifier la transaction. Veuillez réessayer.';
+            $this->dispatch('show-toast', message: 'Impossible de vérifier la transaction', type: 'error');
             return;
         }
 
@@ -288,6 +343,46 @@ class PaymentModal extends Component
         // Recharger la transaction après la mise à jour par getTransaction()
         $transaction->refresh();
 
+        // Si l'API a échoué, vérifier quand même si le webhook a mis à jour le statut
+        if (!($result['success'] ?? false)) {
+            $httpStatus = $result['http_status'] ?? null;
+            $errorMessage = $result['message'] ?? 'Erreur de vérification';
+            
+            Log::warning('Shwary API check failed during manual confirmation', [
+                'transaction_id' => $transaction->id,
+                'http_status' => $httpStatus,
+                'error' => $errorMessage,
+                'sandbox' => $result['sandbox'] ?? false,
+            ]);
+
+            // Recharger la transaction - le webhook pourrait l'avoir mise à jour
+            $transaction->refresh();
+            
+            // Si le webhook a mis à jour le statut, on peut continuer
+            if ($transaction->isCompleted()) {
+                Log::info('Transaction completed via webhook', ['transaction_id' => $transaction->id]);
+                $this->handlePaymentSuccess($transaction, ['verified_via_webhook' => true]);
+                return;
+            }
+            
+            if ($transaction->isFailed()) {
+                $this->paymentStatus = 'failed';
+                $failureReason = $transaction->failure_reason ?: 'Le paiement a échoué (solde insuffisant, transaction annulée, etc.)';
+                $this->paymentMessage = $failureReason;
+                $this->pendingTransactionId = null;
+                $this->dispatch('show-toast', message: $failureReason, type: 'error');
+                $this->dispatch('payment-completed');
+                return;
+            }
+
+            // L'API est indisponible et le webhook n'a pas encore mis à jour
+            // Afficher un message informatif
+            $this->paymentStatus = 'pending';
+            $this->paymentMessage = 'La vérification automatique est temporairement indisponible. Le statut sera mis à jour automatiquement dès que l\'opérateur confirmera la transaction.';
+            $this->dispatch('show-toast', message: 'Vérification en cours... Veuillez patienter ou vérifier sur votre téléphone.', type: 'info');
+            return;
+        }
+
         // Vérifier si le paiement a réellement réussi côté Shwary
         if (!$transaction->isCompleted()) {
             // Le paiement n'a PAS réussi côté Mobile Money
@@ -296,41 +391,158 @@ class PaymentModal extends Component
                 $this->paymentMessage = $shwaryService->getStatusMessage($transaction)
                     ?: 'Le paiement a échoué. Veuillez réessayer.';
                 $this->pendingTransactionId = null;
+                $this->dispatch('show-toast', message: $this->paymentMessage, type: 'error');
                 // Arrêter le polling car le paiement a échoué
                 $this->dispatch('payment-completed');
             } else {
                 // Toujours en attente - ne pas arrêter le polling
                 $this->paymentStatus = 'pending';
                 $this->paymentMessage = 'Le paiement n\'a pas encore été confirmé par votre opérateur Mobile Money. Veuillez valider sur votre téléphone.';
+                $this->dispatch('show-toast', message: 'Paiement en attente de validation sur votre téléphone', type: 'info');
             }
             return;
         }
 
         // Le paiement est confirmé par l'API Shwary
+        $this->handlePaymentSuccess($transaction, ['verified_via_api' => true]);
+    }
+
+    /**
+     * Annuler la transaction en attente et recommencer
+     */
+    public function cancelPendingPayment(): void
+    {
+        if ($this->pendingTransactionId) {
+            $transaction = ShwaryTransaction::find($this->pendingTransactionId);
+
+            if ($transaction && $transaction->isPending()) {
+                $transaction->update([
+                    'status' => ShwaryTransaction::STATUS_CANCELLED,
+                    'failed_at' => now(),
+                    'failure_reason' => 'Annulé par l\'utilisateur',
+                ]);
+
+                Log::info('Transaction cancelled by user', ['transaction_id' => $transaction->id]);
+            }
+        }
+
+        // Réinitialiser l'état
+        $this->pendingTransactionId = null;
+        $this->paymentStatus = null;
+        $this->paymentMessage = null;
+        $this->phoneNumber = '';
+    }
+
+    /**
+     * Forcer la confirmation du paiement (ADMIN UNIQUEMENT)
+     *
+     * ATTENTION: Cette méthode doit être utilisée uniquement par un administrateur
+     * après vérification manuelle que l'argent est bien arrivé sur le compte Shwary.
+     * Elle n'est PAS exposée dans l'UI utilisateur.
+     */
+    public function forceConfirmPayment(): void
+    {
+        // Seuls les admins peuvent forcer une confirmation
+        $user = Auth::user();
+        if (!$user || !$user->is_admin) {
+            Log::warning('Unauthorized attempt to force confirm payment', [
+                'user_id' => $user?->id,
+            ]);
+            $this->paymentStatus = 'error';
+            $this->paymentMessage = 'Action non autorisée';
+            $this->dispatch('show-toast', message: 'Action non autorisée', type: 'error');
+            return;
+        }
+
+        if (!$this->pendingTransactionId) {
+            return;
+        }
+
+        $transaction = ShwaryTransaction::find($this->pendingTransactionId);
+
+        if (!$transaction) {
+            $this->paymentStatus = 'error';
+            $this->paymentMessage = 'Transaction non trouvée';
+            return;
+        }
+
+        // Marquer la transaction comme complétée manuellement par admin
+        $transaction->update([
+            'status' => ShwaryTransaction::STATUS_COMPLETED,
+            'completed_at' => now(),
+            'response_data' => array_merge($transaction->response_data ?? [], [
+                'manual_force_confirmation' => true,
+                'confirmed_by_admin' => Auth::id(),
+                'confirmed_at' => now()->toIso8601String(),
+                'reason' => 'Admin manual confirmation - API verification bypassed',
+            ]),
+        ]);
+
+        Log::warning('Payment force confirmed by ADMIN (API bypassed)', [
+            'transaction_id' => $transaction->id,
+            'shwary_transaction_id' => $transaction->transaction_id,
+            'admin_id' => Auth::id(),
+            'amount' => $transaction->amount,
+        ]);
+
+        // Le paiement est maintenant confirmé
+        $this->handlePaymentSuccess($transaction, ['admin_force_confirmation' => true]);
+    }
+
+    /**
+     * Gérer le timeout du paiement (appelé depuis JavaScript)
+     */
+    public function handlePaymentTimeout(): void
+    {
+        if ($this->pendingTransactionId) {
+            $transaction = ShwaryTransaction::find($this->pendingTransactionId);
+
+            if ($transaction && $transaction->isPending()) {
+                $transaction->update([
+                    'status' => ShwaryTransaction::STATUS_EXPIRED,
+                    'failed_at' => now(),
+                    'failure_reason' => 'Délai d\'attente dépassé (timeout client)',
+                ]);
+
+                Log::info('Transaction timed out (client-side)', ['transaction_id' => $transaction->id]);
+            }
+        }
+
+        $this->paymentStatus = 'failed';
+        $this->paymentMessage = 'Le délai d\'attente a été dépassé. Veuillez réessayer ou contacter le support si le montant a été débité.';
+        $this->pendingTransactionId = null;
+        $this->dispatch('show-toast', message: 'Délai d\'attente dépassé. Veuillez réessayer.', type: 'error');
+        $this->dispatch('payment-completed');
+    }
+
+    /**
+     * Traiter le succès du paiement (méthode centralisée pour éviter la duplication)
+     *
+     * @param ShwaryTransaction $transaction La transaction complétée
+     * @param array $additionalMetadata Métadonnées supplémentaires à inclure
+     */
+    protected function handlePaymentSuccess(ShwaryTransaction $transaction, array $additionalMetadata = []): void
+    {
         $this->paymentStatus = 'success';
         $this->paymentMessage = 'Paiement confirmé avec succès !';
 
         // Traiter selon le type (upgrade, renouvellement ou nouveau paiement)
         if ($this->organization) {
             if ($this->isUpgrade && $this->targetPlan) {
-                // Upgrade: changer de plan
                 $this->processUpgradeSuccess($transaction);
             } elseif ($this->isRenewal) {
-                // Renouvellement: prolonger de 30 jours
                 $this->processRenewalSuccess($transaction);
             } else {
-                // Nouveau paiement
                 $this->organization->markPaymentCompleted(
                     paymentReference: $transaction->reference ?? $transaction->transaction_id,
                     paymentMethod: 'mobile_money',
                     amount: (float) $transaction->amount,
-                    metadata: [
+                    metadata: array_merge([
                         'shwary_transaction_id' => $transaction->transaction_id,
                         'shwary_local_id' => $transaction->id,
                         'phone_number' => $transaction->phone_number,
                         'country_code' => $transaction->country_code,
-                        'verified_via_api' => true,
-                    ]
+                    ], $additionalMetadata)
                 );
             }
         }
@@ -344,6 +556,9 @@ class PaymentModal extends Component
                 ? 'Renouvellement effectué avec succès ! Votre abonnement a été prolongé de 30 jours 🎉'
                 : 'Paiement Mobile Money confirmé avec succès ! Bienvenue à bord 🎉');
 
+        // Dispatch toast de succès
+        $this->dispatch('show-toast', message: $successMessage, type: 'success');
+
         session()->flash('success', $successMessage);
 
         $this->showModal = false;
@@ -351,18 +566,7 @@ class PaymentModal extends Component
         $this->isUpgrade = false;
         $this->targetPlan = null;
 
-        // Forcer une redirection complète (pas navigate)
         $this->redirectRoute('dashboard');
-    }
-
-    /**
-     * Annuler la transaction en attente
-     */
-    public function cancelPendingPayment(): void
-    {
-        $this->pendingTransactionId = null;
-        $this->paymentStatus = null;
-        $this->paymentMessage = null;
     }
 
     /**

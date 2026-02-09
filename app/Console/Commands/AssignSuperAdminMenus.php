@@ -23,21 +23,34 @@ class AssignSuperAdminMenus extends Command
     protected $description = 'Assigner les menus essentiels au rôle super-admin';
 
     /**
-     * Les menus essentiels pour le super-admin (doit correspondre à MenuService::SUPER_ADMIN_MENU_CODES)
+     * Les menus essentiels pour le super-admin (doit correspondre à MenuItemSeeder)
      */
     protected array $menuCodes = [
+        // Dashboard super-admin
         'admin-dashboard',
-        'menu-permissions',
-        'subscriptions',
-        'subscription-settings',
-        'roles',
-        'roles.index',
-        'users',
-        'users.index',
+
+        // Organisations (niveau supérieur)
         'organizations',
         'organizations.index',
         'organizations.create',
+
+        // Configuration (catégories, types, attributs)
+        'configuration',
+        'admin-categories',
+        'admin-product-types',
+        'admin-product-attributes',
+
+        // Administration (users, roles)
+        'users',
+        'users.index',
+        'roles',
+        'roles.index',
+
+        // Paramètres
+        'settings',
         'printer-config',
+        'menu-permissions',
+        'subscription-settings',
     ];
 
     /**
@@ -70,7 +83,7 @@ class AssignSuperAdminMenus extends Command
         $currentMenuCodes = $superAdminRole->menus()->pluck('code')->toArray();
 
         $this->info('📋 Menus actuellement assignés: ' . count($currentMenuCodes));
-        
+
         // Trouver les menus manquants
         $missingMenuCodes = array_diff($this->menuCodes, $currentMenuCodes);
 
@@ -99,12 +112,12 @@ class AssignSuperAdminMenus extends Command
         // Afficher les menus trouvés vs manquants
         $this->info('');
         $this->info('📊 Analyse des menus:');
-        
+
         $tableData = [];
         foreach ($this->menuCodes as $code) {
             $menu = $menusToAssign->firstWhere('code', $code);
             $isAssigned = in_array($code, $currentMenuCodes);
-            
+
             if ($menu) {
                 $status = $isAssigned ? '✓ Déjà assigné' : '⚠ À assigner';
                 $tableData[] = [$code, $menu->name, $status];
@@ -112,7 +125,7 @@ class AssignSuperAdminMenus extends Command
                 $tableData[] = [$code, '(non trouvé)', '❌ Menu inexistant'];
             }
         }
-        
+
         $this->table(['Code', 'Nom', 'Statut'], $tableData);
         $this->info('');
 
@@ -135,7 +148,7 @@ class AssignSuperAdminMenus extends Command
         // Afficher le résultat final
         $finalMenus = $superAdminRole->menus()->orderBy('section')->orderBy('order')->get();
         $this->info("📋 Total des menus du super-admin: {$finalMenus->count()}");
-        
+
         $this->table(
             ['Section', 'Menu', 'Code'],
             $finalMenus->map(fn($m) => [$m->section ?? '-', $m->name, $m->code])->toArray()

@@ -5,6 +5,7 @@ namespace App\Livewire\Organization;
 use App\Models\Organization;
 use App\Models\OrganizationTax;
 use App\Services\TaxService;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -179,6 +180,9 @@ class OrganizationTaxes extends Component
                 $message = 'Taxe créée avec succès';
             }
 
+            // Invalider le cache POS pour cette organisation
+            Cache::forget("pos.taxes.org.{$this->organization->id}");
+
             $this->closeModal();
             $this->dispatch('show-toast', message: $message, type: 'success');
 
@@ -198,6 +202,10 @@ class OrganizationTaxes extends Component
             }
 
             $taxService->deleteTax($tax);
+
+            // Invalider le cache POS pour cette organisation
+            Cache::forget("pos.taxes.org.{$this->organization->id}");
+
             $this->dispatch('show-toast', message: 'Taxe supprimée avec succès', type: 'success');
 
         } catch (\Exception $e) {
@@ -216,6 +224,10 @@ class OrganizationTaxes extends Component
             }
 
             $tax->setAsDefault();
+
+            // Invalider le cache POS pour cette organisation
+            Cache::forget("pos.taxes.org.{$this->organization->id}");
+
             $this->dispatch('show-toast', message: 'Taxe définie par défaut', type: 'success');
 
         } catch (\Exception $e) {
@@ -234,6 +246,10 @@ class OrganizationTaxes extends Component
             }
 
             $tax->update(['is_active' => !$tax->is_active]);
+
+            // Invalider le cache POS pour cette organisation
+            Cache::forget("pos.taxes.org.{$this->organization->id}");
+
             $status = $tax->is_active ? 'activée' : 'désactivée';
             $this->dispatch('show-toast', message: "Taxe {$status}", type: 'success');
 

@@ -265,14 +265,33 @@ class PlanLimitService
     }
 
     /**
+     * Stock-related features that should be disabled for service organizations
+     */
+    protected array $stockRelatedFeatures = [
+        'module_stock',
+        'basic_inventory',
+        'advanced_inventory',
+        'stock_management',
+        'inventory_tracking',
+    ];
+
+    /**
      * Vérifie si une fonctionnalité est disponible pour le plan
      * Utilise les features du cache/DB
+     *
+     * Note: Stock-related features return false for service-only organizations
+     * regardless of their subscription plan.
      */
     public function hasFeature(string $feature, ?Organization $organization = null): bool
     {
         $organization = $organization ?? $this->getCurrentOrganization();
 
         if (!$organization) {
+            return false;
+        }
+
+        // For service organizations, stock-related features are always disabled
+        if (in_array($feature, $this->stockRelatedFeatures) && $organization->isServiceOrganization()) {
             return false;
         }
 

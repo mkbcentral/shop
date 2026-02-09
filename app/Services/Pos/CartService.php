@@ -35,7 +35,9 @@ class CartService
      */
     public function addItem(int $variantId): array
     {
-        $variant = $this->variantRepository->find($variantId);
+        $variant = $this->variantRepository->query()
+            ->with('product.productType')
+            ->find($variantId);
 
         if (!$variant) {
             return [
@@ -45,7 +47,10 @@ class CartService
             ];
         }
 
-        if ($variant->stock_quantity <= 0) {
+        // Services don't have stock limits
+        $isService = $variant->product->productType?->is_service ?? false;
+
+        if (!$isService && $variant->stock_quantity <= 0) {
             return [
                 'success' => false,
                 'message' => 'Produit en rupture de stock.',
@@ -56,7 +61,8 @@ class CartService
         $key = 'variant_' . $variantId;
 
         if (isset($this->cart[$key])) {
-            if ($this->cart[$key]['quantity'] < $variant->stock_quantity) {
+            // Services have unlimited quantity
+            if ($isService || $this->cart[$key]['quantity'] < $variant->stock_quantity) {
                 $this->cart[$key]['quantity']++;
                 return [
                     'success' => true,
@@ -82,7 +88,8 @@ class CartService
             'original_price' => $variant->product->price,
             'max_discount_amount' => $variant->product->max_discount_amount,
             'quantity' => 1,
-            'stock' => $variant->stock_quantity,
+            'stock' => $isService ? 999999 : $variant->stock_quantity,
+            'is_service' => $isService,
         ];
 
         return [
@@ -117,11 +124,15 @@ class CartService
         }
 
         if ($quantity > $this->cart[$key]['stock']) {
-            return [
-                'success' => false,
-                'message' => 'Stock insuffisant.',
-                'cart' => $this->cart
-            ];
+            // Services have unlimited stock (stock = 999999)
+            $isService = $this->cart[$key]['is_service'] ?? false;
+            if (!$isService) {
+                return [
+                    'success' => false,
+                    'message' => 'Stock insuffisant.',
+                    'cart' => $this->cart
+                ];
+            }
         }
 
         $this->cart[$key]['quantity'] = $quantity;
@@ -247,6 +258,11 @@ class CartService
     public function validateStock(): array
     {
         foreach ($this->cart as $item) {
+            // Skip stock validation for services
+            if ($item['is_service'] ?? false) {
+                continue;
+            }
+
             $variant = $this->variantRepository->find($item['variant_id']);
 
             if (!$variant || $variant->stock_quantity < $item['quantity']) {

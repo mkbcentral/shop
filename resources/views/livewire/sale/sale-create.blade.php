@@ -15,7 +15,7 @@
             </h1>
             <p class="text-gray-500 mt-1 text-sm">Créez une nouvelle transaction de vente</p>
         </div>
-        <a href="{{ route('sales.index') }}" wire:navigate 
+        <a href="{{ route('sales.index') }}" wire:navigate
            class="inline-flex items-center justify-center px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-xl border border-gray-300 shadow-sm transition-all hover:shadow-md group">
             <svg class="w-5 h-5 mr-2 text-gray-500 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -49,11 +49,11 @@
 
     <form wire:submit="save">
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6" wire:loading.class="opacity-60 pointer-events-none">
-            
-            {{-- ===== COLONNE GAUCHE - Produits ===== --}}
+
+            {{-- ===== COLONNE GAUCHE - {{ products_label() }} ===== --}}
             <div class="xl:col-span-2 space-y-6">
-                
-                {{-- Carte: Recherche & Ajout de produits --}}
+
+                {{-- Carte: Recherche & Ajout de {{ strtolower(products_label()) }} --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
                     {{-- Header --}}
                     <div class="px-6 py-4 border-b border-gray-100">
@@ -64,12 +64,12 @@
                                 </svg>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900">Ajouter des produits</h2>
+                                <h2 class="text-lg font-bold text-gray-900">Ajouter des {{ strtolower(products_label()) }}</h2>
                                 <p class="text-gray-500 text-sm">Recherchez et ajoutez des articles à la vente</p>
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- Corps --}}
                     <div class="p-6">
                         {{-- Barre de recherche --}}
@@ -84,7 +84,7 @@
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 </div>
-                                
+
                                 <input
                                     type="text"
                                     wire:model.live.debounce.300ms="productSearch"
@@ -94,7 +94,7 @@
                                     autocomplete="off"
                                     class="block w-full pl-12 pr-12 py-4 text-base border-2 border-gray-200 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 hover:border-gray-300"
                                 >
-                                
+
                                 @if(strlen($productSearch) > 0)
                                     <button
                                         wire:click="$set('productSearch', '')"
@@ -111,7 +111,7 @@
 
                             {{-- Dropdown résultats --}}
                             @if(strlen($productSearch) >= 2)
-                                <div 
+                                <div
                                     x-show="open"
                                     x-cloak
                                     x-transition:enter="transition ease-out duration-200"
@@ -196,11 +196,11 @@
                                     </div>
                                     <span class="font-semibold text-gray-800">Configurer l'article</span>
                                 </div>
-                                
+
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-gray-600 mb-1.5">Quantité</label>
-                                        <input type="number" wire:model.live="selectedQuantity" min="1" 
+                                        <input type="number" wire:model.live="selectedQuantity" min="1"
                                                class="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-center font-semibold">
                                     </div>
                                     <div>
@@ -214,7 +214,7 @@
                                                class="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-right">
                                     </div>
                                     <div class="flex items-end">
-                                        <button type="button" wire:click="addItem" 
+                                        <button type="button" wire:click="addItem"
                                                 class="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
@@ -248,7 +248,7 @@
                             </span>
                         @endif
                     </div>
-                    
+
                     <div class="p-4">
                         @if(count($items) > 0)
                             <div class="space-y-3">
@@ -260,7 +260,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                                             </svg>
                                         </div>
-                                        
+
                                         {{-- Info produit --}}
                                         <div class="flex-1 min-w-0">
                                             <h4 class="font-semibold text-gray-900 truncate">{{ $item['name'] }}</h4>
@@ -278,7 +278,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        
+
                                         {{-- Prix et action --}}
                                         <div class="flex items-center gap-4">
                                             <div class="text-right">
@@ -303,7 +303,7 @@
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <p class="text-sm text-gray-500">Panier vide - Recherchez et ajoutez des produits</p>
+                                    <p class="text-sm text-gray-500">Panier vide - Recherchez et ajoutez des {{ strtolower(products_label()) }}</p>
                                 </div>
                             </div>
                         @endif
@@ -325,7 +325,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="p-6 space-y-5">
                         {{-- Ligne 1: Client et Date --}}
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -407,7 +407,7 @@
 
                         {{-- Notes (toggle) --}}
                         <div>
-                            <button type="button" @click="showNotes = !showNotes" 
+                            <button type="button" @click="showNotes = !showNotes"
                                     class="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
                                 <svg class="w-4 h-4 transition-transform" :class="showNotes && 'rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -436,21 +436,21 @@
                                 Résumé
                             </h3>
                         </div>
-                        
+
                         <div class="p-6 space-y-4">
                             {{-- Sous-total --}}
                             <div class="flex justify-between items-center text-gray-600">
                                 <span>Sous-total</span>
                                 <span class="font-semibold text-gray-900">{{ number_format($subtotal, 0, ',', ' ') }} {{ current_currency() }}</span>
                             </div>
-                            
+
                             {{-- Remise --}}
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1.5">Remise globale</label>
                                 <input type="number" wire:model.live="form.discount" step="0.01" min="0" value="0" placeholder="0"
                                        class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-right">
                             </div>
-                            
+
                             {{-- Taxe --}}
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1.5">Taxe</label>
@@ -471,7 +471,7 @@
                                     <span>{{ number_format($form->tax, 0, ',', ' ') }} {{ current_currency() }}</span>
                                 </div>
                             @endif
-                            
+
                             {{-- Séparateur --}}
                             <div class="border-t border-gray-200 pt-4">
                                 <div class="flex justify-between items-center">
@@ -481,7 +481,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- Infos rapides --}}
                     <div class="bg-white rounded-xl border border-gray-200 p-4">
                         <div class="grid grid-cols-2 gap-4 text-center">
@@ -495,9 +495,9 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- Bouton de validation --}}
-                    <button type="submit" 
+                    <button type="submit"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-75 cursor-wait"
                             class="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3 group">
@@ -515,7 +515,7 @@
                             Enregistrement...
                         </span>
                     </button>
-                    
+
                     {{-- Info sécurité --}}
                     <p class="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

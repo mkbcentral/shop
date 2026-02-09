@@ -122,8 +122,10 @@ async function initVuePosComponents() {
         if (posCartElement) {
             const clients = JSON.parse(posCartElement.dataset.clients || '[]');
             const currency = posCartElement.dataset.currency || 'USD';
+            const taxes = JSON.parse(posCartElement.dataset.taxes || '[]');
+            const hasTaxes = posCartElement.dataset.hasTaxes === 'true';
 
-            const cartApp = createApp(PosCart, { clients, currency });
+            const cartApp = createApp(PosCart, { clients, currency, taxes, hasTaxes });
             cartApp.use(pinia);
             cartApp.mount('#vue-pos-cart');
 

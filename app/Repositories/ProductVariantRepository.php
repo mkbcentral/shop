@@ -171,4 +171,33 @@ class ProductVariantRepository
             ->orderBy('stock_quantity', 'asc')
             ->get();
     }
+
+    /**
+     * Get expired products (expiry_date in the past).
+     */
+    public function expiredWithDetails(): Collection
+    {
+        return ProductVariant::with(['product.category'])
+            ->whereHas('product', function ($q) {
+                $q->whereNotNull('expiry_date')
+                  ->whereDate('expiry_date', '<', now());
+            })
+            ->orderBy('stock_quantity', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get expiring soon products (within 30 days).
+     */
+    public function expiringSoonWithDetails(int $days = 30): Collection
+    {
+        return ProductVariant::with(['product.category'])
+            ->whereHas('product', function ($q) use ($days) {
+                $q->whereNotNull('expiry_date')
+                  ->whereDate('expiry_date', '>=', now())
+                  ->whereDate('expiry_date', '<=', now()->addDays($days));
+            })
+            ->orderByRaw('(SELECT expiry_date FROM products WHERE products.id = product_variants.product_id)')
+            ->get();
+    }
 }

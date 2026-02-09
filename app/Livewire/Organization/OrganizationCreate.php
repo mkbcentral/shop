@@ -73,11 +73,19 @@ class OrganizationCreate extends Component
             'Africa/Lubumbashi' => 'Lubumbashi (UTC+2)',
         ];
 
+        $businessActivities = [
+            'retail' => 'Commerce de détail (vêtements, électronique...)',
+            'food' => 'Alimentaire (restaurants, épiceries...)',
+            'services' => 'Services (coiffure, esthétique, photographie...)',
+            'mixed' => 'Mixte (Produits & Services)',
+        ];
+
         return view('livewire.organization.organization-create', [
             'types' => $types,
             'legalForms' => $legalForms,
             'currencies' => $currencies,
             'timezones' => $timezones,
+            'businessActivities' => $businessActivities,
         ]);
     }
 }

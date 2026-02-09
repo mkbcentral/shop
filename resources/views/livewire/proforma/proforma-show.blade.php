@@ -1,6 +1,9 @@
-<div x-data="{ showDeleteModal: false, showActionModal: false, actionType: '', showModal: false }"
+<div x-data="{ showDeleteModal: false, showActionModal: false, actionType: '', showModal: false, showSendModal: false }"
      @open-email-modal.window="showModal = true"
-     @close-email-modal.window="showModal = false">
+     @close-email-modal.window="showModal = false"
+     @open-send-modal.window="showSendModal = true"
+     @close-send-modal.window="showSendModal = false"
+     @open-whatsapp.window="window.open($event.detail.url, '_blank')">
 <x-slot name="header">
     <x-breadcrumb :items="[
         ['label' => 'Accueil', 'url' => route('dashboard')],

@@ -6,11 +6,12 @@ use Livewire\Component;
 
 class PrinterConfiguration extends Component
 {
-    public $companyName = 'VOTRE ENTREPRISE';
-    public $companyAddress = 'Votre Adresse';
-    public $companyPhone = '+243 XXX XXX XXX';
-    public $companyEmail = 'contact@entreprise.cd';
-    public $companyWebsite = 'www.votre-site.cd';
+    public $companyName = '';
+    public $companyAddress = '';
+    public $companyPhone = '';
+    public $companyEmail = '';
+    public $companyWebsite = '';
+    public $companyCurrency = 'CDF';
     public $paperWidth = 32; // 58mm par défaut
     public $printerType = 'usb'; // usb ou bluetooth
     public $printerName = '';
@@ -18,7 +19,19 @@ class PrinterConfiguration extends Component
 
     public function mount()
     {
-        // Les valeurs seront chargées depuis le localStorage côté client
+        // Charger les données de l'organisation de l'utilisateur connecté
+        $organization = app()->bound('current_organization')
+            ? app('current_organization')
+            : auth()->user()?->defaultOrganization;
+
+        if ($organization) {
+            $this->companyName = $organization->name ?? $organization->legal_name ?? '';
+            $this->companyAddress = $organization->address ?? '';
+            $this->companyPhone = $organization->phone ?? '';
+            $this->companyEmail = $organization->email ?? '';
+            $this->companyWebsite = $organization->website ?? '';
+            $this->companyCurrency = $organization->currency ?? 'CDF';
+        }
     }
 
     public function testConnection()

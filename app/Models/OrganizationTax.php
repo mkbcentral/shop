@@ -130,10 +130,10 @@ class OrganizationTax extends Model
     public function getFormattedRateAttribute(): string
     {
         if ($this->type === 'fixed') {
-            return number_format($this->fixed_amount, 2) . ' (fixe)';
+            return number_format((float) $this->fixed_amount, 2) . ' (fixe)';
         }
 
-        return number_format($this->rate, 2) . '%';
+        return number_format((float) $this->rate, 2) . '%';
     }
 
     /**

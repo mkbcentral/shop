@@ -44,14 +44,15 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 25%;">Produit</th>
-                <th style="width: 15%;">SKU</th>
-                <th style="width: 12%;">Catégorie</th>
-                <th style="width: 10%;" class="text-center">Stock</th>
-                <th style="width: 10%;" class="text-center">Seuil Alerte</th>
-                <th style="width: 10%;" class="text-right">Prix Unitaire</th>
-                <th style="width: 13%;" class="text-right">Valeur Stock</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 20%;">Produit</th>
+                <th style="width: 12%;">SKU</th>
+                <th style="width: 10%;">Catégorie</th>
+                <th style="width: 8%;" class="text-center">Stock</th>
+                <th style="width: 8%;" class="text-center">Seuil</th>
+                <th style="width: 10%;" class="text-right">Prix Unit.</th>
+                <th style="width: 12%;" class="text-right">Valeur Stock</th>
+                <th style="width: 16%;" class="text-center">Expiration</th>
             </tr>
         </thead>
         <tbody>
@@ -78,6 +79,26 @@
                 <td class="text-center">{{ $variant->low_stock_threshold }}</td>
                 <td class="text-right money">{{ number_format($variant->product->cost_price ?? 0, 0, ',', ' ') }}</td>
                 <td class="text-right money">{{ number_format($variant->stock_quantity * ($variant->product->cost_price ?? 0), 0, ',', ' ') }} {{ current_currency() }}</td>
+                <td class="text-center">
+                    @if($variant->product->expiry_date)
+                        @php
+                            $expiryDate = \Carbon\Carbon::parse($variant->product->expiry_date);
+                            $daysUntilExpiry = (int) now()->diffInDays($expiryDate, false);
+                        @endphp
+                        @if($daysUntilExpiry < 0)
+                            <span class="badge badge-danger">Expiré</span>
+                            <br><small>{{ $expiryDate->format('d/m/Y') }}</small>
+                        @elseif($daysUntilExpiry <= 30)
+                            <span class="badge badge-warning">{{ $daysUntilExpiry }}j</span>
+                            <br><small>{{ $expiryDate->format('d/m/Y') }}</small>
+                        @else
+                            <span class="badge badge-success">OK</span>
+                            <br><small>{{ $expiryDate->format('d/m/Y') }}</small>
+                        @endif
+                    @else
+                        <span style="color: #999;">—</span>
+                    @endif
+                </td>
             </tr>
             @endforeach
         </tbody>
@@ -88,6 +109,7 @@
                 <td></td>
                 <td></td>
                 <td class="text-right money">{{ number_format($totals['total_value'], 0, ',', ' ') }} {{ current_currency() }}</td>
+                <td></td>
             </tr>
         </tfoot>
     </table>

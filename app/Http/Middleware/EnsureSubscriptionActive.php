@@ -64,9 +64,31 @@ class EnsureSubscriptionActive
         // Note: La vérification d'email est déjà faite par le middleware EnsureEmailVerifiedBeforeAccess
         if (!$organization->isAccessible()) {
             // L'organisation a un plan payant mais n'a pas complété le paiement
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Votre abonnement n\'est pas actif. Veuillez effectuer le paiement pour accéder à l\'API.',
+                    'error' => 'subscription_inactive',
+                    'requires_payment' => true,
+                ], 402); // 402 Payment Required
+            }
+
             if ($organization->owner_id === $user->id) {
                 return redirect()->route('organization.payment', ['organization' => $organization->id])
                     ->with('warning', 'Veuillez compléter le paiement pour accéder à votre compte.');
+            }
+        }
+
+        // Vérifier si l'abonnement est expiré
+        if ($organization->subscription_ends_at && $organization->subscription_ends_at->isPast()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Votre abonnement a expiré. Veuillez le renouveler pour continuer à utiliser l\'API.',
+                    'error' => 'subscription_expired',
+                    'expired_at' => $organization->subscription_ends_at->toIso8601String(),
+                    'requires_renewal' => true,
+                ], 402);
             }
         }
 

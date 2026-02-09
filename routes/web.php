@@ -19,7 +19,6 @@ use App\Livewire\Proforma\ProformaIndex;
 use App\Livewire\Proforma\ProformaCreate;
 use App\Livewire\Proforma\ProformaEdit;
 use App\Livewire\Proforma\ProformaShow;
-use App\Livewire\Pos\CashRegisterModular;
 use App\Livewire\PrinterConfiguration;
 use App\Livewire\Stock\StockIndex;
 use App\Livewire\Stock\StockOverview;
@@ -32,6 +31,7 @@ use App\Livewire\Role\Create as RoleCreate;
 use App\Livewire\Role\Edit as RoleEdit;
 use App\Livewire\Admin\MenuPermissionManager;
 use App\Livewire\Admin\SubscriptionSettings;
+use App\Livewire\Admin\AvailableFeaturesManager;
 use App\Livewire\Admin\SuperAdminDashboard;
 use App\Livewire\Organization\OrganizationIndex;
 use App\Livewire\Organization\OrganizationCreate;
@@ -43,6 +43,7 @@ use App\Livewire\Organization\OrganizationTaxes;
 use App\Livewire\Organization\SubscriptionManager;
 use App\Livewire\ProductType\ProductTypeIndex;
 use App\Livewire\ProductAttribute\AttributeManager;
+use App\Livewire\PriceHistory\PriceHistoryIndex;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\OrganizationInvitationController;
 use App\Livewire\Pos\CashRegisterAlpine;
@@ -83,6 +84,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', AttributeManager::class)->name('index');
     });
 
+    // Price History
+    Route::get('/price-history', PriceHistoryIndex::class)
+        ->name('price-history.index')
+        ->middleware('permission:products.view');
+
     // Sales Management
     Route::prefix('sales')->name('sales.')->middleware('permission:sales.view')->group(function () {
         Route::get('/', SaleIndex::class)->name('index');
@@ -109,6 +115,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', InvoiceCreate::class)->name('create')->middleware('permission:sales.create');
         Route::get('/{id}', InvoiceShow::class)->name('show');
         Route::get('/{id}/edit', InvoiceEdit::class)->name('edit')->middleware('permission:sales.edit');
+        Route::get('/{invoice}/pdf', [\App\Http\Controllers\InvoicePdfController::class, 'export'])->name('pdf');
+        Route::get('/{invoice}/pdf/view', [\App\Http\Controllers\InvoicePdfController::class, 'stream'])->name('pdf.view');
     });
 
     // Proforma Invoices Management (requires module_proformas feature)
@@ -122,7 +130,6 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // POS - Point of Sale
-    //Route::get('/pos', CashRegisterModular::class)->name('pos.cash-register')->middleware('permission:sales.create');
     Route::get('/pos', CashRegisterAlpine::class)
         ->name('pos.cash-register')
         ->middleware('permission:sales.create');
@@ -181,6 +188,9 @@ Route::middleware(['auth'])->group(function () {
     // Subscription Admin Settings - Super Admin only
     Route::get('/admin/subscription-settings', SubscriptionSettings::class)->name('admin.subscription-settings')->middleware('role:super-admin');
 
+    // Available Features Management - Super Admin only
+    Route::get('/admin/available-features', AvailableFeaturesManager::class)->name('admin.available-features')->middleware('role:super-admin');
+
     // Organization Management
     Route::prefix('organizations')->name('organizations.')->group(function () {
         Route::get('/', OrganizationIndex::class)->name('index');
@@ -223,14 +233,8 @@ Route::prefix('organization/invitation')->name('organization.invitation.')->grou
     Route::delete('/{token}/decline', [OrganizationInvitationController::class, 'decline'])->name('decline');
 });
 
-// Shwary Webhook Routes (public - no auth required for callbacks)
-Route::prefix('webhooks')->name('webhooks.')->group(function () {
-    Route::post('/shwary', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary.webhook');
-    Route::get('/shwary/status/{transactionId}', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'checkStatus'])->name('shwary.status');
-});
-
-// Alias for Shwary webhook (used in ShwaryPaymentService)
-Route::post('/shwary/callback', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary.webhook');
+// Shwary Webhook Routes moved to routes/api.php (prefix: /api/webhooks/shwary)
+// This ensures webhooks bypass web middleware (CSRF, auth, organization checks, etc.)
 
 // Include store and transfer routes
 require __DIR__ . '/stores.php';

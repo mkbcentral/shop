@@ -2,6 +2,7 @@
 
 @php
     $currency = auth()->user()->defaultOrganization->currency ?? 'CDF';
+    $hasExpirationAlerts = ($kpis['expired_count'] ?? 0) > 0 || ($kpis['expiring_soon_count'] ?? 0) > 0;
 @endphp
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -45,6 +46,45 @@
         </x-slot:icon>
     </x-stock.kpi-card>
 </div>
+
+<!-- Expiration Alerts (only shown if there are expired or expiring products) -->
+@if($hasExpirationAlerts)
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    @if(($kpis['expired_count'] ?? 0) > 0)
+    <div class="bg-gradient-to-r from-red-500 to-pink-600 rounded-lg shadow-sm p-4">
+        <div class="flex items-center justify-between text-white">
+            <div>
+                <p class="text-sm font-medium opacity-90">Produits Expirés</p>
+                <p class="text-2xl font-bold mt-1">{{ $kpis['expired_count'] }}</p>
+                <p class="text-sm opacity-90 mt-1">À retirer de la vente</p>
+            </div>
+            <div class="p-3 bg-black/20 rounded-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if(($kpis['expiring_soon_count'] ?? 0) > 0)
+    <div class="bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg shadow-sm p-4">
+        <div class="flex items-center justify-between text-white">
+            <div>
+                <p class="text-sm font-medium opacity-90">Expire Bientôt</p>
+                <p class="text-2xl font-bold mt-1">{{ $kpis['expiring_soon_count'] }}</p>
+                <p class="text-sm opacity-90 mt-1">Dans les 30 prochains jours</p>
+            </div>
+            <div class="p-3 bg-black/20 rounded-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
+@endif
 
 <!-- Potential Profit Card (Optional - Full Width) -->
 <x-card class="bg-gradient-to-r from-indigo-500 to-purple-600 mb-6">

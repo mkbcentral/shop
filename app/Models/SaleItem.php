@@ -81,9 +81,16 @@ class SaleItem extends Model
 
     /**
      * Create a stock movement for this sale item.
+     * Skipped for service products as they don't track inventory.
      */
     public function createStockMovement(): void
     {
+        // Skip stock movement for services
+        $variant = $this->productVariant ?? ProductVariant::find($this->product_variant_id);
+        if ($variant && $variant->isService()) {
+            return;
+        }
+
         StockMovement::create([
             'store_id' => $this->sale->store_id,
             'product_variant_id' => $this->product_variant_id,
@@ -96,6 +103,15 @@ class SaleItem extends Model
             'date' => $this->sale->sale_date,
             'user_id' => $this->sale->user_id,
         ]);
+    }
+
+    /**
+     * Check if this sale item is for a service.
+     */
+    public function isService(): bool
+    {
+        $variant = $this->productVariant ?? ProductVariant::find($this->product_variant_id);
+        return $variant && $variant->isService();
     }
 
     /**

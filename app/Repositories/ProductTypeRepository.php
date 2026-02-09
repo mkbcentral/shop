@@ -12,7 +12,8 @@ class ProductTypeRepository
      */
     public function all(): Collection
     {
-        return ProductType::withCount('products')
+        return ProductType::forCurrentOrganization()
+            ->withCount('products')
             ->with('organization')
             ->orderBy('display_order')
             ->get();
@@ -23,7 +24,7 @@ class ProductTypeRepository
      */
     public function allActive(): Collection
     {
-        return ProductType::active()->ordered()->get();
+        return ProductType::forCurrentOrganization()->active()->ordered()->get();
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Dtos\Auth\LoginDto;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -34,10 +35,10 @@ class AuthController extends Controller
             'device_name' => 'nullable|string|max:255',
         ]);
 
-        $user = User::where('email', $request->email)->first();
-
+        $loginDto = LoginDto::fromArray($request->all());
+        $user = User::where('email', $loginDto->email)->first();
         // Vérifier si l'utilisateur existe et le mot de passe est correct
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($loginDto->password, $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Les identifiants fournis sont incorrects.',
@@ -51,20 +52,15 @@ class AuthController extends Controller
                 'message' => 'Votre compte a été désactivé. Contactez l\'administrateur.',
             ], 403);
         }
-
         // Vérifier si l'email est vérifié (optionnel)
-        // if (!$user->hasVerifiedEmail()) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Veuillez vérifier votre adresse email.',
-        //     ], 403);
-        // }
-
-        // Nom du device pour le token
-        $deviceName = $request->device_name ?? 'mobile-app';
-
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+            'success' => false,
+            'message' => 'Veuillez vérifier votre adresse email.',
+            ], 403);
+        }
         // Créer le token Sanctum
-        $token = $user->createToken($deviceName, ['*'])->plainTextToken;
+        $token = $user->createToken($loginDto->deviceName, ['*'])->plainTextToken;
 
         // Mettre à jour la date de dernière connexion
         $user->update(['last_login_at' => now()]);
@@ -93,7 +89,6 @@ class AuthController extends Controller
         try {
             // Révoquer le token actuel
             $request->user()->currentAccessToken()->delete();
-
             return response()->json([
                 'success' => true,
                 'message' => 'Déconnexion réussie',
@@ -224,7 +219,41 @@ class AuthController extends Controller
                 'id' => $organization->id,
                 'name' => $organization->name,
                 'slug' => $organization->slug,
+                'logo' => $organization->logo,
                 'currency' => $currency,
+                'is_active' => $organization->is_active,
+                // Abonnement
+                'subscription' => [
+                    'plan' => $organization->subscription_plan->value,
+                    'plan_label' => $organization->subscription_plan->label(),
+                    'starts_at' => $organization->subscription_starts_at?->toIso8601String(),
+                    'ends_at' => $organization->subscription_ends_at?->toIso8601String(),
+                    'is_active' => $organization->hasActiveSubscription(),
+                    'is_expiring_soon' => $organization->isSubscriptionExpiringSoon(),
+                    'remaining_days' => $organization->remaining_days,
+                    'is_accessible' => $organization->isAccessible(),
+                ],
+                // Période d'essai
+                'trial' => [
+                    'is_trial' => $organization->is_trial,
+                    'trial_days' => $organization->trial_days,
+                    'is_active' => $organization->isTrialActive(),
+                    'ends_at' => $organization->getTrialEndsAt()?->toIso8601String(),
+                ],
+                // Limites du plan
+                'limits' => [
+                    'max_stores' => $organization->max_stores,
+                    'max_users' => $organization->max_users,
+                    'max_products' => $organization->max_products,
+                ],
+                // Usage actuel
+                'usage' => [
+                    'stores' => $organization->getStoresUsage(),
+                    'users' => $organization->getUsersUsage(),
+                    'products' => $organization->getProductsUsage(),
+                ],
+                // Fonctionnalités et modules
+                'features' => $this->getOrganizationFeatures($organization),
             ] : null,
             'current_store' => $user->currentStore ? [
                 'id' => $user->currentStore->id,
@@ -284,5 +313,63 @@ class AuthController extends Controller
         }
 
         return $query->get(['stores.id', 'stores.name', 'stores.code', 'stores.address', 'stores.phone'])->toArray();
+    }
+
+    /**
+     * Récupérer les fonctionnalités de l'organisation selon son plan
+     */
+    private function getOrganizationFeatures(\App\Models\Organization $organization): array
+    {
+        // Récupérer le plan depuis la DB
+        $planSlug = $organization->subscription_plan->value;
+        $plan = \App\Models\SubscriptionPlan::where('slug', $planSlug)->first();
+
+        // Fonctionnalités techniques du plan actuel
+        $enabledFeatures = $plan?->technical_features ?? [];
+
+        // Toutes les fonctionnalités disponibles
+        $allFeatures = \App\Models\SubscriptionPlan::getAvailableFeatures();
+        $categories = \App\Models\SubscriptionPlan::getFeatureCategories();
+
+        $accessible = [];
+        $restricted = [];
+
+        foreach ($allFeatures as $key => $feature) {
+            $featureData = [
+                'key' => $key,
+                'label' => $feature['label'],
+                'description' => $feature['description'],
+                'category' => $feature['category'],
+                'category_label' => $categories[$feature['category']] ?? $feature['category'],
+            ];
+
+            if (in_array($key, $enabledFeatures)) {
+                $accessible[] = $featureData;
+            } else {
+                $restricted[] = $featureData;
+            }
+        }
+
+        // Grouper par catégorie
+        $accessibleByCategory = collect($accessible)->groupBy('category')->map(function ($items) {
+            return $items->values()->toArray();
+        })->toArray();
+
+        $restrictedByCategory = collect($restricted)->groupBy('category')->map(function ($items) {
+            return $items->values()->toArray();
+        })->toArray();
+
+        return [
+            'enabled' => $enabledFeatures,
+            'accessible' => $accessible,
+            'accessible_by_category' => $accessibleByCategory,
+            'restricted' => $restricted,
+            'restricted_by_category' => $restrictedByCategory,
+            'has_api_access' => in_array('api_access', $enabledFeatures),
+            'has_multi_store' => in_array('multi_store', $enabledFeatures),
+            'has_advanced_reports' => in_array('advanced_reports', $enabledFeatures),
+            'has_export_excel' => in_array('export_excel', $enabledFeatures),
+            'has_export_pdf' => in_array('export_pdf', $enabledFeatures),
+        ];
     }
 }

@@ -202,17 +202,44 @@ class ProductVariant extends Model
 
     /**
      * Check if variant has sufficient stock.
+     * Services always have stock.
      */
     public function hasStock(int $quantity = 1): bool
     {
+        // Services always have sufficient stock
+        if ($this->isService()) {
+            return true;
+        }
         return $this->stock_quantity >= $quantity;
     }
 
     /**
+     * Check if this variant belongs to a service product.
+     */
+    public function isService(): bool
+    {
+        return $this->product && $this->product->isService();
+    }
+
+    /**
+     * Check if this variant requires stock tracking.
+     */
+    public function requiresStockTracking(): bool
+    {
+        return !$this->isService();
+    }
+
+    /**
      * Increase stock quantity.
+     * No-op for services.
      */
     public function increaseStock(int $quantity): void
     {
+        // Services don't track stock
+        if ($this->isService()) {
+            return;
+        }
+
         $oldStock = $this->stock_quantity;
         $this->increment('stock_quantity', $quantity);
         $this->refresh();
@@ -225,9 +252,15 @@ class ProductVariant extends Model
 
     /**
      * Decrease stock quantity.
+     * No-op for services.
      */
     public function decreaseStock(int $quantity): void
     {
+        // Services don't track stock
+        if ($this->isService()) {
+            return;
+        }
+
         $oldStock = $this->stock_quantity;
         $this->decrement('stock_quantity', $quantity);
         $this->refresh();
@@ -258,25 +291,38 @@ class ProductVariant extends Model
 
     /**
      * Check if stock is low.
+     * Services are never low on stock.
      */
     public function isLowStock(): bool
     {
+        if ($this->isService()) {
+            return false;
+        }
         return $this->stock_quantity > 0 && $this->stock_quantity <= $this->low_stock_threshold;
     }
 
     /**
      * Check if stock is out.
+     * Services are never out of stock.
      */
     public function isOutOfStock(): bool
     {
+        if ($this->isService()) {
+            return false;
+        }
         return $this->stock_quantity <= $this->min_stock_threshold;
     }
 
     /**
      * Get stock status.
+     * Services are always in stock.
      */
     public function getStockStatusAttribute(): string
     {
+        if ($this->isService()) {
+            return 'in_stock';
+        }
+
         if ($this->isOutOfStock()) {
             return 'out_of_stock';
         }
@@ -306,5 +352,21 @@ class ProductVariant extends Model
     public function scopeByBarcode($query, string $barcode)
     {
         return $query->where('barcode', $barcode);
+    }
+
+    /**
+     * Get the price history records for this variant.
+     */
+    public function priceHistories(): HasMany
+    {
+        return $this->hasMany(PriceHistory::class)->orderBy('changed_at', 'desc');
+    }
+
+    /**
+     * Get the latest price history entry.
+     */
+    public function latestPriceHistory()
+    {
+        return $this->hasOne(PriceHistory::class)->latestOfMany('changed_at');
     }
 }

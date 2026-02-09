@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth\RegisterSteps;
 
+use App\Enums\BusinessActivityType;
 use App\Services\SubscriptionService;
 use Livewire\Component;
 
@@ -12,6 +13,7 @@ class StepThree extends Component
     public array $plan = [];
     public string $planSlug = '';
     public string $currency = '€';
+    public ?array $businessActivity = null;
 
     /**
      * Load saved data
@@ -26,6 +28,19 @@ class StepThree extends Component
             $this->planSlug = $this->organizationData['subscription_plan'];
             $allPlans = SubscriptionService::getPlansFromCache();
             $this->plan = $allPlans[$this->planSlug] ?? [];
+        }
+
+        // Load business activity label
+        if (isset($this->organizationData['business_activity'])) {
+            $activityValue = $this->organizationData['business_activity'];
+            $activityType = BusinessActivityType::tryFrom($activityValue);
+            if ($activityType) {
+                $this->businessActivity = [
+                    'value' => $activityType->value,
+                    'label' => $activityType->label(),
+                    'icon' => $activityType->icon(),
+                ];
+            }
         }
     }
 

@@ -8,6 +8,7 @@ readonly class LoginDto
         public string $email,
         public string $password,
         public bool $remember = false,
+        public string $deviceName = 'mobile-app',
     ) {}
 
     public static function fromArray(array $data): self
@@ -16,7 +17,13 @@ readonly class LoginDto
             email: $data['email'],
             password: $data['password'],
             remember: $data['remember'] ?? false,
+            deviceName: $data['device_name'] ?? 'mobile-app',
         );
+    }
+
+    public static function fromRequest(\Illuminate\Http\Request $request): self
+    {
+        return self::fromArray($request->validated());
     }
 
     public function toArray(): array
@@ -25,6 +32,7 @@ readonly class LoginDto
             'email' => $this->email,
             'password' => $this->password,
             'remember' => $this->remember,
+            'device_name' => $this->deviceName,
         ];
     }
 

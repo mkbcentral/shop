@@ -13,6 +13,7 @@ class SalesNotificationBell extends Component
     public Collection $notifications;
     public int $unreadCount = 0;
     public ?int $organizationId = null;
+    public bool $isSuperAdmin = false;
 
     public function getListeners(): array
     {
@@ -30,6 +31,17 @@ class SalesNotificationBell extends Component
 
     public function mount(): void
     {
+        $user = auth()->user();
+
+        // Vérifier si c'est un super-admin (ils n'ont pas besoin des notifications de ventes)
+        $this->isSuperAdmin = $user?->hasRole('super-admin') ?? false;
+
+        if ($this->isSuperAdmin) {
+            $this->notifications = collect();
+            $this->unreadCount = 0;
+            return;
+        }
+
         // Get current organization ID from the app container (avec gestion d'erreur pour super-admin)
         try {
             $organization = app()->bound('current_organization') ? app('current_organization') : null;
@@ -43,6 +55,13 @@ class SalesNotificationBell extends Component
 
     public function loadNotifications(): void
     {
+        // Super-admin n'a pas besoin des notifications de ventes
+        if ($this->isSuperAdmin) {
+            $this->notifications = collect();
+            $this->unreadCount = 0;
+            return;
+        }
+
         $user = auth()->user();
 
         if (!$user) {

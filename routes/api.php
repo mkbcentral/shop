@@ -24,6 +24,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// ===== Webhooks (publics - aucune authentification requise) =====
+Route::prefix('webhooks')->name('webhooks.')->group(function () {
+    Route::post('/shwary', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary');
+    Route::get('/shwary/status/{transactionId}', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'checkStatus'])->name('shwary.status');
+});
+
+// Alias pour Shwary (compatibilité)
+Route::post('/shwary/callback', [\App\Http\Controllers\Webhooks\ShwaryWebhookController::class, 'handleCallback'])->name('shwary.callback');
+
 // ===== Routes d'authentification (publiques) =====
 Route::prefix('auth')->name('api.auth.')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login');
@@ -46,7 +55,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ===== Routes nécessitant l'accès API (plan Professional+) =====
-    Route::middleware('feature:api_access')->group(function () {
+    // Middlewares:
+    // - feature:api_access : Vérifie que le plan a accès à l'API
+    // - subscription.active : Vérifie que l'abonnement est actif
+    // - api.rate.limit : Applique le rate limiting selon le plan
+    Route::middleware(['feature:api_access', 'subscription.active', 'api.rate.limit'])->group(function () {
 
     // ===== Store API Routes =====
     Route::prefix('stores')->name('api.stores.')->group(function () {
@@ -63,8 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Show specific store
         Route::get('/{id}', [StoreApiController::class, 'show'])->name('show');
 
-        // Create store
-        Route::post('/', [StoreApiController::class, 'store'])->name('store');
+        // Create store (vérifie la limite de magasins)
+        Route::post('/', [StoreApiController::class, 'store'])->middleware('resource.limit:stores')->name('store');
 
         // Update store
         Route::put('/{id}', [StoreApiController::class, 'update'])->name('update');
@@ -160,7 +173,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // CRUD
             Route::get('/', [MobileProductController::class, 'index'])->name('index');
-            Route::post('/', [MobileProductController::class, 'store'])->name('store');
+            // Création de produit (vérifie la limite de produits)
+            Route::post('/', [MobileProductController::class, 'store'])->middleware('resource.limit:products')->name('store');
             Route::get('/{id}', [MobileProductController::class, 'show'])->name('show');
             Route::put('/{id}', [MobileProductController::class, 'update'])->name('update');
             Route::delete('/{id}', [MobileProductController::class, 'destroy'])->name('destroy');

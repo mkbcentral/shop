@@ -32,7 +32,7 @@
                     <span wire:loading wire:target="testPrint">⏳ Envoi en cours...</span>
                 </button>
             </div>
-            
+
             <!-- Liste des imprimantes -->
             <div id="printer-list" class="mt-4 hidden">
                 <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
@@ -41,7 +41,7 @@
                 </div>
                 <div id="printers" class="space-y-2"></div>
             </div>
-            
+
             <!-- Imprimante sélectionnée -->
             <div id="selected-printer" class="mt-4 p-4 bg-green-50 border-2 border-green-400 rounded-lg hidden">
                 <div class="flex items-center justify-between">
@@ -49,7 +49,7 @@
                         <p class="text-sm font-semibold text-green-700">✅ Imprimante active :</p>
                         <p id="selected-printer-name" class="text-lg font-bold text-green-900 mt-1"></p>
                     </div>
-                    <button type="button" onclick="clearSelectedPrinter()" 
+                    <button type="button" onclick="clearSelectedPrinter()"
                             class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-semibold transition">
                         ✕ Effacer
                     </button>
@@ -115,9 +115,15 @@
                         <input type="email" id="companyEmail" wire:model="companyEmail"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     </div>
-                    <div class="md:col-span-2">
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Site web</label>
                         <input type="text" id="companyWebsite" wire:model="companyWebsite"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Devise</label>
+                        <input type="text" id="companyCurrency" wire:model="companyCurrency"
+                            placeholder="Ex: CDF, USD, EUR..."
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     </div>
                 </div>
@@ -191,12 +197,19 @@
 
         // Charger la configuration depuis localStorage
         function loadConfiguration() {
-            const config = {
-                companyName: localStorage.getItem('thermal_company_name') || 'VOTRE ENTREPRISE',
-                companyAddress: localStorage.getItem('thermal_company_address') || 'Votre Adresse',
-                companyPhone: localStorage.getItem('thermal_company_phone') || '+243 XXX XXX XXX',
-                companyEmail: localStorage.getItem('thermal_company_email') || 'contact@entreprise.cd',
-                companyWebsite: localStorage.getItem('thermal_company_website') || 'www.votre-site.cd',
+            // Informations entreprise TOUJOURS depuis l'organisation (Livewire)
+            // Ces valeurs ne sont PAS stockées en localStorage car elles viennent de la BD
+            const companyInfo = {
+                companyName: @js($companyName ?: 'VOTRE ENTREPRISE'),
+                companyAddress: @js($companyAddress ?: 'Votre Adresse'),
+                companyPhone: @js($companyPhone ?: '+243 XXX XXX XXX'),
+                companyEmail: @js($companyEmail ?: 'contact@entreprise.cd'),
+                companyWebsite: @js($companyWebsite ?: ''),
+                companyCurrency: @js($companyCurrency ?? 'CDF'),
+            };
+
+            // Paramètres imprimante depuis localStorage
+            const printerSettings = {
                 paperWidth: localStorage.getItem('thermal_paper_width') || '32',
                 printerType: localStorage.getItem('thermal_printer_type') || 'usb',
                 printerName: localStorage.getItem('thermal_printer_name') || '',
@@ -205,18 +218,21 @@
                 printBarcode: localStorage.getItem('thermal_print_barcode') === 'true',
             };
 
-            // Remplir le formulaire
-            document.getElementById('companyName').value = config.companyName;
-            document.getElementById('companyAddress').value = config.companyAddress;
-            document.getElementById('companyPhone').value = config.companyPhone;
-            document.getElementById('companyEmail').value = config.companyEmail;
-            document.getElementById('companyWebsite').value = config.companyWebsite;
-            document.getElementById('paperWidth').value = config.paperWidth;
-            document.getElementById('printerType').value = config.printerType;
-            document.getElementById('printerName').value = config.printerName;
-            document.getElementById('autoPrint').checked = config.autoPrint;
-            document.getElementById('printLogo').checked = config.printLogo;
-            document.getElementById('printBarcode').checked = config.printBarcode;
+            // Remplir le formulaire - Infos entreprise depuis l'organisation
+            document.getElementById('companyName').value = companyInfo.companyName;
+            document.getElementById('companyAddress').value = companyInfo.companyAddress;
+            document.getElementById('companyPhone').value = companyInfo.companyPhone;
+            document.getElementById('companyEmail').value = companyInfo.companyEmail;
+            document.getElementById('companyWebsite').value = companyInfo.companyWebsite;
+            document.getElementById('companyCurrency').value = companyInfo.companyCurrency;
+
+            // Remplir le formulaire - Paramètres imprimante depuis localStorage
+            document.getElementById('paperWidth').value = printerSettings.paperWidth;
+            document.getElementById('printerType').value = printerSettings.printerType;
+            document.getElementById('printerName').value = printerSettings.printerName;
+            document.getElementById('autoPrint').checked = printerSettings.autoPrint;
+            document.getElementById('printLogo').checked = printerSettings.printLogo;
+            document.getElementById('printBarcode').checked = printerSettings.printBarcode;
         }
 
         // Sauvegarder la configuration
@@ -227,6 +243,7 @@
                 companyPhone: document.getElementById('companyPhone').value,
                 companyEmail: document.getElementById('companyEmail').value,
                 companyWebsite: document.getElementById('companyWebsite').value,
+                companyCurrency: document.getElementById('companyCurrency').value,
                 paperWidth: document.getElementById('paperWidth').value,
                 printerType: document.getElementById('printerType').value,
                 printerName: document.getElementById('printerName').value,
@@ -235,12 +252,15 @@
                 printBarcode: document.getElementById('printBarcode').checked,
             };
 
-            // Sauvegarder dans localStorage
+            // Sauvegarder les infos entreprise dans localStorage (pour l'impression)
             localStorage.setItem('thermal_company_name', config.companyName);
             localStorage.setItem('thermal_company_address', config.companyAddress);
             localStorage.setItem('thermal_company_phone', config.companyPhone);
             localStorage.setItem('thermal_company_email', config.companyEmail);
             localStorage.setItem('thermal_company_website', config.companyWebsite);
+            localStorage.setItem('thermal_company_currency', config.companyCurrency);
+
+            // Sauvegarder les paramètres imprimante dans localStorage
             localStorage.setItem('thermal_paper_width', config.paperWidth);
             localStorage.setItem('thermal_printer_type', config.printerType);
             localStorage.setItem('thermal_printer_name', config.printerName);
@@ -257,7 +277,7 @@
             }
 
             // Afficher un message de succès
-            alert('✅ Configuration enregistrée avec succès !');
+            showToast('Configuration enregistrée avec succès !', 'success');
         }
 
         // Réinitialiser la configuration
@@ -268,6 +288,7 @@
                 localStorage.removeItem('thermal_company_phone');
                 localStorage.removeItem('thermal_company_email');
                 localStorage.removeItem('thermal_company_website');
+                localStorage.removeItem('thermal_company_currency');
                 localStorage.removeItem('thermal_paper_width');
                 localStorage.removeItem('thermal_printer_type');
                 localStorage.removeItem('thermal_printer_name');
@@ -276,8 +297,15 @@
                 localStorage.removeItem('thermal_print_barcode');
 
                 loadConfiguration();
-                alert('✅ Configuration réinitialisée !');
+                showToast('Configuration réinitialisée !', 'success');
             }
+        }
+
+        // Fonction utilitaire pour afficher un toast
+        function showToast(message, type = 'success') {
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: { message: message, type: type }
+            }));
         }
 
         // Vérifier la connexion QZ Tray
@@ -295,13 +323,13 @@
                 }
 
                 statusDiv.innerHTML = '<span class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span><span class="font-semibold text-green-600">Connecté</span>';
-                
+
                 // Afficher l'imprimante sauvegardée si elle existe
                 const savedPrinter = localStorage.getItem('thermal_printer_name');
                 if (savedPrinter) {
                     showSelectedPrinter(savedPrinter);
                 }
-                
+
                 return true;
             } catch (error) {
                 statusDiv.innerHTML = '<span class="w-3 h-3 rounded-full bg-red-500"></span><span class="font-semibold text-red-600">Déconnecté - Lancez QZ Tray</span>';
@@ -315,7 +343,7 @@
             const statusDiv = document.getElementById('qz-status');
             const printerList = document.getElementById('printer-list');
             const printersDiv = document.getElementById('printers');
-            
+
             // Afficher "Recherche en cours..."
             statusDiv.innerHTML = '<span class="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></span><span class="font-semibold text-yellow-600">Recherche en cours...</span>';
             printersDiv.innerHTML = '<div class="text-center py-4"><span class="text-gray-500">🔄 Connexion à QZ Tray...</span></div>';
@@ -332,7 +360,7 @@
                         </div>`;
                     return;
                 }
-                
+
                 console.log('✅ QZ library chargée');
                 printersDiv.innerHTML = '<div class="text-center py-4"><span class="text-gray-500">🔄 Connexion au service QZ Tray...</span></div>';
 
@@ -456,7 +484,7 @@
         // Sélectionner une imprimante
         function selectPrinter(printerName) {
             console.log('🎯 Sélection de l\'imprimante:', printerName);
-            
+
             // Sauvegarder dans localStorage
             localStorage.setItem('thermal_printer_name', printerName);
 
@@ -481,11 +509,11 @@
             localStorage.removeItem('thermal_printer_name');
             document.getElementById('printerName').value = '';
             document.getElementById('selected-printer').classList.add('hidden');
-            
+
             if (window.thermalPrinter) {
                 window.thermalPrinter.printerName = null;
             }
-            
+
             // Rafraîchir la liste
             detectAndShowPrinters();
         }
@@ -502,42 +530,49 @@
         // Événements Livewire - écoute globale immédiate
         window.addEventListener('DOMContentLoaded', () => {
             console.log('🔵 DOMContentLoaded - Setup global listeners');
+            console.log('🔵 KJUR available?', typeof KJUR !== 'undefined');
+            console.log('🔵 qz available?', typeof qz !== 'undefined');
         });
 
         document.addEventListener('livewire:init', () => {
             console.log('🔵 livewire:init event fired');
 
-            Livewire.on('test-thermal-print', (data) => {
+            Livewire.on('test-thermal-print', async (data) => {
                 console.log('🔵 test-thermal-print event received via Livewire.on', data);
                 console.log('🔵 window.thermalPrinter exists?', !!window.thermalPrinter);
+                console.log('🔵 KJUR available?', typeof KJUR !== 'undefined');
                 console.log('🔵 localStorage thermal_printer_name:', localStorage.getItem('thermal_printer_name'));
 
-                if (window.thermalPrinter) {
+                if (!window.thermalPrinter) {
+                    console.error('❌ ThermalPrinter non disponible');
+                    showToast('ThermalPrinter non disponible. Vérifiez que qz-thermal-printer.js est bien chargé.', 'error');
+                    return;
+                }
+
+                try {
                     // S'assurer que l'imprimante est configurée depuis localStorage
                     const savedPrinter = localStorage.getItem('thermal_printer_name');
-                    if (savedPrinter && !window.thermalPrinter.printerName) {
+                    if (savedPrinter) {
                         window.thermalPrinter.printerName = savedPrinter;
                         console.log('🔵 Imprimante chargée depuis localStorage:', savedPrinter);
                     }
-                    
+
                     // Recharger la configuration de largeur papier avant l'impression
                     window.thermalPrinter.detectPaperWidth();
                     console.log('🔵 Paper width:', window.thermalPrinter.paperWidth);
                     console.log('🔵 Printer name:', window.thermalPrinter.printerName);
 
+                    // Extraire les données (Livewire 3 passe un array)
+                    const receiptData = Array.isArray(data) ? data[0] : data;
+                    console.log('🔵 Receipt data:', receiptData);
+
                     console.log('🔵 Calling printReceipt...');
-                    window.thermalPrinter.printReceipt(data[0])
-                        .then(() => {
-                            console.log('✅ Impression lancée avec succès');
-                            alert('✅ Impression de test envoyée!');
-                        })
-                        .catch(error => {
-                            console.error('❌ Erreur d\'impression:', error);
-                            alert('❌ Erreur d\'impression: ' + error.message);
-                        });
-                } else {
-                    console.error('❌ ThermalPrinter non disponible');
-                    alert('❌ ThermalPrinter non disponible. Vérifiez que qz-thermal-printer.js est bien chargé.');
+                    await window.thermalPrinter.printReceipt(receiptData);
+                    console.log('✅ Impression lancée avec succès');
+                    showToast('Impression de test envoyée!', 'success');
+                } catch (error) {
+                    console.error('❌ Erreur d\'impression:', error);
+                    showToast('Erreur d\'impression: ' + (error.message || error), 'error');
                 }
             });
         });

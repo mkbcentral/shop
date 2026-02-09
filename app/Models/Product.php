@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -51,6 +52,9 @@ class Product extends Model
         'unit_of_measure',
         'brand',
         'model',
+        // Service-specific fields
+        'duration_minutes',
+        'pricing_type',
     ];
 
     /**
@@ -68,6 +72,8 @@ class Product extends Model
         'height' => 'decimal:2',
         'expiry_date' => 'date',
         'manufacture_date' => 'date',
+        // Service-specific casts
+        'duration_minutes' => 'integer',
     ];
 
     /**
@@ -138,9 +144,15 @@ class Product extends Model
     /**
      * Get the total stock across all variants.
      * If user is viewing a specific store, returns stock for that store only.
+     * Services always return infinite stock (PHP_INT_MAX).
      */
     public function getTotalStockAttribute(): int
     {
+        // Services have infinite stock
+        if ($this->isService()) {
+            return PHP_INT_MAX;
+        }
+
         $storeId = current_store_id();
 
         if ($storeId && !user_can_access_all_stores()) {
@@ -154,9 +166,15 @@ class Product extends Model
 
     /**
      * Get total stock for a specific store.
+     * Services always return infinite stock.
      */
     public function getStoreStock(?int $storeId = null): int
     {
+        // Services have infinite stock
+        if ($this->isService()) {
+            return PHP_INT_MAX;
+        }
+
         $storeId = $storeId ?? current_store_id();
 
         if (!$storeId) {
@@ -240,6 +258,43 @@ class Product extends Model
     public function scopeInactive($query)
     {
         return $query->where('status', self::STATUS_INACTIVE);
+    }
+
+    /**
+     * Scope to get only service products.
+     */
+    public function scopeServices($query)
+    {
+        return $query->whereHas('productType', function ($q) {
+            $q->where('is_service', true);
+        });
+    }
+
+    /**
+     * Scope to get only physical products (non-services).
+     */
+    public function scopePhysicalProducts($query)
+    {
+        return $query->whereHas('productType', function ($q) {
+            $q->where('is_service', false);
+        });
+    }
+
+    /**
+     * Check if this product is a service.
+     */
+    public function isService(): bool
+    {
+        return $this->productType && $this->productType->isService();
+    }
+
+    /**
+     * Check if this product requires stock tracking.
+     * Services don't need stock tracking.
+     */
+    public function requiresStockTracking(): bool
+    {
+        return !$this->isService();
     }
 
     /**
@@ -346,5 +401,38 @@ class Product extends Model
         }
 
         return $maxPerUnit * $quantity;
+    }
+
+    /**
+     * Get the price history records for this product.
+     */
+    public function priceHistories(): HasMany
+    {
+        return $this->hasMany(PriceHistory::class)->orderBy('changed_at', 'desc');
+    }
+
+    /**
+     * Get the latest price history entry.
+     */
+    public function latestPriceHistory()
+    {
+        return $this->hasOne(PriceHistory::class)->latestOfMany('changed_at');
+    }
+
+    /**
+     * Get price at a specific date.
+     *
+     * @param \Carbon\Carbon|string $date
+     * @param string $priceType
+     * @return float|null
+     */
+    public function getPriceAt($date, string $priceType = 'price'): ?float
+    {
+        $history = $this->priceHistories()
+            ->where('price_type', $priceType)
+            ->where('changed_at', '<=', $date)
+            ->first();
+
+        return $history ? (float) $history->new_price : null;
     }
 }

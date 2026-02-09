@@ -63,17 +63,25 @@ if (!function_exists('format_currency')) {
      * Format a number as currency with the organization's currency
      *
      * @param float|int|null $amount The amount to format
-     * @param int $decimals Number of decimal places
+     * @param int $decimals Number of decimal places (ignored for CDF)
      * @param bool $showSymbol Whether to show the currency symbol
      * @return string Formatted currency string
      */
     function format_currency(float|int|null $amount, int $decimals = 0, bool $showSymbol = true): string
     {
         $amount = $amount ?? 0;
+        $currency = current_currency();
+
+        // CDF n'utilise pas de décimales
+        if ($currency === 'CDF') {
+            $decimals = 0;
+            $amount = round($amount);
+        }
+
         $formatted = number_format($amount, $decimals, ',', ' ');
 
         if ($showSymbol) {
-            return $formatted . ' ' . current_currency();
+            return $formatted . ' ' . $currency;
         }
 
         return $formatted;

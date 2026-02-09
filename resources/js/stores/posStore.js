@@ -8,6 +8,12 @@ export const usePosStore = defineStore('pos', {
         isProcessing: false,
         globalDiscount: 0,
         globalTax: 0,
+        // Tax info from organization
+        selectedTaxId: null,
+        selectedTaxRate: 0,
+        selectedTaxType: null,
+        selectedTaxIsCompound: false,
+        selectedTaxIsIncludedInPrice: false,
     }),
 
     getters: {
@@ -159,7 +165,7 @@ export const usePosStore = defineStore('pos', {
                     console.warn('[Pinia Store] Prix trop bas:', parsedPrice, 'min:', minPrice)
                     // Afficher un toast d'erreur
                     if (window.Alpine && Alpine.store('toast')) {
-                        Alpine.store('toast').show(`Remise max autorisée : ${maxDiscountAmount.toFixed(2)}`, 'error')
+                        Alpine.store('toast').show(`Remise max autorisée : ${Math.round(maxDiscountAmount)}`, 'error')
                     }
                     return false
                 }
@@ -167,7 +173,7 @@ export const usePosStore = defineStore('pos', {
                 if (parsedPrice > maxPrice) {
                     console.warn('[Pinia Store] Prix trop haut:', parsedPrice, 'max:', maxPrice)
                     if (window.Alpine && Alpine.store('toast')) {
-                        Alpine.store('toast').show(`Prix maximum : ${maxPrice.toFixed(2)}`, 'error')
+                        Alpine.store('toast').show(`Prix maximum : ${Math.round(maxPrice)}`, 'error')
                     }
                     return false
                 }
@@ -233,6 +239,11 @@ export const usePosStore = defineStore('pos', {
             this.selectedClientId = null
             this.globalDiscount = 0
             this.globalTax = 0
+            this.selectedTaxId = null
+            this.selectedTaxRate = 0
+            this.selectedTaxType = null
+            this.selectedTaxIsCompound = false
+            this.selectedTaxIsIncludedInPrice = false
             this.saveToSession()
         },
 
@@ -311,6 +322,9 @@ export const usePosStore = defineStore('pos', {
                     paid_amount: this.total,
                     discount: this.globalDiscount,
                     tax: this.globalTax,
+                    tax_id: this.selectedTaxId,
+                    tax_rate: this.selectedTaxRate,
+                    tax_type: this.selectedTaxType,
                 }
 
                 console.log('[POS Store] Envoi de la vente:', payload)

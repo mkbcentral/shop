@@ -5,19 +5,40 @@
         x-data="{
             checkingStatus: false,
             intervalId: null,
+            timeoutId: null,
+            elapsedSeconds: 0,
+            maxWaitTime: 300,
             startStatusCheck() {
                 if (this.intervalId) return;
                 this.checkingStatus = true;
+                this.elapsedSeconds = 0;
                 this.intervalId = setInterval(() => {
+                    this.elapsedSeconds += {{ $checkStatusInterval / 1000 }};
                     $wire.checkPaymentStatus();
                 }, {{ $checkStatusInterval }});
+                this.timeoutId = setTimeout(() => {
+                    this.stopStatusCheck();
+                    $wire.handlePaymentTimeout();
+                }, this.maxWaitTime * 1000);
             },
             stopStatusCheck() {
                 if (this.intervalId) {
                     clearInterval(this.intervalId);
                     this.intervalId = null;
                 }
+                if (this.timeoutId) {
+                    clearTimeout(this.timeoutId);
+                    this.timeoutId = null;
+                }
                 this.checkingStatus = false;
+            },
+            getRemainingTime() {
+                return Math.max(0, this.maxWaitTime - this.elapsedSeconds);
+            },
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return mins + ':' + (secs < 10 ? '0' : '') + secs;
             }
         }"
         x-init="
@@ -28,7 +49,8 @@
         @open-renewal-modal.window="$wire.openForRenewal($event.detail.organizationId)"
         @open-upgrade-modal.window="$wire.openForUpgrade($event.detail.organizationId, $event.detail.targetPlan)"
         @payment-initiated.window="startStatusCheck()"
-        @payment-completed.window="stopStatusCheck()">
+        @payment-completed.window="stopStatusCheck()"
+        x-on:livewire:navigating.window="stopStatusCheck()">
 
         <!-- Background overlay with transparency -->
         <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"></div>
@@ -237,6 +259,16 @@
                                             {{ $paymentMessage }}
                                         </p>
 
+                                        @if($paymentStatus === 'pending')
+                                        {{-- Indicateur de temps restant --}}
+                                        <div class="mt-2 flex items-center text-xs text-amber-600" x-show="checkingStatus">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <span>Temps restant: <span x-text="formatTime(getRemainingTime())"></span></span>
+                                        </div>
+                                        @endif
+
                                         {{-- Actions selon le statut --}}
                                         <div class="mt-3 flex flex-wrap gap-2">
                                             @if($paymentStatus === 'pending' && $pendingTransactionId)
@@ -254,6 +286,7 @@
                                                     <span wire:loading.remove wire:target="confirmPaymentManually">Vérifier le paiement</span>
                                                     <span wire:loading wire:target="confirmPaymentManually">Vérification...</span>
                                                 </button>
+
                                                 <button wire:click="cancelPendingPayment" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-amber-700 bg-amber-100 hover:bg-amber-200 transition-colors">
                                                     <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -344,19 +377,23 @@
                                     <label class="block text-xs font-medium text-gray-700 mb-1">Numéro de téléphone Mobile Money</label>
                                     <div class="relative">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span class="text-gray-500 text-sm">{{ $phonePrefix }}</span>
+                                            <span class="text-gray-500 text-sm font-medium">{{ $phonePrefix }}</span>
                                         </div>
+                                        @php
+                                            $inputClasses = 'w-full pl-14 pr-3 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border';
+                                            $inputClasses .= $errors->has('phoneNumber') ? ' border-red-500 bg-red-50 ring-1 ring-red-500' : ' border-gray-300';
+                                        @endphp
                                         <input
                                             type="tel"
                                             wire:model="phoneNumber"
-                                            placeholder="812345678"
-                                            class="w-full pl-14 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 @error('phoneNumber') border-red-500 @enderror"
+                                            placeholder="812 345 678"
+                                            class="{{ $inputClasses }}"
                                         >
                                     </div>
                                     @error('phoneNumber')
                                     <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
                                     @enderror
-                                    <p class="mt-1 text-xs text-gray-400">Entrez le numéro sans le préfixe pays</p>
+                                    <p class="mt-1 text-xs text-gray-400">Saisissez uniquement le numéro sans le préfixe {{ $phonePrefix }}</p>
                                 </div>
                             </div>
                             @endif
@@ -402,6 +439,10 @@
                                     En attente de votre confirmation...
                                 </div>
                                 <p class="text-xs mt-1">Veuillez valider le paiement sur votre téléphone</p>
+                                <button wire:click="cancelPendingPayment"
+                                        class="mt-2 text-xs text-yellow-700 hover:text-yellow-900 underline">
+                                    Annuler et recommencer
+                                </button>
                             </div>
                             @endif
 

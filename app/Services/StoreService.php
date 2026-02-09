@@ -285,9 +285,15 @@ class StoreService
         $mainStore = $this->storeRepository->getMainStore();
 
         if (!$mainStore) {
+            // Determine name based on organization's business activity
+            $organization = app('currentOrganization');
+            $isServiceOnly = $organization && $organization->business_activity?->value === 'services';
+            $storeName = $isServiceOnly ? 'Service Principal' : 'Magasin Principal';
+            $storeCode = $isServiceOnly ? 'SVC-001' : 'MAG-001';
+
             $mainStore = $this->createStore([
-                'name' => 'Magasin Principal',
-                'code' => 'MAG-001',
+                'name' => $storeName,
+                'code' => $storeCode,
                 'is_main' => true,
                 'is_active' => true,
             ]);

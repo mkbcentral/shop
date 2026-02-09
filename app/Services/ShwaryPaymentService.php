@@ -98,8 +98,8 @@ class ShwaryPaymentService
             ? "/merchants/payment/sandbox/{$shwaryCountryCode}"
             : "/merchants/payment/{$shwaryCountryCode}";
 
-        // URL de callback
-        $callback = $callbackUrl ?? config('shwary.callback_url') ?? route('shwary.webhook');
+        // URL de callback (utilise la route API pour éviter CSRF et middleware web)
+        $callback = $callbackUrl ?? config('shwary.callback_url') ?? url('/api/webhooks/shwary');
 
         try {
             $response = Http::timeout($this->timeout)
@@ -179,22 +179,44 @@ class ShwaryPaymentService
     public function getTransaction(string $transactionId): array
     {
         try {
+            // L'endpoint pour récupérer une transaction (GET selon la doc)
+            $endpoint = "/merchants/transactions/{$transactionId}";
+
+            // Selon la doc Shwary: x-merchant-id et x-merchant-key
             $response = Http::timeout($this->timeout)
                 ->withHeaders([
                     'x-merchant-id' => $this->merchantId,
                     'x-merchant-key' => $this->merchantKey,
-                    'Authorization' => 'Bearer ' . $this->merchantKey,
+                    'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ])
-                ->get($this->baseUrl . "/merchants/transactions/{$transactionId}");
+                ->get($this->baseUrl . $endpoint);
 
             $data = $response->json();
+
+            Log::info('Shwary API getTransaction response', [
+                'transaction_id' => $transactionId,
+                'endpoint' => $endpoint,
+                'method' => 'GET',
+                'full_url' => $this->baseUrl . $endpoint,
+                'http_status' => $response->status(),
+                'response_successful' => $response->successful(),
+                'data' => $data,
+            ]);
 
             if ($response->successful()) {
                 // Mettre à jour la transaction locale si elle existe
                 $localTransaction = ShwaryTransaction::where('transaction_id', $transactionId)->first();
                 if ($localTransaction) {
-                    $newStatus = $data['status'] ?? $localTransaction->status;
+                    $newStatus = strtolower($data['status'] ?? $localTransaction->status);
+
+                    Log::info('Shwary status update', [
+                        'transaction_id' => $transactionId,
+                        'old_status' => $localTransaction->status,
+                        'new_status' => $newStatus,
+                        'api_status_field' => $data['status'] ?? 'not_present',
+                        'all_data_keys' => array_keys($data),
+                    ]);
 
                     $updateData = [
                         'status' => $newStatus,
@@ -202,7 +224,7 @@ class ShwaryPaymentService
                     ];
 
                     // Mettre à jour completed_at si le statut est complété
-                    if (in_array($newStatus, ['completed', 'success']) && !$localTransaction->completed_at) {
+                    if (in_array($newStatus, ['completed', 'success', 'paid']) && !$localTransaction->completed_at) {
                         $updateData['completed_at'] = now();
                     }
 
@@ -219,12 +241,15 @@ class ShwaryPaymentService
                     'success' => true,
                     'data' => $data,
                     'status' => $data['status'] ?? 'unknown',
+                    'sandbox' => $this->sandbox,
                 ];
             }
 
             return [
                 'success' => false,
                 'message' => $data['message'] ?? 'Transaction non trouvée',
+                'sandbox' => $this->sandbox,
+                'http_status' => $response->status(),
             ];
         } catch (\Exception $e) {
             Log::error('Shwary get transaction exception', [
@@ -235,6 +260,7 @@ class ShwaryPaymentService
             return [
                 'success' => false,
                 'message' => 'Erreur lors de la vérification: ' . $e->getMessage(),
+                'sandbox' => $this->sandbox,
             ];
         }
     }
@@ -264,7 +290,7 @@ class ShwaryPaymentService
             return null;
         }
 
-        $newStatus = $payload['status'] ?? 'unknown';
+        $newStatus = strtolower($payload['status'] ?? 'unknown');
         $oldStatus = $transaction->status;
 
         // Extraire le message d'erreur si présent
@@ -274,7 +300,7 @@ class ShwaryPaymentService
             'status' => $newStatus,
             'failure_reason' => $failureReason,
             'response_data' => array_merge($transaction->response_data ?? [], ['callback' => $payload]),
-            'completed_at' => in_array($newStatus, ['completed', 'success']) ? now() : null,
+            'completed_at' => in_array($newStatus, ['completed', 'success', 'paid']) ? now() : null,
             'failed_at' => in_array($newStatus, ['failed', 'cancelled', 'rejected', 'expired']) ? now() : null,
         ]);
 

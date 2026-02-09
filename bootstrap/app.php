@@ -12,6 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Exclure les webhooks de la vérification CSRF
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/*',
+            'shwary/callback',
+            'api/*',
+        ]);
+
         // Load user relations early to avoid cache issues
         $middleware->appendToGroup('web', \App\Http\Middleware\LoadUserRelations::class);
 
@@ -35,6 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             'feature' => \App\Http\Middleware\CheckPlanFeature::class,
+            'resource.limit' => \App\Http\Middleware\CheckResourceLimit::class,
+            'api.rate.limit' => \App\Http\Middleware\ApiRateLimiter::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

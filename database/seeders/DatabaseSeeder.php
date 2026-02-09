@@ -13,15 +13,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed categories
+        // Seed in proper order (ProductTypes before Categories since categories reference product types)
         $this->call([
             SubscriptionPlanSeeder::class,
-            CategorySeeder::class,
             RoleSeeder::class,
             MenuItemSeeder::class,
-            ProductTypeSeeder::class,
+            ProductTypeSeeder::class, // Product types must be seeded before categories
+            CategorySeeder::class,    // Categories reference product types
             SubscriptionPlanSeeder::class,
             DefautUserSuperAdminSeeder::class,
+            AvailableFeaturesSeeder::class,
         ]);
     }
 }

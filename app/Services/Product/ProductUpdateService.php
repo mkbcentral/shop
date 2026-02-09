@@ -2,6 +2,7 @@
 
 namespace App\Services\Product;
 
+use App\Models\PriceHistory;
 use App\Models\Product;
 use App\Repositories\ProductRepository;
 use Illuminate\Support\Facades\Log;
@@ -54,6 +55,9 @@ class ProductUpdateService
         if (isset($data['barcode']) && !empty($data['barcode']) && $data['barcode'] !== $product->barcode) {
             $this->validateBarcodeUniqueness($data['barcode'], $product->id);
         }
+
+        // Track price changes before updating
+        $this->trackPriceChanges($product, $data);
 
         // Update the product
         $this->productRepository->update($product, $data);
@@ -123,7 +127,7 @@ class ProductUpdateService
     /**
      * Update product pricing
      */
-    public function updatePricing(int $productId, array $pricingData): Product
+    public function updatePricing(int $productId, array $pricingData, ?string $reason = null, string $source = PriceHistory::SOURCE_MANUAL): Product
     {
         $product = $this->productRepository->find($productId);
 
@@ -134,13 +138,29 @@ class ProductUpdateService
         $allowedFields = ['price', 'cost_price', 'discount_price'];
         $data = array_intersect_key($pricingData, array_flip($allowedFields));
 
+        // Track price changes with reason and source
+        $this->trackPriceChanges($product, $data, $reason, $source);
+
         $this->productRepository->update($product, $data);
 
         // Update default variant price if price changed
         if (isset($data['price'])) {
             $defaultVariant = $product->variants()->where('is_default', true)->first();
             if ($defaultVariant) {
+                $oldAdditionalPrice = $defaultVariant->additional_price;
                 $defaultVariant->update(['price' => $data['price']]);
+                
+                // Track variant price change if additional_price changed
+                if (isset($pricingData['additional_price']) && $pricingData['additional_price'] !== $oldAdditionalPrice) {
+                    PriceHistory::recordVariantChange(
+                        $defaultVariant,
+                        PriceHistory::TYPE_ADDITIONAL_PRICE,
+                        $oldAdditionalPrice,
+                        $pricingData['additional_price'],
+                        $reason,
+                        $source
+                    );
+                }
             }
         }
 
@@ -197,6 +217,45 @@ class ProductUpdateService
         if ($query->exists()) {
             throw new \Exception(
                 "Le code-barres {$barcode} existe déjà. Veuillez en générer un autre."
+            );
+        }
+    }
+
+    /**
+     * Track price changes and record them in price history
+     *
+     * @param Product $product
+     * @param array $data
+     * @param string|null $reason
+     * @param string $source
+     */
+    private function trackPriceChanges(
+        Product $product, 
+        array $data, 
+        ?string $reason = null, 
+        string $source = PriceHistory::SOURCE_MANUAL
+    ): void {
+        // Track selling price change
+        if (isset($data['price']) && (float) $data['price'] !== (float) $product->price) {
+            PriceHistory::recordProductChange(
+                $product,
+                PriceHistory::TYPE_PRICE,
+                $product->price,
+                $data['price'],
+                $reason,
+                $source
+            );
+        }
+
+        // Track cost price change
+        if (isset($data['cost_price']) && (float) $data['cost_price'] !== (float) $product->cost_price) {
+            PriceHistory::recordProductChange(
+                $product,
+                PriceHistory::TYPE_COST_PRICE,
+                $product->cost_price,
+                $data['cost_price'],
+                $reason,
+                $source
             );
         }
     }

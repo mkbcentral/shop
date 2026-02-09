@@ -47,6 +47,17 @@
                             <x-form.input-error for="form.type" />
                         </x-form.form-group>
 
+                        <!-- Type d'activité -->
+                        <x-form.form-group label="Type d'activité" name="form.business_activity" :required="true">
+                            <x-form.select wire:model="form.business_activity" id="business_activity">
+                                @foreach($businessActivities as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </x-form.select>
+                            <x-form.input-error for="form.business_activity" />
+                            <p class="text-xs text-gray-500 mt-1">Détermine les types de produits disponibles</p>
+                        </x-form.form-group>
+
                         <!-- Forme juridique -->
                         <x-form.form-group label="Forme juridique" name="form.legal_form">
                             <x-form.select wire:model="form.legal_form" id="legal_form">
@@ -58,12 +69,10 @@
                         </x-form.form-group>
 
                         <!-- Raison sociale -->
-                        <div class="md:col-span-2">
-                            <x-form.form-group label="Raison sociale (si différente)" name="form.legal_name">
-                                <x-form.input wire:model="form.legal_name" id="legal_name" type="text" placeholder="Raison sociale complète" />
-                                <x-form.input-error for="form.legal_name" />
-                            </x-form.form-group>
-                        </div>
+                        <x-form.form-group label="Raison sociale (si différente)" name="form.legal_name">
+                            <x-form.input wire:model="form.legal_name" id="legal_name" type="text" placeholder="Raison sociale complète" />
+                            <x-form.input-error for="form.legal_name" />
+                        </x-form.form-group>
                     </div>
                 </div>
 

@@ -41,6 +41,9 @@ class ProductModal extends Component
     // Filtered categories based on selected product type
     public $filteredCategories = [];
 
+    // Selected product type options
+    public $selectedProductType = null;
+
     protected $listeners = [
         'openProductModal' => 'open',
         'editProduct' => 'edit',
@@ -49,9 +52,9 @@ class ProductModal extends Component
 
     public function open(BarcodeGeneratorService $barcodeGenerator)
     {
-        $this->reset(['productId', 'currentImage', 'variants', 'showVariants', 'showDescription', 'showImage', 'attributeValues']);
+        $this->reset(['productId', 'currentImage', 'variants', 'showVariants', 'showDescription', 'showImage', 'attributeValues', 'selectedProductType']);
         $this->form->reset();
-        $this->modalTitle = 'Nouveau Produit';
+        $this->modalTitle = is_service_organization() ? 'Nouveau Service' : 'Nouveau Produit';
 
         // Auto-generate barcode for new products
         try {
@@ -151,9 +154,9 @@ class ProductModal extends Component
 
     public function edit($productId, $product)
     {
-        $this->reset(['variants', 'showVariants']);
+        $this->reset(['variants', 'showVariants', 'selectedProductType']);
         $this->productId = $productId;
-        $this->modalTitle = 'Modifier le Produit';
+        $this->modalTitle = is_service_organization() ? 'Modifier le Service' : 'Modifier le Produit';
 
         $this->form->name = $product['name'];
         $this->form->description = $product['description'] ?? '';
@@ -166,6 +169,14 @@ class ProductModal extends Component
         $this->form->status = $product['status'];
         $this->form->stock_alert_threshold = $product['stock_alert_threshold'] ?? 10;
 
+        // Champs spécifiques au type de produit - formater les dates pour l'input HTML
+        $this->form->expiry_date = $this->formatDateForInput($product['expiry_date'] ?? null);
+        $this->form->manufacture_date = $this->formatDateForInput($product['manufacture_date'] ?? null);
+        $this->form->weight = $product['weight'] ?? null;
+        $this->form->length = $product['length'] ?? null;
+        $this->form->width = $product['width'] ?? null;
+        $this->form->height = $product['height'] ?? null;
+
         $this->currentImage = $product['image'] ?? null;
         $this->showDescription = !empty($product['description']);
         $this->showImage = !empty($product['image']);
@@ -173,12 +184,31 @@ class ProductModal extends Component
         // Charger les catégories filtrées par type
         $this->loadFilteredCategories();
 
+        // Charger le type de produit sélectionné
+        $this->loadSelectedProductType();
+
         // Load existing attribute values if product has a type
         if (!empty($product['product_type_id'])) {
             $this->loadExistingAttributeValues($productId);
         }
 
         $this->isOpen = true;
+    }
+
+    /**
+     * Formate une date pour l'input HTML date (Y-m-d)
+     */
+    private function formatDateForInput($date): ?string
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($date)->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -200,7 +230,7 @@ class ProductModal extends Component
     public function close()
     {
         $this->isOpen = false;
-        $this->reset(['productId', 'currentImage', 'variants', 'showVariants', 'showDescription', 'showImage', 'attributeValues']);
+        $this->reset(['productId', 'currentImage', 'variants', 'showVariants', 'showDescription', 'showImage', 'attributeValues', 'selectedProductType']);
         $this->form->reset();
         $this->resetValidation();
     }
@@ -238,19 +268,35 @@ class ProductModal extends Component
     public function updatedFormProductTypeId()
     {
         $this->loadFilteredCategories();
-        
-        // Réinitialiser la catégorie sélectionnée si elle n'appartient plus au type
-        if ($this->form->category_id) {
+        $this->loadSelectedProductType();
+
+        // En mode édition, on garde la catégorie existante même si elle n'appartient pas au nouveau type
+        // Cela permet de modifier le type sans être bloqué par la catégorie
+        if (!$this->productId && $this->form->category_id) {
+            // En mode création seulement, réinitialiser si la catégorie n'appartient pas au type
             $categoryBelongsToType = collect($this->filteredCategories)
                 ->contains('id', $this->form->category_id);
-            
+
             if (!$categoryBelongsToType) {
                 $this->form->category_id = null;
                 $this->form->reference = '';
             }
         }
-        
+
         $this->calculateVariantPreview();
+    }
+
+    /**
+     * Charge les informations du type de produit sélectionné
+     */
+    private function loadSelectedProductType()
+    {
+        if (empty($this->form->product_type_id)) {
+            $this->selectedProductType = null;
+            return;
+        }
+
+        $this->selectedProductType = \App\Models\ProductType::find($this->form->product_type_id);
     }
 
     /**
@@ -259,13 +305,28 @@ class ProductModal extends Component
     private function loadFilteredCategories()
     {
         $categoryRepository = app(CategoryRepository::class);
-        
+
         if (empty($this->form->product_type_id)) {
             // Si aucun type n'est sélectionné, afficher toutes les catégories
             $this->filteredCategories = $categoryRepository->all()->toArray();
         } else {
             // Utiliser la méthode du repository pour filtrer par type
-            $this->filteredCategories = $categoryRepository->getByProductType($this->form->product_type_id)->toArray();
+            $categories = $categoryRepository->getByProductType($this->form->product_type_id);
+
+            // En mode édition, inclure la catégorie actuelle même si elle n'appartient pas au type
+            if ($this->productId && $this->form->category_id) {
+                $currentCategoryInList = $categories->contains('id', $this->form->category_id);
+
+                if (!$currentCategoryInList) {
+                    $currentCategory = $categoryRepository->find($this->form->category_id);
+                    if ($currentCategory) {
+                        // Ajouter la catégorie actuelle en premier avec un indicateur
+                        $categories = $categories->prepend($currentCategory);
+                    }
+                }
+            }
+
+            $this->filteredCategories = $categories->toArray();
         }
     }
 

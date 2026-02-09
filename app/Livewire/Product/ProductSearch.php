@@ -177,8 +177,8 @@ class ProductSearch extends Component
     {
         return view('livewire.product.product-search', [
             'products' => $this->products,
-            'productTypes' => ProductType::active()->get(),
-            'categories' => Category::orderBy('name')->get(),
+            'productTypes' => ProductType::forCurrentOrganization()->active()->get(),
+            'categories' => Category::forCurrentOrganization()->orderBy('name')->get(),
         ]);
     }
 }

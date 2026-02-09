@@ -85,9 +85,34 @@ class MenuService
         // Filtrer les menus selon les fonctionnalités du plan
         $filteredMenus = $this->filterMenusByPlanFeatures($menuItems, $organization);
 
+        // Réordonner le menu "organizations" pour les non super-admin
+        // Super-admin: organizations en 2ème position (order=2)
+        // Autres: organizations en avant-dernière position
+        if (!$user->hasRole('super-admin')) {
+            $filteredMenus = $this->reorderOrganizationsMenu($filteredMenus);
+        }
+
         // Grouper par section
         return $filteredMenus->groupBy(function ($item) {
             return $item->section ?? 'no_section';
+        });
+    }
+
+    /**
+     * Réordonne le menu organisations en avant-dernière position pour les non super-admin
+     * En déplaçant le menu vers la section "Administration"
+     */
+    private function reorderOrganizationsMenu(Collection $menuItems): Collection
+    {
+        return $menuItems->map(function ($menu) {
+            // Pour les non super-admin, déplacer organizations vers la section Administration
+            if ($menu->code === 'organizations') {
+                // Cloner pour ne pas modifier l'original en cache
+                $menu = clone $menu;
+                $menu->section = 'Administration';
+                $menu->order = 0; // Avant les autres menus de cette section
+            }
+            return $menu;
         });
     }
 

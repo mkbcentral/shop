@@ -243,7 +243,7 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Produits transférés</h3>
+                    <h3 class="text-lg font-semibold text-gray-900">{{ products_label() }} transférés</h3>
                 </div>
 
                 <x-table.table>

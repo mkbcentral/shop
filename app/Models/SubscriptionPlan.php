@@ -91,8 +91,30 @@ class SubscriptionPlan extends Model
 
     /**
      * Get all available technical features with labels
+     *
+     * Utilise la table available_features en BDD
+     * Fallback sur les valeurs hardcodées si la table est vide
      */
     public static function getAvailableFeatures(): array
+    {
+        // Essayer de charger depuis la BDD
+        try {
+            $features = AvailableFeature::getAvailableFeaturesFormatted();
+            if (!empty($features)) {
+                return $features;
+            }
+        } catch (\Exception $e) {
+            // Table pas encore créée, utiliser le fallback
+        }
+
+        // Fallback : valeurs hardcodées (pour rétrocompatibilité)
+        return self::getHardcodedFeatures();
+    }
+
+    /**
+     * Fonctionnalités hardcodées (fallback)
+     */
+    private static function getHardcodedFeatures(): array
     {
         return [
             // Fonctionnalités de base
@@ -110,6 +132,12 @@ class SubscriptionPlan extends Model
             ],
 
             // Modules optionnels
+            'module_sales' => [
+                'key' => 'module_sales',
+                'label' => 'Module Ventes',
+                'description' => 'Gestion des ventes et historique',
+                'category' => 'modules',
+            ],
             'module_clients' => [
                 'key' => 'module_clients',
                 'label' => 'Module Clients',
@@ -243,19 +271,11 @@ class SubscriptionPlan extends Model
 
     /**
      * Get feature categories
+     *
+     * Utilise la table AvailableFeature en BDD
      */
     public static function getFeatureCategories(): array
     {
-        return [
-            'core' => 'Fonctionnalités de base',
-            'modules' => 'Modules',
-            'reports' => 'Rapports',
-            'stores' => 'Magasins',
-            'export' => 'Exports',
-            'integration' => 'Intégrations',
-            'limits' => 'Limites',
-            'support' => 'Support',
-            'enterprise' => 'Entreprise',
-        ];
+        return AvailableFeature::CATEGORIES;
     }
 }

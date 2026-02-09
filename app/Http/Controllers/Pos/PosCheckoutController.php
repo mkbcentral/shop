@@ -288,7 +288,13 @@ class PosCheckoutController extends Controller
     private function validateStock(array $items): array
     {
         foreach ($items as $item) {
-            $variant = \App\Models\ProductVariant::find($item['variant_id']);
+            $variant = \App\Models\ProductVariant::with('product.productType')->find($item['variant_id']);
+
+            // Skip stock validation for services
+            $isService = $variant?->product?->productType?->is_service ?? false;
+            if ($isService) {
+                continue;
+            }
 
             if (!$variant || $variant->stock_quantity < $item['quantity']) {
                 return [

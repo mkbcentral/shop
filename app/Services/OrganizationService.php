@@ -402,6 +402,137 @@ class OrganizationService
     }
 
     /**
+     * Initialiser les types de produits et catégories pour une nouvelle organisation.
+     * Copie les types de produits globaux (sans organization_id) compatibles
+     * avec le type d'activité de l'organisation.
+     */
+    public function initializeProductTypesAndCategories(Organization $organization): void
+    {
+        $businessActivity = $organization->business_activity?->value ?? 'mixed';
+
+        // Récupérer tous les types de produits globaux (sans organization_id)
+        // qui sont compatibles avec le type d'activité de l'organisation
+        // Eager load attributes to avoid lazy loading violation
+        $globalProductTypes = \App\Models\ProductType::whereNull('organization_id')
+            ->where('is_active', true)
+            ->with('attributes')
+            ->get();
+
+        foreach ($globalProductTypes as $globalType) {
+            $compatibleActivities = $globalType->compatible_activities ?? [];
+
+            // Mixte = tous les types sont compatibles, sinon vérifier la compatibilité
+            if ($businessActivity === 'mixed' || in_array($businessActivity, $compatibleActivities)) {
+                // Vérifier si ce type de produit existe déjà pour cette organisation (par slug)
+                $existingType = \App\Models\ProductType::where('organization_id', $organization->id)
+                    ->where('slug', $globalType->slug)
+                    ->first();
+
+                if ($existingType) {
+                    // Le type existe déjà, on passe au suivant
+                    continue;
+                }
+
+                // Créer une copie du type de produit pour cette organisation
+                $newType = $globalType->replicate();
+                $newType->organization_id = $organization->id;
+                $newType->save();
+
+                // Copier les attributs du type de produit
+                foreach ($globalType->attributes as $attribute) {
+                    // Vérifier si l'attribut existe déjà
+                    $existingAttribute = \App\Models\ProductAttribute::where('product_type_id', $newType->id)
+                        ->where('name', $attribute->name)
+                        ->first();
+
+                    if (!$existingAttribute) {
+                        $newAttribute = $attribute->replicate();
+                        $newAttribute->product_type_id = $newType->id;
+                        $newAttribute->save();
+                    }
+                }
+
+                // Récupérer les catégories globales associées à ce type de produit
+                $globalCategories = \App\Models\Category::whereNull('organization_id')
+                    ->where('product_type_id', $globalType->id)
+                    ->where('is_active', true)
+                    ->get();
+
+                foreach ($globalCategories as $globalCategory) {
+                    // Vérifier si la catégorie existe déjà (par slug)
+                    $existingCategory = \App\Models\Category::where('organization_id', $organization->id)
+                        ->where('slug', $globalCategory->slug)
+                        ->first();
+
+                    if (!$existingCategory) {
+                        // Créer une copie de la catégorie pour cette organisation
+                        $newCategory = $globalCategory->replicate();
+                        $newCategory->organization_id = $organization->id;
+                        $newCategory->product_type_id = $newType->id; // Lier au nouveau type de produit
+                        $newCategory->save();
+                    }
+                }
+            }
+        }
+
+        // On crée aussi des catégories par défaut si aucune n'existe déjà
+        $this->createDefaultCategoriesIfNeeded($organization, $businessActivity);
+    }
+
+    /**
+     * Créer des catégories par défaut si l'organisation n'en a pas encore.
+     */
+    private function createDefaultCategoriesIfNeeded(Organization $organization, string $businessActivity): void
+    {
+        // Vérifier si l'organisation a déjà des catégories
+        $existingCategories = \App\Models\Category::where('organization_id', $organization->id)->count();
+        if ($existingCategories > 0) {
+            return; // Des catégories existent déjà
+        }
+
+        // Catégories par défaut selon le type d'activité
+        $defaultCategories = match($businessActivity) {
+            'retail' => [
+                ['name' => 'Vêtements', 'description' => 'Vêtements et accessoires de mode', 'icon' => '👕'],
+                ['name' => 'Chaussures', 'description' => 'Chaussures pour tous', 'icon' => '👟'],
+                ['name' => 'Accessoires', 'description' => 'Sacs, ceintures, bijoux', 'icon' => '👜'],
+                ['name' => 'Électronique', 'description' => 'Appareils et accessoires électroniques', 'icon' => '📱'],
+            ],
+            'food' => [
+                ['name' => 'Boissons', 'description' => 'Boissons fraîches et chaudes', 'icon' => '🥤'],
+                ['name' => 'Produits frais', 'description' => 'Fruits, légumes et produits laitiers', 'icon' => '🥬'],
+                ['name' => 'Épicerie', 'description' => 'Produits d\'épicerie générale', 'icon' => '🛒'],
+                ['name' => 'Boulangerie', 'description' => 'Pains et pâtisseries', 'icon' => '🥖'],
+            ],
+            'services' => [
+                ['name' => 'Coiffure', 'description' => 'Services de coiffure', 'icon' => '💇'],
+                ['name' => 'Esthétique', 'description' => 'Soins esthétiques et beauté', 'icon' => '💅'],
+                ['name' => 'Consultation', 'description' => 'Services de consultation', 'icon' => '🗣️'],
+                ['name' => 'Réparation', 'description' => 'Services de réparation', 'icon' => '🔧'],
+            ],
+            'mixed' => [
+                ['name' => 'Produits', 'description' => 'Produits physiques généraux', 'icon' => '📦'],
+                ['name' => 'Services', 'description' => 'Services généraux', 'icon' => '🛠️'],
+                ['name' => 'Accessoires', 'description' => 'Accessoires divers', 'icon' => '🎁'],
+            ],
+            default => [
+                ['name' => 'Général', 'description' => 'Catégorie générale', 'icon' => '📦'],
+            ],
+        };
+
+        foreach ($defaultCategories as $categoryData) {
+            \App\Models\Category::create([
+                'organization_id' => $organization->id,
+                'name' => $categoryData['name'],
+                'description' => $categoryData['description'],
+                'slug' => \Illuminate\Support\Str::slug($categoryData['name'] . '-' . $organization->id),
+                'icon' => $categoryData['icon'] ?? null,
+                'is_active' => true,
+            ]);
+        }
+    }
+
+    /**
      * Appliquer les limites selon le plan d'abonnement
      */
     private function applyPlanLimits(array $data): array

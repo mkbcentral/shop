@@ -49,7 +49,9 @@ class StockNotifications extends Component
             })
             ->whereHas('product', function($q) {
                 $q->where('status', 'active');
-            });
+            })
+            // Exclude service products
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false));
 
         return $query->orderBy('stock_quantity', 'asc')
             ->limit(50)
@@ -67,14 +69,16 @@ class StockNotifications extends Component
             return collect();
         }
 
-        // Get global counts from ProductVariant
+        // Get global counts from ProductVariant (excluding service products)
         $outOfStock = ProductVariant::where('stock_quantity', '<=', 0)
             ->whereHas('product', fn($q) => $q->where('status', 'active'))
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false))
             ->count();
 
         $lowStock = ProductVariant::where('stock_quantity', '>', 0)
             ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->whereHas('product', fn($q) => $q->where('status', 'active'))
+            ->whereHas('product.productType', fn($q) => $q->where('is_service', false))
             ->count();
 
         $summary = collect();

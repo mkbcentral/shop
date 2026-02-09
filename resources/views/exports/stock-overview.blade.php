@@ -89,6 +89,18 @@
             background-color: #FDE8E8;
             color: #991B1B;
         }
+        .status-expiring {
+            background-color: #FEF3C7;
+            color: #92400E;
+        }
+        .status-expired {
+            background-color: #FDE8E8;
+            color: #991B1B;
+        }
+        .status-ok {
+            background-color: #DEF7EC;
+            color: #03543F;
+        }
         .text-right {
             text-align: right;
         }
@@ -144,6 +156,7 @@
                 <th class="text-right">Valeur Unit.</th>
                 <th class="text-right">Valeur Tot.</th>
                 <th class="text-center">Statut</th>
+                <th class="text-center">Expiration</th>
                 <th>Catégorie</th>
             </tr>
         </thead>
@@ -168,6 +181,26 @@
                             <span class="status-badge status-low">Stock faible</span>
                         @else
                             <span class="status-badge status-in-stock">En stock</span>
+                        @endif
+                    </td>
+                    <td class="text-center">
+                        @if($variant->product->expiry_date)
+                            @php
+                                $expiryDate = \Carbon\Carbon::parse($variant->product->expiry_date);
+                                $daysUntilExpiry = (int) now()->diffInDays($expiryDate, false);
+                            @endphp
+                            @if($daysUntilExpiry < 0)
+                                <span class="status-badge status-expired">Expiré</span>
+                                <br><span style="font-size: 7px;">{{ $expiryDate->format('d/m/Y') }}</span>
+                            @elseif($daysUntilExpiry <= 30)
+                                <span class="status-badge status-expiring">{{ $daysUntilExpiry }}j</span>
+                                <br><span style="font-size: 7px;">{{ $expiryDate->format('d/m/Y') }}</span>
+                            @else
+                                <span class="status-badge status-ok">OK</span>
+                                <br><span style="font-size: 7px;">{{ $expiryDate->format('d/m/Y') }}</span>
+                            @endif
+                        @else
+                            <span style="color: #999;">—</span>
                         @endif
                     </td>
                     <td>{{ $variant->product->category->name ?? 'N/A' }}</td>

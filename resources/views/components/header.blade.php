@@ -53,14 +53,20 @@
 
               <div class="h-6 w-px bg-gray-300"></div>
 
-              <!-- Sales Notifications (for managers/admins) -->
-              @if (auth()->user()
-                      ?->hasAnyRole(['admin', 'super-admin', 'manager']))
+              <!-- Admin Notifications (nouvelles organisations - super-admin only) -->
+              @if (auth()->user()?->hasRole('super-admin'))
+                  @livewire('notifications.admin-notification-bell')
+              @endif
+
+              <!-- Sales Notifications (for managers/admins - not super-admin) -->
+              @if (auth()->user()?->hasAnyRole(['admin', 'manager']) && !auth()->user()?->hasRole('super-admin'))
                   @livewire('notifications.sales-notification-bell')
               @endif
 
-              <!-- Stock Notifications -->
-              @livewire('stock.stock-notifications')
+              <!-- Stock Notifications (not for super-admin and only for orgs with stock management) -->
+              @if (!auth()->user()?->hasRole('super-admin') && has_stock_management())
+                  @livewire('stock.stock-notifications')
+              @endif
           </div>
       </div>
   </header>

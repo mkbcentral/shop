@@ -162,6 +162,32 @@ class Category extends Model
             ->limit($limit);
     }
 
+    /**
+     * Scope to filter categories based on the current organization type.
+     * - Service organizations: only see categories linked to service product types
+     * - Non-service organizations: see categories with NULL product_type_id OR linked to non-service product types
+     */
+    public function scopeForCurrentOrganization(Builder $query): Builder
+    {
+        $isServiceOrg = is_service_organization();
+
+        if ($isServiceOrg) {
+            // Service orgs only see categories linked to service product types
+            return $query->whereHas('productType', function ($subQ) {
+                $subQ->where('is_service', true);
+            });
+        }
+
+        // Non-service orgs see categories with NULL product_type_id (backward compatibility)
+        // OR linked to non-service product types
+        return $query->where(function ($q) {
+            $q->whereNull('product_type_id')
+              ->orWhereHas('productType', function ($subQ) {
+                  $subQ->where('is_service', false);
+              });
+        });
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Accessors & Mutators

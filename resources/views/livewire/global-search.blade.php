@@ -118,30 +118,53 @@
                             {{ $selectedCategory === 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
                         Tout
                     </button>
-                    <button
-                        wire:click="setCategory('products')"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
-                            {{ $selectedCategory === 'products' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                        📦 Produits
-                    </button>
-                    <button
-                        wire:click="setCategory('clients')"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
-                            {{ $selectedCategory === 'clients' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                        👤 Clients
-                    </button>
-                    <button
-                        wire:click="setCategory('suppliers')"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
-                            {{ $selectedCategory === 'suppliers' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                        🏢 Fournisseurs
-                    </button>
-                    <button
-                        wire:click="setCategory('sales')"
-                        class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
-                            {{ $selectedCategory === 'sales' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
-                        💰 Ventes
-                    </button>
+                    @if($this->isSuperAdmin)
+                        {{-- Super-admin: Users, Organizations, Roles --}}
+                        <button
+                            wire:click="setCategory('users')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'users' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            👤 Utilisateurs
+                        </button>
+                        <button
+                            wire:click="setCategory('organizations')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'organizations' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            🏢 Organisations
+                        </button>
+                        <button
+                            wire:click="setCategory('roles')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'roles' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            🔑 Rôles
+                        </button>
+                    @else
+                        {{-- Regular users: Products, Clients, Suppliers, Sales --}}
+                        <button
+                            wire:click="setCategory('products')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'products' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            📦 Produits
+                        </button>
+                        <button
+                            wire:click="setCategory('clients')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'clients' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            👤 Clients
+                        </button>
+                        <button
+                            wire:click="setCategory('suppliers')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'suppliers' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            🏢 Fournisseurs
+                        </button>
+                        <button
+                            wire:click="setCategory('sales')"
+                            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                {{ $selectedCategory === 'sales' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                            💰 Ventes
+                        </button>
+                    @endif
                 </div>
             @endif
 
@@ -149,6 +172,123 @@
             <div class="max-h-[60vh] overflow-y-auto">
                 @if(strlen($query) >= 2)
                     @if($this->hasResults)
+                        {{-- Super-admin results: Users, Organizations, Roles --}}
+                        @if($this->isSuperAdmin)
+                            <!-- Users Results -->
+                            @if(isset($this->results['users']) && $this->results['users']->isNotEmpty())
+                                <div class="px-4 py-3">
+                                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                        👤 Utilisateurs ({{ $this->results['users']->count() }})
+                                    </h3>
+                                    <div class="space-y-1">
+                                        @foreach($this->results['users'] as $user)
+                                            <a
+                                                href="{{ route('users.index', ['search' => $user->name]) }}"
+                                                wire:navigate
+                                                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                                                @click="open = false"
+                                            >
+                                                <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 group-hover:text-blue-600">
+                                                        {{ $user->name }}
+                                                    </p>
+                                                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                        <span>{{ $user->email }}</span>
+                                                    </div>
+                                                </div>
+                                                <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Organizations Results -->
+                            @if(isset($this->results['organizations']) && $this->results['organizations']->isNotEmpty())
+                                <div class="px-4 py-3 border-t border-gray-100">
+                                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                        🏢 Organisations ({{ $this->results['organizations']->count() }})
+                                    </h3>
+                                    <div class="space-y-1">
+                                        @foreach($this->results['organizations'] as $organization)
+                                            <a
+                                                href="{{ route('organizations.show', $organization->id) }}"
+                                                wire:navigate
+                                                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                                                @click="open = false"
+                                            >
+                                                <div class="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 group-hover:text-purple-600">
+                                                        {{ $organization->name }}
+                                                    </p>
+                                                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                        @if($organization->phone)
+                                                            <span>{{ $organization->phone }}</span>
+                                                        @endif
+                                                        @if($organization->email)
+                                                            <span>•</span>
+                                                            <span>{{ $organization->email }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <svg class="w-4 h-4 text-gray-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Roles Results -->
+                            @if(isset($this->results['roles']) && $this->results['roles']->isNotEmpty())
+                                <div class="px-4 py-3 border-t border-gray-100">
+                                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                        🔑 Rôles ({{ $this->results['roles']->count() }})
+                                    </h3>
+                                    <div class="space-y-1">
+                                        @foreach($this->results['roles'] as $role)
+                                            <a
+                                                href="{{ route('roles.index', ['search' => $role->name]) }}"
+                                                wire:navigate
+                                                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                                                @click="open = false"
+                                            >
+                                                <div class="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 group-hover:text-amber-600">
+                                                        {{ $role->name }}
+                                                    </p>
+                                                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                        <span>{{ $role->slug }}</span>
+                                                    </div>
+                                                </div>
+                                                <svg class="w-4 h-4 text-gray-400 group-hover:text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        @else
+                        {{-- Regular users results: Products, Clients, Suppliers, Sales --}}
                         <!-- Products Results -->
                         @if(isset($this->results['products']) && $this->results['products']->isNotEmpty())
                             <div class="px-4 py-3">
@@ -314,6 +454,7 @@
                                 </div>
                             </div>
                         @endif
+                        @endif {{-- End regular users results --}}
                     @else
                         <!-- No Results -->
                         <div class="px-4 py-12 text-center">

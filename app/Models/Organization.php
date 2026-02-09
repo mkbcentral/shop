@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BusinessActivityType;
 use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionPlan;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class Organization extends Model
         'slug',
         'legal_name',
         'type',
+        'business_activity',
         'tax_id',
         'registration_number',
         'legal_form',
@@ -56,6 +58,7 @@ class Organization extends Model
         'is_verified' => 'boolean',
         'is_trial' => 'boolean',
         'subscription_plan' => SubscriptionPlan::class,
+        'business_activity' => BusinessActivityType::class,
         'payment_status' => PaymentStatus::class,
         'subscription_starts_at' => 'datetime',
         'subscription_ends_at' => 'datetime',
@@ -421,6 +424,109 @@ class Organization extends Model
     }
 
     /**
+     * Get business activity label
+     */
+    public function getBusinessActivityLabelAttribute(): string
+    {
+        if ($this->business_activity instanceof BusinessActivityType) {
+            return $this->business_activity->label();
+        }
+
+        return match($this->business_activity) {
+            'retail' => 'Commerce de détail',
+            'food' => 'Alimentaire',
+            'services' => 'Services',
+            'mixed' => 'Mixte (Produits & Services)',
+            default => (string) $this->business_activity,
+        };
+    }
+
+    /**
+     * Check if the organization can sell physical products
+     */
+    public function canSellPhysicalProducts(): bool
+    {
+        if ($this->business_activity instanceof BusinessActivityType) {
+            return $this->business_activity->canSellPhysicalProducts();
+        }
+        return in_array($this->business_activity, ['retail', 'food', 'mixed']);
+    }
+
+    /**
+     * Check if the organization can sell services
+     */
+    public function canSellServices(): bool
+    {
+        if ($this->business_activity instanceof BusinessActivityType) {
+            return $this->business_activity->canSellServices();
+        }
+        return in_array($this->business_activity, ['services', 'mixed']);
+    }
+
+    /**
+     * Check if stock management is available for this organization.
+     *
+     * Service-only organizations don't need stock management since they sell
+     * services, not physical products.
+     *
+     * This returns false for service organizations regardless of their
+     * subscription plan's features.
+     */
+    public function hasStockManagement(): bool
+    {
+        // Service-only organizations don't need stock management
+        if ($this->business_activity instanceof BusinessActivityType) {
+            return $this->business_activity !== BusinessActivityType::SERVICES;
+        }
+
+        return $this->business_activity !== 'services';
+    }
+
+    /**
+     * Check if this organization is a service-only organization.
+     */
+    public function isServiceOrganization(): bool
+    {
+        if ($this->business_activity instanceof BusinessActivityType) {
+            return $this->business_activity === BusinessActivityType::SERVICES;
+        }
+
+        return $this->business_activity === 'services';
+    }
+
+    /**
+     * Get available product types for this organization based on business activity.
+     * Returns global types (organization_id = null) that are compatible with this org's activity.
+     */
+    public function getAvailableProductTypes()
+    {
+        $query = ProductType::where(function ($q) {
+            // Global types (no organization_id) OR types created by this organization
+            $q->whereNull('organization_id')
+              ->orWhere('organization_id', $this->id);
+        })->where('is_active', true);
+
+        // Filter by business activity compatibility
+        if ($this->business_activity instanceof BusinessActivityType) {
+            $activity = $this->business_activity;
+        } else {
+            $activity = BusinessActivityType::tryFrom($this->business_activity) ?? BusinessActivityType::MIXED;
+        }
+
+        // If not MIXED, filter by compatible types
+        if ($activity !== BusinessActivityType::MIXED) {
+            $query->where(function ($q) use ($activity) {
+                // Types with null compatible_activities are available to all
+                $q->whereNull('compatible_activities')
+                  // Or types that have this activity in their compatible list
+                  ->orWhereJsonContains('compatible_activities', $activity->value);
+            });
+        }
+
+        return $query->ordered()->get();
+    }
+
+    /**
      * Get subscription plan label
      */
     public function getPlanLabelAttribute(): string
@@ -609,13 +715,15 @@ class Organization extends Model
         // Ces menus sont pour la gestion globale de la plateforme, pas pour les organisations
         $superAdminOnlyMenuCodes = [
             'admin-dashboard',        // Tableau de bord Super Admin (gestion plateforme)
-            'menu-permissions',       // Gestion des menus (configuration plateforme)
-            'subscriptions',          // Paramètres d'abonnement (configuration plateforme)
-            'subscription-settings',  // Paramètres d'abonnement (autre code)
+            'organizations.create',   // Création d'organisation (super-admin uniquement)
+            'configuration',          // Menu Configuration parent
+            'admin-categories',       // Catégories (configuration plateforme)
+            'admin-product-types',    // Types de produits (configuration plateforme)
+            'admin-product-attributes', // Attributs (configuration plateforme)
             'roles',                  // Rôles (gestion plateforme)
             'roles.index',            // Liste des rôles
-            'roles.create',           // Création rôle
-            'roles.edit',             // Édition rôle
+            'menu-permissions',       // Gestion des menus (configuration plateforme)
+            'subscription-settings',  // Paramètres d'abonnement (configuration plateforme)
         ];
 
         // Récupérer les IDs des rôles admin et manager

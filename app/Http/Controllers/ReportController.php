@@ -176,16 +176,22 @@ class ReportController extends Controller
     {
         $outOfStock = $this->productVariantRepository->outOfStockWithDetails();
         $lowStock = $this->productVariantRepository->lowStockWithDetails();
+        $expired = $this->productVariantRepository->expiredWithDetails();
+        $expiringSoon = $this->productVariantRepository->expiringSoonWithDetails(30);
 
         $data = [
             'title' => 'Alertes de Stock',
             'date' => now()->format('d/m/Y H:i'),
             'outOfStock' => $outOfStock,
             'lowStock' => $lowStock,
+            'expired' => $expired,
+            'expiringSoon' => $expiringSoon,
             'totals' => [
                 'out_of_stock_count' => $outOfStock->count(),
                 'low_stock_count' => $lowStock->count(),
-                'total_alerts' => $outOfStock->count() + $lowStock->count(),
+                'expired_count' => $expired->count(),
+                'expiring_soon_count' => $expiringSoon->count(),
+                'total_alerts' => $outOfStock->count() + $lowStock->count() + $expired->count() + $expiringSoon->count(),
             ],
         ];
 

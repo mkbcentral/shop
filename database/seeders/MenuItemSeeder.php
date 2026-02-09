@@ -23,7 +23,7 @@ class MenuItemSeeder extends Seeder
         $menus = [
             // Dashboard Super Admin - accessible uniquement au super-admin (ordre 0 = premier)
             [
-                'name' => 'Administration',
+                'name' => 'Tableau de bord',
                 'code' => 'admin-dashboard',
                 'route' => 'admin.dashboard',
                 'section' => null,
@@ -40,7 +40,23 @@ class MenuItemSeeder extends Seeder
                 'section' => null,
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>',
                 'order' => 1,
-                'roles' => ['admin', 'manager', 'vendeur', 'seller'],
+                'roles' => ['admin', 'manager', 'cashier', 'staff'],
+            ],
+
+            // Organisations - accessible après le dashboard pour super-admin et admin
+            [
+                'name' => 'Organisations',
+                'code' => 'organizations',
+                'section' => null,
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
+                'order' => 2,
+                'badge_type' => 'count',
+                'badge_color' => 'indigo',
+                'roles' => ['super-admin', 'admin'],
+                'children' => [
+                    ['name' => 'Mes organisations', 'code' => 'organizations.index', 'route' => 'organizations.index', 'order' => 1],
+                    ['name' => 'Créer une organisation', 'code' => 'organizations.create', 'route' => 'organizations.create', 'order' => 2, 'roles' => ['super-admin']],
+                ],
             ],
 
             // === INVENTAIRE ===
@@ -52,12 +68,10 @@ class MenuItemSeeder extends Seeder
                 'order' => 1,
                 'badge_type' => 'count',
                 'badge_color' => 'green',
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des produits', 'code' => 'products.index', 'route' => 'products.index', 'order' => 1],
-                    ['name' => 'Catégories', 'code' => 'categories.index', 'route' => 'categories.index', 'order' => 2],
-                    ['name' => 'Types de produits', 'code' => 'product-types.index', 'route' => 'product-types.index', 'order' => 3],
-                    ['name' => 'Attributs', 'code' => 'product-attributes.index', 'route' => 'product-attributes.index', 'order' => 4],
+                    ['name' => 'Historique de prix', 'code' => 'price-history.index', 'route' => 'price-history.index', 'order' => 2],
                 ],
             ],
             [
@@ -66,7 +80,8 @@ class MenuItemSeeder extends Seeder
                 'section' => 'Inventaire',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>',
                 'order' => 2,
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'required_feature' => 'module_stock',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'État du stock', 'code' => 'stock.overview', 'route' => 'stock.overview', 'order' => 1],
                     ['name' => 'Mouvements', 'code' => 'stock.index', 'route' => 'stock.index', 'order' => 2],
@@ -85,24 +100,16 @@ class MenuItemSeeder extends Seeder
                 'order' => 1,
                 'badge_type' => 'text',
                 'badge_color' => 'red',
-                'roles' => ['super-admin', 'admin', 'manager', 'vendeur', 'seller'],
-            ],
-            [
-                'name' => 'Config. Imprimante',
-                'code' => 'printer-config',
-                'route' => 'printer.config',
-                'section' => 'Transactions',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>',
-                'order' => 2,
-                'roles' => ['super-admin', 'admin', 'manager', 'vendeur', 'seller'],
+                'roles' => ['admin', 'manager', 'cashier', 'staff'],
             ],
             [
                 'name' => 'Ventes',
                 'code' => 'sales',
                 'section' => 'Transactions',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>',
-                'order' => 3,
-                'roles' => ['super-admin', 'admin', 'manager', 'vendeur', 'seller'],
+                'order' => 2,
+                'required_feature' => 'module_sales',
+                'roles' => ['admin', 'manager', 'cashier', 'staff'],
                 'children' => [
                     ['name' => 'Liste des ventes', 'code' => 'sales.index', 'route' => 'sales.index', 'order' => 1],
                     ['name' => 'Nouvelle vente', 'code' => 'sales.create', 'route' => 'sales.create', 'order' => 2],
@@ -113,8 +120,9 @@ class MenuItemSeeder extends Seeder
                 'code' => 'purchases',
                 'section' => 'Transactions',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>',
-                'order' => 4,
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'order' => 3,
+                'required_feature' => 'module_purchases',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des achats', 'code' => 'purchases.index', 'route' => 'purchases.index', 'order' => 1],
                     ['name' => 'Nouvel achat', 'code' => 'purchases.create', 'route' => 'purchases.create', 'order' => 2],
@@ -125,8 +133,9 @@ class MenuItemSeeder extends Seeder
                 'code' => 'invoices',
                 'section' => 'Transactions',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
-                'order' => 5,
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'order' => 4,
+                'required_feature' => 'module_invoices',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des factures', 'code' => 'invoices.index', 'route' => 'invoices.index', 'order' => 1],
                     ['name' => 'Nouvelle facture', 'code' => 'invoices.create', 'route' => 'invoices.create', 'order' => 2],
@@ -137,8 +146,9 @@ class MenuItemSeeder extends Seeder
                 'code' => 'proformas',
                 'section' => 'Transactions',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
-                'order' => 6,
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'order' => 5,
+                'required_feature' => 'module_proformas',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des proformas', 'code' => 'proformas.index', 'route' => 'proformas.index', 'order' => 1],
                     ['name' => 'Nouvelle proforma', 'code' => 'proformas.create', 'route' => 'proformas.create', 'order' => 2],
@@ -154,7 +164,8 @@ class MenuItemSeeder extends Seeder
                 'order' => 1,
                 'badge_type' => 'count',
                 'badge_color' => 'green',
-                'roles' => ['super-admin', 'admin', 'manager', 'vendeur', 'seller'],
+                'required_feature' => 'module_clients',
+                'roles' => ['admin', 'manager', 'cashier', 'staff'],
                 'children' => [
                     ['name' => 'Liste des clients', 'code' => 'clients.index', 'route' => 'clients.index', 'order' => 1],
                 ],
@@ -167,7 +178,8 @@ class MenuItemSeeder extends Seeder
                 'order' => 2,
                 'badge_type' => 'count',
                 'badge_color' => 'purple',
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'required_feature' => 'module_suppliers',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des fournisseurs', 'code' => 'suppliers.index', 'route' => 'suppliers.index', 'order' => 1],
                 ],
@@ -175,66 +187,31 @@ class MenuItemSeeder extends Seeder
 
             // === MULTI-MAGASINS ===
             [
-                'name' => 'Magasins',
-                'code' => 'stores',
-                'section' => 'Multi-Magasins',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
-                'order' => 1,
-                'roles' => ['super-admin', 'admin'],
-                'children' => [
-                    ['name' => 'Liste des magasins', 'code' => 'stores.index', 'route' => 'stores.index', 'order' => 1],
-                ],
-            ],
-            [
                 'name' => 'Transferts',
                 'code' => 'transfers',
                 'section' => 'Multi-Magasins',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>',
-                'order' => 2,
-                'roles' => ['super-admin', 'admin', 'manager'],
+                'order' => 1,
+                'required_feature' => 'module_transfers',
+                'roles' => ['admin', 'manager'],
                 'children' => [
                     ['name' => 'Liste des transferts', 'code' => 'transfers.index', 'route' => 'transfers.index', 'order' => 1],
                 ],
             ],
-            [
-                'name' => 'Organisations',
-                'code' => 'organizations',
-                'section' => 'Multi-Magasins',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
-                'order' => 3,
-                'roles' => ['super-admin', 'admin'],
-                'children' => [
-                    ['name' => 'Mes organisations', 'code' => 'organizations.index', 'route' => 'organizations.index', 'order' => 1],
-                    ['name' => 'Créer une organisation', 'code' => 'organizations.create', 'route' => 'organizations.create', 'order' => 2],
-                ],
-            ],
 
-            // === RAPPORTS ===
+// === CONFIGURATION SUPER ADMIN ===
             [
-                'name' => 'Rapports',
-                'code' => 'reports',
-                'section' => 'Rapports',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
+                'name' => 'Configuration',
+                'code' => 'configuration',
+                'section' => 'Configuration',
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>',
                 'order' => 1,
-                'roles' => ['super-admin', 'admin', 'manager'],
-                'children' => [
-                    ['name' => 'Rapport Produits', 'code' => 'reports.products', 'route' => 'reports.products', 'order' => 1],
-                    ['name' => 'Rapport Stock', 'code' => 'reports.stock', 'route' => 'reports.stock', 'order' => 2],
-                    ['name' => 'Mouvements de Stock', 'code' => 'reports.stock-movements', 'route' => 'reports.stock-movements', 'order' => 3],
-                    ['name' => 'Inventaire', 'code' => 'reports.inventory', 'route' => 'reports.inventory', 'order' => 4],
-                    ['name' => 'Alertes Stock', 'code' => 'reports.stock-alerts', 'route' => 'reports.stock-alerts', 'order' => 5],
-                ],
-            ],
-
-            [
-                'name' => 'Abonnements',
-                'code' => 'subscriptions',
-                'route' => null,
-                'url' => '/organizations',
-                'section' => 'Multi-Magasins',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>',
-                'order' => 4,
                 'roles' => ['super-admin'],
+                'children' => [
+                    ['name' => 'Catégories', 'code' => 'admin-categories', 'route' => 'categories.index', 'order' => 1],
+                    ['name' => 'Types de produits', 'code' => 'admin-product-types', 'route' => 'product-types.index', 'order' => 2],
+                    ['name' => 'Attributs', 'code' => 'admin-product-attributes', 'route' => 'product-attributes.index', 'order' => 3],
+                ],
             ],
 
             // === ADMINISTRATION ===
@@ -244,6 +221,8 @@ class MenuItemSeeder extends Seeder
                 'section' => 'Administration',
                 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
                 'order' => 1,
+                'badge_type' => 'count',
+                'badge_color' => 'purple',
                 'roles' => ['super-admin', 'admin'],
                 'children' => [
                     ['name' => 'Liste des utilisateurs', 'code' => 'users.index', 'route' => 'users.index', 'order' => 1],
@@ -260,14 +239,19 @@ class MenuItemSeeder extends Seeder
                     ['name' => 'Liste des rôles', 'code' => 'roles.index', 'route' => 'roles.index', 'order' => 1],
                 ],
             ],
+// === PARAMÈTRES ===
             [
-                'name' => 'Gestion des menus',
-                'code' => 'menu-permissions',
-                'route' => 'menu-permissions.index',
-                'section' => 'Administration',
-                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>',
-                'order' => 3,
-                'roles' => ['super-admin'],
+                'name' => 'Paramètres',
+                'code' => 'settings',
+                'section' => 'Paramètres',
+                'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>',
+                'order' => 1,
+                'roles' => ['super-admin', 'admin', 'manager', 'cashier', 'staff'],
+                'children' => [
+                    ['name' => 'Config. Imprimante', 'code' => 'printer-config', 'route' => 'printer.config', 'order' => 1],
+                    ['name' => 'Gestion des menus', 'code' => 'menu-permissions', 'route' => 'menu-permissions.index', 'order' => 2, 'roles' => ['super-admin']],
+                    ['name' => 'Paramètres abonnements', 'code' => 'subscription-settings', 'route' => 'admin.subscription-settings', 'order' => 3, 'roles' => ['super-admin']],
+                ],
             ],
         ];
 
@@ -297,14 +281,17 @@ class MenuItemSeeder extends Seeder
 
         // Attacher les rôles
         if (!empty($roles)) {
-            $roleIds = Role::whereIn('name', $roles)->pluck('id')->toArray();
+            $roleIds = Role::whereIn('slug', $roles)->pluck('id')->toArray();
             $menuItem->roles()->sync($roleIds);
         }
 
         // Créer les enfants
         foreach ($children as $childData) {
             $childData['section'] = $data['section'];
-            $childData['roles'] = $roles; // Hériter des rôles du parent par défaut
+            // Hériter des rôles du parent uniquement si l'enfant n'a pas ses propres rôles
+            if (!isset($childData['roles'])) {
+                $childData['roles'] = $roles;
+            }
             $this->createMenuItem($childData, $menuItem);
         }
 

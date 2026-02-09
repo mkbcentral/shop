@@ -17,6 +17,10 @@ class OrganizationForm extends Form
     #[Validate('in:individual,company,franchise,cooperative,group', message: 'Le type sélectionné n\'est pas valide')]
     public $type = 'company';
 
+    #[Validate('required', message: 'Le type d\'activité est requis')]
+    #[Validate('in:retail,food,services,mixed', message: 'Le type d\'activité sélectionné n\'est pas valide')]
+    public $business_activity = 'retail';
+
     #[Validate('nullable')]
     #[Validate('string', message: 'La raison sociale doit être une chaîne de caractères')]
     #[Validate('max:255', message: 'La raison sociale ne peut pas dépasser 255 caractères')]
@@ -95,6 +99,10 @@ class OrganizationForm extends Form
     {
         $this->name = $organization->name;
         $this->type = $organization->type;
+        // Convertir l'enum business_activity en string pour la validation
+        $this->business_activity = $organization->business_activity instanceof \App\Enums\BusinessActivityType
+            ? $organization->business_activity->value
+            : ($organization->business_activity ?? 'retail');
         $this->legal_name = $organization->legal_name ?? '';
         $this->legal_form = $organization->legal_form ?? '';
         $this->tax_id = $organization->tax_id ?? '';
@@ -122,6 +130,7 @@ class OrganizationForm extends Form
         if (empty($properties)) {
             $this->name = '';
             $this->type = 'company';
+            $this->business_activity = 'retail';
             $this->legal_name = '';
             $this->legal_form = '';
             $this->tax_id = '';
@@ -150,6 +159,7 @@ class OrganizationForm extends Form
         return [
             'name' => 'required|string|max:255|unique:organizations,name,' . $organizationId,
             'type' => 'required|in:individual,company,franchise,cooperative,group',
+            'business_activity' => 'required|in:retail,food,services,mixed',
             'legal_name' => 'nullable|string|max:255',
             'legal_form' => 'nullable|string|max:100',
             'tax_id' => 'nullable|string|max:100',
@@ -175,6 +185,7 @@ class OrganizationForm extends Form
         return [
             'name' => $this->name,
             'type' => $this->type,
+            'business_activity' => $this->business_activity,
             'legal_name' => $this->legal_name ?: null,
             'legal_form' => $this->legal_form ?: null,
             'tax_id' => $this->tax_id ?: null,

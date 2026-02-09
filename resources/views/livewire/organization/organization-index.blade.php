@@ -358,11 +358,15 @@
                 </svg>
                 <h3 class="mt-4 text-lg font-medium text-gray-900">Aucune organisation</h3>
                 <p class="mt-2 text-sm text-gray-500">Vous n'êtes membre d'aucune organisation pour le moment.</p>
+                @role('super-admin')
                 <div class="mt-6">
                     <x-form.button href="{{ route('organizations.create') }}" icon="plus">
                         Créer votre première organisation
                     </x-form.button>
                 </div>
+                @else
+                <p class="mt-4 text-sm text-gray-400">Contactez un administrateur pour être ajouté à une organisation.</p>
+                @endrole
             </div>
         @endforelse
     </div>

@@ -44,11 +44,19 @@ class ThermalPrinter {
      */
     async initialize() {
         try {
-            // Ne PAS définir de certificat ni de signature
-            // Cela permettra à QZ Tray d'utiliser son système de mise en liste blanche
-            // L'utilisateur devra autoriser une seule fois via l'interface QZ Tray
+            console.log('🔵 initialize() appelé');
+            console.log('🔵 qz disponible?', typeof qz !== 'undefined');
+
+            if (typeof qz === 'undefined') {
+                throw new Error('QZ Tray library not loaded');
+            }
+
+            // NOTE: Pas de certificat configuré - QZ Tray demandera une autorisation manuelle
+            // L'utilisateur devra cliquer "Allow" une fois par session
+            // Pour éviter ce popup, ajoutez votre site dans QZ Tray Site Manager
 
             // Connexion à QZ Tray
+            console.log('🔵 Connexion à QZ Tray...');
             if (!qz.websocket.isActive()) {
                 await qz.websocket.connect();
                 this.connected = true;
@@ -56,6 +64,9 @@ class ThermalPrinter {
 
                 // Trouver l'imprimante par défaut
                 await this.findDefaultPrinter();
+            } else {
+                console.log('🔵 Déjà connecté à QZ Tray');
+                this.connected = true;
             }
             return true;
         } catch (error) {
@@ -191,12 +202,12 @@ class ThermalPrinter {
         const width = this.paperWidth;
         const separator = '-'.repeat(width);
         const doubleSeparator = '='.repeat(width);
-        
+
         // Debug: Log des données reçues
         console.log('[QZ Tray] generateESCPOSCommands data:', JSON.stringify(data, null, 2));
-        
-        // Utiliser la devise fournie dans les données ou CDF par défaut
-        const currency = data.currency || 'CDF';
+
+        // Utiliser la devise fournie dans les données ou celle de la company ou CDF par défaut
+        const currency = data.currency || data.company?.currency || 'CDF';
 
         const commands = [];
 
@@ -259,7 +270,7 @@ class ThermalPrinter {
                 unit_price: item.unit_price,
                 total: item.total
             });
-            
+
             // Nom du produit
             const maxNameLength = width - 2;
             const name = this.truncateText(item.name, maxNameLength);
@@ -269,9 +280,9 @@ class ThermalPrinter {
             const qty = item.quantity.toString();
             const price = this.formatPrice(item.unit_price);
             const total = this.formatPrice(item.total);
-            
+
             console.log(`[QZ Tray] Formatted - qty: ${qty}, price: ${price}, total: ${total}`);
-            
+
             const detailLine = this.formatTableRow('', qty, price, total);
             commands.push(detailLine);
         });
@@ -287,9 +298,19 @@ class ThermalPrinter {
             commands.push(this.formatLine('Remise:', '-' + this.formatPrice(data.discount) + ' ' + currency));
         }
 
-        // Taxe
+        // Taxe avec détails si disponibles
         if (data.tax > 0) {
-            commands.push(this.formatLine('Taxe:', this.formatPrice(data.tax) + ' ' + currency));
+            if (data.tax_info && (data.tax_info.code || data.tax_info.name)) {
+                // Utiliser le code (ex: TVA) ou le nom si pas de code
+                let taxLabel = data.tax_info.code || data.tax_info.name;
+                if (data.tax_info.type === 'percentage' && data.tax_info.rate) {
+                    taxLabel += ' (' + data.tax_info.rate + '%)';
+                }
+                taxLabel += ':';
+                commands.push(this.formatLine(taxLabel, this.formatPrice(data.tax) + ' ' + currency));
+            } else {
+                commands.push(this.formatLine('Taxe:', this.formatPrice(data.tax) + ' ' + currency));
+            }
         }
 
         // Ligne de séparation forte

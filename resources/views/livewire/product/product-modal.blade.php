@@ -61,6 +61,11 @@
                 </div>
 
                 <!-- Modal Body -->
+                @php
+                    $isServiceOrg = is_service_organization();
+                    $showStock = has_stock_management();
+                    $isServiceType = $selectedProductType && $selectedProductType->is_service;
+                @endphp
                 <form wire:submit="save" class="flex flex-col flex-1 min-h-0" x-data="{
                     showDescription: @entangle('showDescription'),
                     showImage: @entangle('showImage'),
@@ -79,7 +84,7 @@
                                     <!-- Name -->
                                     <div>
                                         <label for="form.name" class="block text-sm font-medium text-gray-700 mb-2">
-                                            Nom du produit <span class="text-red-500">*</span>
+                                            Nom {{ $isServiceOrg ? 'du service' : 'du produit' }} <span class="text-red-500">*</span>
                                         </label>
                                         <div class="relative">
                                             <div
@@ -92,7 +97,7 @@
                                                 </svg>
                                             </div>
                                             <input type="text" id="form.name" wire:model="form.name"
-                                                placeholder="Ex: T-shirt Coton Premium"
+                                                placeholder="{{ $isServiceOrg ? 'Ex: Coupe Homme Standard' : 'Ex: T-shirt Coton Premium' }}"
                                                 class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
                                         </div>
                                         @error('form.name')
@@ -111,7 +116,7 @@
                                     <div>
                                         <label for="form.product_type_id"
                                             class="block text-sm font-medium text-gray-700 mb-2">
-                                            Type de produit <span class="text-red-500">*</span>
+                                            Type {{ $isServiceOrg ? 'de service' : 'de produit' }} <span class="text-red-500">*</span>
                                         </label>
                                         <select wire:model.live="form.product_type_id" id="form.product_type_id"
                                             class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
@@ -153,7 +158,14 @@
                                                 @endif
                                             </option>
                                             @foreach ($categories as $category)
-                                                <option value="{{ $category['id'] }}">{{ $category['name'] }}</option>
+                                                @php
+                                                    $isDifferentType = isset($category['product_type_id']) &&
+                                                        $form->product_type_id &&
+                                                        $category['product_type_id'] != $form->product_type_id;
+                                                @endphp
+                                                <option value="{{ $category['id'] }}" @if($isDifferentType) class="text-amber-600" @endif>
+                                                    {{ $category['name'] }}@if($isDifferentType) (autre type)@endif
+                                                </option>
                                             @endforeach
                                         </select>
                                         @error('form.category_id')
@@ -174,7 +186,8 @@
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                                <div class="grid grid-cols-1 md:grid-cols-{{ ($showStock && !$isServiceType) ? 4 : 3 }} gap-4 mt-4">
+                                    @if($showStock && !$isServiceType)
                                     <!-- Cost Price -->
                                     <div>
                                         <label for="form.cost_price"
@@ -195,11 +208,12 @@
                                             </p>
                                         @enderror
                                     </div>
+                                    @endif
 
                                     <!-- Price -->
                                     <div>
                                         <label for="form.price" class="block text-sm font-medium text-gray-700 mb-2">
-                                            Prix de vente ({{ current_currency() }}) <span class="text-red-500">*</span>
+                                            {{ $isServiceType ? 'Tarif' : 'Prix de vente' }} ({{ current_currency() }}) <span class="text-red-500">*</span>
                                         </label>
                                         <input type="number" id="form.price" wire:model.live="form.price"
                                             step="0.01" min="0" placeholder="0"
@@ -238,6 +252,7 @@
                                         @enderror
                                     </div>
 
+                                    @if($showStock && !$isServiceType)
                                     <!-- Stock Alert Threshold -->
                                     <div>
                                         <label for="form.stock_alert_threshold"
@@ -258,9 +273,54 @@
                                             </p>
                                         @enderror
                                     </div>
+                                    @endif
+
+                                    @if($isServiceOrg)
+                                    <!-- Remise max inline for service organizations -->
+                                    <div>
+                                        <label for="form.max_discount_amount"
+                                            class="block text-sm font-medium text-gray-700 mb-2">
+                                            Remise max ({{ current_currency() }})
+                                            <span class="text-gray-400 font-normal text-xs">(opt.)</span>
+                                        </label>
+                                        <input type="number" id="form.max_discount_amount"
+                                            wire:model="form.max_discount_amount"
+                                            step="1" min="0"
+                                            placeholder="Aucune limite"
+                                            max="{{ $form->price ?: '' }}"
+                                            class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition" />
+                                        @error('form.max_discount_amount')
+                                            <p class="mt-2 text-sm text-red-600 flex items-center">
+                                                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd"
+                                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+                                    @endif
                                 </div>
 
-                                <!-- Remise maximum autorisée -->
+                                @if($isServiceOrg && $form->max_discount_amount && $form->price)
+                                    <div class="mt-3">
+                                        <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3">
+                                            <div class="flex items-center space-x-2">
+                                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span class="text-sm text-amber-700">
+                                                    Prix minimum de vente:
+                                                    <strong>{{ number_format(max(0, $form->price - $form->max_discount_amount), 0, ',', ' ') }} {{ current_currency() }}</strong>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                <!-- Remise maximum autorisée (for non-service organizations) -->
+                                @if(!$isServiceOrg)
                                 <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label for="form.max_discount_amount"
@@ -274,7 +334,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                             </div>
-                                            <input type="number" id="form.max_discount_amount"
+                                            <input type="number" id="form.max_discount_amount_non_service"
                                                 wire:model="form.max_discount_amount"
                                                 step="1" min="0"
                                                 placeholder="Aucune limite"
@@ -312,8 +372,9 @@
                                         </div>
                                     @endif
                                 </div>
+                                @endif
 
-                                @if ($form->price && $form->cost_price && floatval($form->cost_price) > 0)
+                                @if ($showStock && !$isServiceType && $form->price && $form->cost_price && floatval($form->cost_price) > 0)
                                     <div
                                         class="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
                                         <div class="flex items-center justify-between">
@@ -334,12 +395,208 @@
                                 @endif
                             </div>
 
+                        <!-- Champs spécifiques au type de produit -->
+                        @if($selectedProductType && ($selectedProductType->has_expiry_date || $selectedProductType->has_weight || $selectedProductType->has_dimensions))
+                            <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                                <div class="flex items-center space-x-2 mb-4">
+                                    <div class="h-8 w-1 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full"></div>
+                                    <h3 class="text-lg font-semibold text-gray-800">
+                                        Caractéristiques {{ $selectedProductType->name }}
+                                    </h3>
+                                    <span class="text-2xl">{{ $selectedProductType->icon }}</span>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {{-- Date d'expiration --}}
+                                    @if($selectedProductType->has_expiry_date)
+                                        <div>
+                                            <label for="form.expiry_date" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Date d'expiration
+                                                </span>
+                                            </label>
+                                            <input type="date" id="form.expiry_date" wire:model="form.expiry_date"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" />
+                                            @error('form.expiry_date')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="form.manufacture_date" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                    </svg>
+                                                    Date de fabrication
+                                                </span>
+                                            </label>
+                                            <input type="date" id="form.manufacture_date" wire:model="form.manufacture_date"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition" />
+                                            @error('form.manufacture_date')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    @endif
+
+                                    {{-- Poids --}}
+                                    @if($selectedProductType->has_weight)
+                                        <div>
+                                            <label for="form.weight" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                                                    </svg>
+                                                    Poids (kg)
+                                                </span>
+                                            </label>
+                                            <input type="number" id="form.weight" wire:model="form.weight"
+                                                step="0.001" min="0" placeholder="0.000"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" />
+                                            @error('form.weight')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    @endif
+
+                                    {{-- Dimensions --}}
+                                    @if($selectedProductType->has_dimensions)
+                                        <div>
+                                            <label for="form.length" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    </svg>
+                                                    Longueur (cm)
+                                                </span>
+                                            </label>
+                                            <input type="number" id="form.length" wire:model="form.length"
+                                                step="0.01" min="0" placeholder="0.00"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" />
+                                            @error('form.length')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="form.width" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    </svg>
+                                                    Largeur (cm)
+                                                </span>
+                                            </label>
+                                            <input type="number" id="form.width" wire:model="form.width"
+                                                step="0.01" min="0" placeholder="0.00"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" />
+                                            @error('form.width')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="form.height" class="block text-sm font-medium text-gray-700 mb-2">
+                                                <span class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-1.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    </svg>
+                                                    Hauteur (cm)
+                                                </span>
+                                            </label>
+                                            <input type="number" id="form.height" wire:model="form.height"
+                                                step="0.01" min="0" placeholder="0.00"
+                                                class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition" />
+                                            @error('form.height')
+                                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    @endif
+                                </div>
+
+                                @if($selectedProductType->has_expiry_date)
+                                    <p class="mt-3 text-xs text-gray-500 italic">
+                                        <svg class="w-4 h-4 inline mr-1 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Pour les produits alimentaires, la date d'expiration aide à gérer le stock et les alertes.
+                                    </p>
+                                @endif
+                            </div>
+                        @endif
+
+                        <!-- Service-specific info -->
+                        @if($selectedProductType && $selectedProductType->is_service)
+                            <div class="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-xl p-5 shadow-sm">
+                                <div class="flex items-center space-x-2 mb-4">
+                                    <div class="h-8 w-1 bg-gradient-to-b from-teal-500 to-cyan-600 rounded-full"></div>
+                                    <h3 class="text-lg font-semibold text-gray-800">
+                                        Informations Service
+                                    </h3>
+                                    <span class="text-2xl">{{ $selectedProductType->icon }}</span>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    @if($selectedProductType->default_duration_minutes)
+                                        <div class="flex items-center space-x-3 bg-white rounded-lg p-3 border border-teal-100">
+                                            <div class="flex-shrink-0 w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs text-gray-500">Durée par défaut</p>
+                                                <p class="text-sm font-semibold text-gray-800">
+                                                    @if($selectedProductType->default_duration_minutes >= 60)
+                                                        {{ floor($selectedProductType->default_duration_minutes / 60) }}h
+                                                        @if($selectedProductType->default_duration_minutes % 60 > 0)
+                                                            {{ $selectedProductType->default_duration_minutes % 60 }}min
+                                                        @endif
+                                                    @else
+                                                        {{ $selectedProductType->default_duration_minutes }} minutes
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <div class="flex items-center space-x-3 bg-white rounded-lg p-3 border border-teal-100">
+                                        <div class="flex-shrink-0 w-10 h-10 {{ $selectedProductType->requires_booking ? 'bg-amber-100' : 'bg-green-100' }} rounded-lg flex items-center justify-center">
+                                            <svg class="w-5 h-5 {{ $selectedProductType->requires_booking ? 'text-amber-600' : 'text-green-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                @if($selectedProductType->requires_booking)
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                @else
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                @endif
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-500">Réservation</p>
+                                            <p class="text-sm font-semibold {{ $selectedProductType->requires_booking ? 'text-amber-700' : 'text-green-700' }}">
+                                                {{ $selectedProductType->requires_booking ? 'Requise' : 'Non requise' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="mt-3 text-xs text-teal-600 italic">
+                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Les services n'ont pas de gestion de stock. La durée et la réservation sont définies par le type de service.
+                                </p>
+                            </div>
+                        @endif
+
                             <!-- Description (Optional) -->
                             <x-optional-section title="Description" show="showDescription" gradient-from="green-500"
                                 gradient-to="teal-600">
                                 <textarea id="form.description" wire:model="form.description" rows="3"
                                     class="block w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition resize-none"
-                                    placeholder="Description détaillée du produit..."></textarea>
+                                    placeholder="{{ $isServiceOrg ? 'Description détaillée du service...' : 'Description détaillée du produit...' }}"></textarea>
                                 @error('form.description')
                                     <p class="mt-2 text-sm text-red-600 flex items-center">
                                         <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
@@ -352,7 +609,8 @@
                                 @enderror
                             </x-optional-section>
 
-                            <!-- Image Upload (Optional) -->
+                            <!-- Image Upload (Optional) - Hidden for service organizations -->
+                            @if(!$isServiceOrg)
                             <x-optional-section title="Image" show="showImage" gradient-from="pink-500"
                                 gradient-to="rose-600">
                                 <div x-data="{
@@ -509,12 +767,14 @@
                                     </div>
                                 </div>
                             </x-optional-section>
+                            @endif
 
                             <!-- Dynamic Attributes (Based on Product Type) -->
                             @if ($form->product_type_id)
                                 @livewire('product.dynamic-attributes', ['productTypeId' => $form->product_type_id, 'attributeValues' => $attributeValues], key('dynamic-attrs-' . $form->product_type_id . '-' . ($productId ?? 'new')))
                             @endif
 
+                            @if(!$isServiceType && !$isServiceOrg)
                             <!-- Variant Preview -->
                             @if ($totalVariantsCount > 0)
                                 <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5 shadow-sm animate-fade-in">
@@ -654,6 +914,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
                         </div>
 
                         <!-- Modal Footer -->

@@ -5,6 +5,7 @@ namespace App\Livewire\Auth;
 use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionPlan;
 use App\Models\Organization;
+use App\Services\OrganizationService;
 use App\Services\SubscriptionService;
 use App\Models\Store;
 use App\Models\User;
@@ -91,6 +92,7 @@ class Register extends Component
                 'phone' => $step2['organization_phone'],
                 'slug' => Str::slug(title: $step2['organization_name']),
                 'owner_id' => $user->id,
+                'business_activity' => $step2['business_activity'] ?? 'retail',
                 'subscription_plan' => $plan,
                 'payment_status' => $paymentStatus,
                 'subscription_starts_at' => $isFree ? now() : null,
@@ -118,12 +120,21 @@ class Register extends Component
                 'default_organization_id' => $organization->id,
             ]);
 
+            // 6b. Initialize product types and categories based on business activity
+            $organizationService = app(OrganizationService::class);
+            $organizationService->initializeProductTypesAndCategories($organization);
+
             // 7. Create default store for the organization
+            // Use "Service Principal" for service-only businesses, "Magasin Principal" otherwise
+            $isServiceOnly = ($step2['business_activity'] ?? 'retail') === 'services';
+            $storeName = $isServiceOnly ? 'Service Principal' : 'Magasin Principal';
+            $storeCode = $isServiceOnly ? 'SVC-' : 'MAIN-';
+
             $store = Store::create([
                 'organization_id' => $organization->id,
-                'name' => 'Magasin Principal',
-                'slug' => Str::slug('Magasin Principal-' . $organization->id),
-                'code' => 'MAIN-' . $organization->id,
+                'name' => $storeName,
+                'slug' => Str::slug($storeName . '-' . $organization->id),
+                'code' => $storeCode . $organization->id,
                 'address' => '',
                 'city' => '',
                 'country' => 'RD Congo',

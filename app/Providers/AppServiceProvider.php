@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Organization;
 use App\Models\Sale;
+use App\Models\User;
+use App\Observers\OrganizationObserver;
 use App\Observers\SaleObserver;
 use App\Policies\OrganizationPolicy;
 use App\Repositories\ClientRepository;
@@ -34,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Enregistrer les observateurs
         Sale::observe(SaleObserver::class);
+        Organization::observe(OrganizationObserver::class);
 
         // Blade directive pour la devise
         // Usage: @currency(1000) => "1 000 FC" (or organization currency)
@@ -85,22 +88,22 @@ class AppServiceProvider extends ServiceProvider
             if (!auth()->check()) {
                 return false;
             }
-            
+
             $user = auth()->user();
-            
+
             // Super-admin a accès à tout
             if ($user->hasRole('super-admin')) {
                 return true;
             }
-            
-            $organization = app()->bound('current_organization') 
-                ? app('current_organization') 
+
+            $organization = app()->bound('current_organization')
+                ? app('current_organization')
                 : $user->defaultOrganization;
-                
+
             if (!$organization) {
                 return false;
             }
-            
+
             $planLimitService = app(\App\Services\PlanLimitService::class);
             return $planLimitService->hasFeature($feature, $organization);
         });
@@ -110,30 +113,30 @@ class AppServiceProvider extends ServiceProvider
             if (!auth()->check()) {
                 return false;
             }
-            
+
             $user = auth()->user();
-            
+
             // Super-admin a accès à tout
             if ($user->hasRole('super-admin')) {
                 return true;
             }
-            
-            $organization = app()->bound('current_organization') 
-                ? app('current_organization') 
+
+            $organization = app()->bound('current_organization')
+                ? app('current_organization')
                 : $user->defaultOrganization;
-                
+
             if (!$organization) {
                 return false;
             }
-            
+
             $planLimitService = app(\App\Services\PlanLimitService::class);
-            
+
             foreach ((array) $features as $feature) {
                 if ($planLimitService->hasFeature($feature, $organization)) {
                     return true;
                 }
             }
-            
+
             return false;
         });
 
@@ -143,7 +146,7 @@ class AppServiceProvider extends ServiceProvider
             $clientRepository = app(ClientRepository::class);
             $supplierRepository = app(SupplierRepository::class);
 
-            $view->with([
+            $data = [
                 // Variables pour la navigation dynamique (format: {code}_count)
                 'products_count' => $productRepository->count(),
                 'clients_count' => $clientRepository->count(),
@@ -154,7 +157,29 @@ class AppServiceProvider extends ServiceProvider
                 'total_clients' => $clientRepository->count(),
                 'total_suppliers' => $supplierRepository->count(),
                 'low_stock_alerts' => $productRepository->countLowStockAlerts(),
-            ]);
+            ];
+
+            // Ajouter les counts pour super-admin (organisations et utilisateurs)
+            $user = auth()->user();
+            if ($user && $user->hasRole('super-admin')) {
+                $data['organizations_count'] = Organization::count();
+                $data['users_count'] = User::count();
+                $data['organizations.index_count'] = Organization::count();
+                $data['users.index_count'] = User::count();
+            } else if ($user) {
+                // Pour les utilisateurs normaux, afficher le count de leurs organisations
+                $orgsCount = $user->organizations()->count();
+                $data['organizations_count'] = $orgsCount;
+                $data['organizations.index_count'] = $orgsCount;
+
+                // Nombre d'utilisateurs dans l'organisation courante
+                $orgId = session('current_organization_id') ?? $user->default_organization_id;
+                $usersCount = $orgId ? User::whereHas('organizations', fn($q) => $q->where('organizations.id', $orgId))->count() : 0;
+                $data['users_count'] = $usersCount;
+                $data['users.index_count'] = $usersCount;
+            }
+
+            $view->with($data);
         });
     }
 }

@@ -6,6 +6,9 @@ use App\Models\Product;
 use App\Models\Client;
 use App\Models\Supplier;
 use App\Models\Sale;
+use App\Models\User;
+use App\Models\Organization;
+use App\Models\Role;
 use App\Models\ProductVariant;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -17,6 +20,25 @@ class GlobalSearch extends Component
     public array $recentSearches = [];
 
     protected $listeners = ['openSearch', 'closeSearch'];
+
+    /**
+     * Check if current user is super-admin
+     */
+    public function getIsSuperAdminProperty(): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('super-admin');
+    }
+
+    /**
+     * Get available categories based on user role
+     */
+    public function getAvailableCategoriesProperty(): array
+    {
+        if ($this->isSuperAdmin) {
+            return ['all', 'users', 'organizations', 'roles'];
+        }
+        return ['all', 'products', 'clients', 'suppliers', 'sales'];
+    }
 
     public function mount()
     {
@@ -54,7 +76,10 @@ class GlobalSearch extends Component
 
     public function setCategory(string $category)
     {
-        $this->selectedCategory = $category;
+        // Verify category is allowed for current user
+        if (in_array($category, $this->availableCategories)) {
+            $this->selectedCategory = $category;
+        }
     }
 
     public function clearSearch()
@@ -81,6 +106,43 @@ class GlobalSearch extends Component
         $results = [];
         $searchTerm = '%' . $this->query . '%';
 
+        // Super-admin: recherche utilisateurs, organisations, rôles
+        if ($this->isSuperAdmin) {
+            // Recherche d'utilisateurs
+            if ($this->selectedCategory === 'all' || $this->selectedCategory === 'users') {
+                $results['users'] = User::where(function($q) use ($searchTerm) {
+                        $q->where('name', 'like', $searchTerm)
+                          ->orWhere('email', 'like', $searchTerm);
+                    })
+                    ->limit(5)
+                    ->get();
+            }
+
+            // Recherche d'organisations
+            if ($this->selectedCategory === 'all' || $this->selectedCategory === 'organizations') {
+                $results['organizations'] = Organization::where(function($q) use ($searchTerm) {
+                        $q->where('name', 'like', $searchTerm)
+                          ->orWhere('email', 'like', $searchTerm)
+                          ->orWhere('phone', 'like', $searchTerm);
+                    })
+                    ->limit(5)
+                    ->get();
+            }
+
+            // Recherche de rôles
+            if ($this->selectedCategory === 'all' || $this->selectedCategory === 'roles') {
+                $results['roles'] = Role::where(function($q) use ($searchTerm) {
+                        $q->where('name', 'like', $searchTerm)
+                          ->orWhere('slug', 'like', $searchTerm);
+                    })
+                    ->limit(5)
+                    ->get();
+            }
+
+            return $results;
+        }
+
+        // Utilisateurs normaux: recherche produits, clients, fournisseurs, ventes
         // Recherche de produits
         if ($this->selectedCategory === 'all' || $this->selectedCategory === 'products') {
             $results['products'] = Product::with(['variants'])

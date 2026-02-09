@@ -19,74 +19,104 @@
                 <div class="flex items-center justify-center space-x-2 mb-8">
                     {{-- Step 1 --}}
                     <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all
-                            {{ $currentStep >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-400' }}">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-500 ease-out
+                            {{ $currentStep >= 1 ? 'bg-indigo-600 text-white ring-4 ring-indigo-600/30' : 'bg-slate-700 text-slate-400' }}
+                            {{ $currentStep === 1 ? 'scale-110' : 'scale-100' }}">
                             @if($currentStep > 1)
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-5 h-5 animate-scale-in" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                             @else
                                 1
                             @endif
                         </div>
-                        <span class="ml-2 text-sm font-medium {{ $currentStep >= 1 ? 'text-white' : 'text-slate-400' }}">
+                        <span class="ml-2 text-sm font-medium transition-colors duration-300 {{ $currentStep >= 1 ? 'text-white' : 'text-slate-400' }}">
                             Informations
                         </span>
                     </div>
 
-                    <div class="w-12 h-0.5 {{ $currentStep >= 2 ? 'bg-indigo-600' : 'bg-slate-700' }}"></div>
+                    <div class="w-12 h-0.5 transition-all duration-500 ease-out origin-left {{ $currentStep >= 2 ? 'bg-indigo-600 scale-x-100' : 'bg-slate-700 scale-x-100' }}"></div>
 
                     {{-- Step 2 --}}
                     <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all
-                            {{ $currentStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-400' }}">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-500 ease-out
+                            {{ $currentStep >= 2 ? 'bg-indigo-600 text-white ring-4 ring-indigo-600/30' : 'bg-slate-700 text-slate-400' }}
+                            {{ $currentStep === 2 ? 'scale-110' : 'scale-100' }}">
                             @if($currentStep > 2)
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-5 h-5 animate-scale-in" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                 </svg>
                             @else
                                 2
                             @endif
                         </div>
-                        <span class="ml-2 text-sm font-medium {{ $currentStep >= 2 ? 'text-white' : 'text-slate-400' }}">
+                        <span class="ml-2 text-sm font-medium transition-colors duration-300 {{ $currentStep >= 2 ? 'text-white' : 'text-slate-400' }}">
                             Organisation
                         </span>
                     </div>
 
-                    <div class="w-12 h-0.5 {{ $currentStep >= 3 ? 'bg-indigo-600' : 'bg-slate-700' }}"></div>
+                    <div class="w-12 h-0.5 transition-all duration-500 ease-out origin-left {{ $currentStep >= 3 ? 'bg-indigo-600 scale-x-100' : 'bg-slate-700 scale-x-100' }}"></div>
 
                     {{-- Step 3 --}}
                     <div class="flex items-center">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all
-                            {{ $currentStep >= 3 ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-400' }}">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-500 ease-out
+                            {{ $currentStep >= 3 ? 'bg-indigo-600 text-white ring-4 ring-indigo-600/30' : 'bg-slate-700 text-slate-400' }}
+                            {{ $currentStep === 3 ? 'scale-110' : 'scale-100' }}">
                             3
                         </div>
-                        <span class="ml-2 text-sm font-medium {{ $currentStep >= 3 ? 'text-white' : 'text-slate-400' }}">
+                        <span class="ml-2 text-sm font-medium transition-colors duration-300 {{ $currentStep >= 3 ? 'text-white' : 'text-slate-400' }}">
                             Confirmation
                         </span>
                     </div>
                 </div>
 
-                {{-- Step 1: User Information --}}
-                @if($currentStep === 1)
-                    <div wire:key="step-{{ $currentStep }}">
-                        <livewire:auth.register-steps.step-one :key="'step-one-' . now()->timestamp" />
-                    </div>
-                @endif
+                {{-- Steps Container with transitions --}}
+                <div class="relative min-h-[400px]">
+                    {{-- Step 1: User Information --}}
+                    @if($currentStep === 1)
+                        <div
+                            x-data
+                            x-show="true"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-8"
+                            x-transition:enter-end="opacity-100 translate-x-0"
+                            wire:key="step-1"
+                            class="transform"
+                        >
+                            <livewire:auth.register-steps.step-one :key="'step-one'" />
+                        </div>
+                    @endif
 
-                {{-- Step 2: Organization & Plan --}}
-                @if($currentStep === 2)
-                    <div wire:key="step-{{ $currentStep }}">
-                        <livewire:auth.register-steps.step-two :key="'step-two-' . now()->timestamp" />
-                    </div>
-                @endif
+                    {{-- Step 2: Organization & Plan --}}
+                    @if($currentStep === 2)
+                        <div
+                            x-data
+                            x-show="true"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-8"
+                            x-transition:enter-end="opacity-100 translate-x-0"
+                            wire:key="step-2"
+                            class="transform"
+                        >
+                            <livewire:auth.register-steps.step-two :key="'step-two'" />
+                        </div>
+                    @endif
 
-                {{-- Step 3: Confirmation --}}
-                @if($currentStep === 3)
-                    <div wire:key="step-{{ $currentStep }}">
-                        <livewire:auth.register-steps.step-three :key="'step-three-' . now()->timestamp" />
-                    </div>
-                @endif
+                    {{-- Step 3: Confirmation --}}
+                    @if($currentStep === 3)
+                        <div
+                            x-data
+                            x-show="true"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 translate-x-8 scale-95"
+                            x-transition:enter-end="opacity-100 translate-x-0 scale-100"
+                            wire:key="step-3"
+                            class="transform"
+                        >
+                            <livewire:auth.register-steps.step-three :key="'step-three'" />
+                        </div>
+                    @endif
+                </div>
 
                 {{-- Login Link --}}
                 <p class="text-center text-sm text-slate-400">
@@ -199,6 +229,22 @@
         .animation-delay-2000 { animation-delay: 2s; }
         @keyframes wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(20deg); } 75% { transform: rotate(-15deg); } }
         .animate-wave { animation: wave 1.5s ease-in-out infinite; transform-origin: 70% 70%; }
+
+        /* Scale in animation for checkmarks */
+        @keyframes scale-in {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(0deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .animate-scale-in { animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        /* Progress connector animation */
+        @keyframes progress-fill {
+            0% { transform: scaleX(0); }
+            100% { transform: scaleX(1); }
+        }
+        .animate-progress { animation: progress-fill 0.5s ease-out forwards; }
+
         [x-cloak] { display: none !important; }
     </style>
 </div>

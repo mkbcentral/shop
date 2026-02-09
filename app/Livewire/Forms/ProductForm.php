@@ -67,6 +67,35 @@ class ProductForm extends Form
     #[Validate('min:0', message: "Le montant maximum de remise doit être supérieur ou égal à 0")]
     public $max_discount_amount = null;
 
+    // Champs spécifiques au type de produit
+    #[Validate('nullable')]
+    #[Validate('date', message: "La date d'expiration doit être une date valide")]
+    public $expiry_date = null;
+
+    #[Validate('nullable')]
+    #[Validate('date', message: "La date de fabrication doit être une date valide")]
+    public $manufacture_date = null;
+
+    #[Validate('nullable')]
+    #[Validate('numeric', message: "Le poids doit être un nombre")]
+    #[Validate('min:0', message: "Le poids doit être supérieur ou égal à 0")]
+    public $weight = null;
+
+    #[Validate('nullable')]
+    #[Validate('numeric', message: "La longueur doit être un nombre")]
+    #[Validate('min:0', message: "La longueur doit être supérieure ou égale à 0")]
+    public $length = null;
+
+    #[Validate('nullable')]
+    #[Validate('numeric', message: "La largeur doit être un nombre")]
+    #[Validate('min:0', message: "La largeur doit être supérieure ou égale à 0")]
+    public $width = null;
+
+    #[Validate('nullable')]
+    #[Validate('numeric', message: "La hauteur doit être un nombre")]
+    #[Validate('min:0', message: "La hauteur doit être supérieure ou égale à 0")]
+    public $height = null;
+
     /**
      * Set the product data for editing
      */
@@ -83,6 +112,12 @@ class ProductForm extends Form
         $this->status = $product->status;
         $this->stock_alert_threshold = $product->stock_alert_threshold ?? 10;
         $this->max_discount_amount = $product->max_discount_amount;
+        $this->expiry_date = $product->expiry_date?->format('Y-m-d');
+        $this->manufacture_date = $product->manufacture_date?->format('Y-m-d');
+        $this->weight = $product->weight;
+        $this->length = $product->length;
+        $this->width = $product->width;
+        $this->height = $product->height;
     }
 
     /**
@@ -103,6 +138,12 @@ class ProductForm extends Form
             $this->status = 'active';
             $this->stock_alert_threshold = 10;
             $this->max_discount_amount = null;
+            $this->expiry_date = null;
+            $this->manufacture_date = null;
+            $this->weight = null;
+            $this->length = null;
+            $this->width = null;
+            $this->height = null;
         } else {
             parent::reset(...$properties);
         }
@@ -126,6 +167,12 @@ class ProductForm extends Form
             'status' => 'required|in:active,inactive',
             'stock_alert_threshold' => 'nullable|integer|min:0',
             'max_discount_amount' => 'nullable|numeric|min:0',
+            'expiry_date' => 'nullable|date',
+            'manufacture_date' => 'nullable|date',
+            'weight' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'width' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
         ];
     }
 }

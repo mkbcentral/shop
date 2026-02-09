@@ -20,6 +20,12 @@ class ProformaShow extends Component
     public $showEmailModal = false;
     public $emailTo = '';
 
+    // Pour l'envoi (email ou WhatsApp) avec coordonnées optionnelles
+    public $sendMode = ''; // 'email' ou 'whatsapp'
+    public $contactName = '';
+    public $contactPhone = '';
+    public $contactEmail = '';
+
     /**
      * Recharge les relations après chaque requête Livewire
      */
@@ -31,6 +37,138 @@ class ProformaShow extends Component
     public function mount(ProformaInvoice $proforma)
     {
         $this->proforma = $proforma->load(['items.productVariant.product', 'store', 'user', 'convertedInvoice']);
+        $this->initContactInfo();
+    }
+
+    /**
+     * Initialise les infos de contact depuis la proforma
+     */
+    private function initContactInfo()
+    {
+        $this->contactName = $this->proforma->client_name ?? '';
+        $this->contactPhone = $this->proforma->client_phone ?? '';
+        $this->contactEmail = $this->proforma->client_email ?? '';
+    }
+
+    /**
+     * Ouvrir la modal d'envoi (email ou WhatsApp)
+     */
+    public function openSendModal(string $mode)
+    {
+        $this->sendMode = $mode;
+        $this->initContactInfo();
+        $this->dispatch('open-send-modal');
+    }
+
+    /**
+     * Sauvegarder les coordonnées du contact
+     */
+    public function saveContactInfo()
+    {
+        $updateData = [];
+
+        if ($this->contactName && $this->contactName !== $this->proforma->client_name) {
+            $updateData['client_name'] = $this->contactName;
+        }
+        if ($this->contactPhone && $this->contactPhone !== $this->proforma->client_phone) {
+            $updateData['client_phone'] = $this->contactPhone;
+        }
+        if ($this->contactEmail && $this->contactEmail !== $this->proforma->client_email) {
+            $updateData['client_email'] = $this->contactEmail;
+        }
+
+        if (!empty($updateData)) {
+            $this->proforma->update($updateData);
+            $this->proforma = $this->proforma->fresh(['items.productVariant.product', 'store', 'user', 'convertedInvoice']);
+        }
+    }
+
+    /**
+     * Envoyer par le mode choisi (email ou WhatsApp)
+     */
+    public function sendProforma(ProformaService $service)
+    {
+        if ($this->sendMode === 'email') {
+            $this->sendByEmailFromModal($service);
+        } elseif ($this->sendMode === 'whatsapp') {
+            $this->sendByWhatsApp($service);
+        }
+    }
+
+    /**
+     * Envoyer par WhatsApp
+     */
+    public function sendByWhatsApp(ProformaService $service)
+    {
+        $this->validate([
+            'contactPhone' => 'required|min:8',
+        ], [
+            'contactPhone.required' => 'Le numéro de téléphone est requis pour WhatsApp.',
+            'contactPhone.min' => 'Le numéro de téléphone doit contenir au moins 8 chiffres.',
+        ]);
+
+        // Sauvegarder les coordonnées
+        $this->saveContactInfo();
+
+        // Marquer comme envoyée si en brouillon
+        if ($this->proforma->status === ProformaInvoice::STATUS_DRAFT) {
+            $service->markAsSent($this->proforma);
+            $this->proforma = $this->proforma->fresh(['items.productVariant.product', 'store', 'user', 'convertedInvoice']);
+        }
+
+        // Générer le lien WhatsApp
+        $whatsappNumber = preg_replace('/[^0-9]/', '', $this->contactPhone);
+        $message = "Bonjour" . ($this->contactName ? " {$this->contactName}" : "") . ",\n\n";
+        $message .= "Veuillez trouver ci-joint votre facture proforma {$this->proforma->proforma_number} d'un montant de " . format_currency($this->proforma->total) . ".\n\n";
+        $message .= "Vous pouvez la consulter ici : " . route('proformas.pdf.view', $this->proforma) . "\n\n";
+        $message .= "Cordialement,\n" . ($this->proforma->store->name ?? config('app.name'));
+
+        $whatsappUrl = "https://wa.me/{$whatsappNumber}?text=" . urlencode($message);
+
+        $this->dispatch('close-send-modal');
+        $this->dispatch('open-whatsapp', url: $whatsappUrl);
+
+        session()->flash('success', 'Proforma prête à être envoyée par WhatsApp.');
+    }
+
+    /**
+     * Envoyer par email depuis la modal unifiée
+     */
+    public function sendByEmailFromModal(ProformaService $service)
+    {
+        $this->validate([
+            'contactEmail' => 'required|email',
+        ], [
+            'contactEmail.required' => 'L\'adresse email est requise.',
+            'contactEmail.email' => 'L\'adresse email n\'est pas valide.',
+        ]);
+
+        // Sauvegarder les coordonnées
+        $this->saveContactInfo();
+
+        try {
+            // Charger les relations nécessaires pour le PDF
+            $this->proforma->load(['items.productVariant.product', 'store', 'user']);
+
+            // Envoyer l'email
+            Mail::to($this->contactEmail)->send(new ProformaInvoiceMail($this->proforma));
+
+            // Marquer comme envoyée si en brouillon
+            if ($this->proforma->status === ProformaInvoice::STATUS_DRAFT) {
+                $service->markAsSent($this->proforma);
+                $this->proforma = $this->proforma->fresh(['items.productVariant.product', 'store', 'user', 'convertedInvoice']);
+            }
+
+            session()->flash('success', "Proforma envoyée par email à {$this->contactEmail}");
+        } catch (\Exception $e) {
+            \Log::error('Erreur envoi email proforma', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            session()->flash('error', 'Erreur lors de l\'envoi : ' . $e->getMessage());
+        }
+
+        $this->dispatch('close-send-modal');
     }
 
     /**

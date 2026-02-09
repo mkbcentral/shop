@@ -25,7 +25,7 @@ class ProductCreationService
 
     /**
      * Create a new product with its initial configuration
-     * 
+     *
      * @param array $data Product data
      * @return Product Created product with variants
      * @throws \Exception If validation fails or product cannot be created
@@ -88,11 +88,16 @@ class ProductCreationService
     private function normalizeProductData(array $data): array
     {
         // Clean empty strings to null for nullable integer fields
-        $nullableFields = ['product_type_id', 'category_id', 'cost_price'];
+        $nullableFields = ['product_type_id', 'category_id'];
         foreach ($nullableFields as $field) {
             if (isset($data[$field]) && $data[$field] === '') {
                 $data[$field] = null;
             }
+        }
+
+        // Set cost_price to 0 if not provided (e.g., for service products)
+        if (!isset($data['cost_price']) || $data['cost_price'] === '' || $data['cost_price'] === null) {
+            $data['cost_price'] = 0;
         }
 
         return $data;
@@ -162,8 +167,8 @@ class ProductCreationService
     private function checkProductLimit(): void
     {
         // Get current organization
-        $organization = app()->bound('current_organization') 
-            ? app('current_organization') 
+        $organization = app()->bound('current_organization')
+            ? app('current_organization')
             : null;
 
         if (!$organization) {
@@ -172,7 +177,7 @@ class ProductCreationService
 
         // Check product limit based on subscription plan
         $planLimitService = app(\App\Services\PlanLimitService::class);
-        
+
         if (!$planLimitService->canAddProduct($organization)) {
             $usage = $organization->getProductsUsage();
             throw new \Exception(

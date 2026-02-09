@@ -64,6 +64,7 @@ class ShwaryTransaction extends Model
     public const STATUS_PROCESSING = 'processing';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_SUCCESS = 'success';
+    public const STATUS_PAID = 'paid';
     public const STATUS_FAILED = 'failed';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_REJECTED = 'rejected';
@@ -72,7 +73,7 @@ class ShwaryTransaction extends Model
     /**
      * Statuts considérés comme "terminés avec succès"
      */
-    public const SUCCESS_STATUSES = [self::STATUS_COMPLETED, self::STATUS_SUCCESS];
+    public const SUCCESS_STATUSES = [self::STATUS_COMPLETED, self::STATUS_SUCCESS, self::STATUS_PAID];
 
     /**
      * Statuts considérés comme "échoués"
@@ -111,7 +112,7 @@ class ShwaryTransaction extends Model
         return match ($this->status) {
             self::STATUS_PENDING => 'En attente',
             self::STATUS_PROCESSING => 'En cours',
-            self::STATUS_COMPLETED, self::STATUS_SUCCESS => 'Réussi',
+            self::STATUS_COMPLETED, self::STATUS_SUCCESS, self::STATUS_PAID => 'Réussi',
             self::STATUS_FAILED => 'Échoué',
             self::STATUS_CANCELLED => 'Annulé',
             self::STATUS_REJECTED => 'Rejeté',
@@ -127,7 +128,7 @@ class ShwaryTransaction extends Model
     {
         return match ($this->status) {
             self::STATUS_PENDING, self::STATUS_PROCESSING => 'yellow',
-            self::STATUS_COMPLETED, self::STATUS_SUCCESS => 'green',
+            self::STATUS_COMPLETED, self::STATUS_SUCCESS, self::STATUS_PAID => 'green',
             self::STATUS_FAILED, self::STATUS_CANCELLED, self::STATUS_REJECTED, self::STATUS_EXPIRED => 'red',
             default => 'gray',
         };
@@ -139,7 +140,7 @@ class ShwaryTransaction extends Model
     public function getOrganization(): ?Organization
     {
         $organizationId = $this->metadata['organization_id'] ?? null;
-        
+
         if ($organizationId) {
             return Organization::find($organizationId);
         }

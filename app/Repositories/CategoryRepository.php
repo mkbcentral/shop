@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Collection;
 class CategoryRepository
 {
     /**
-     * Get all categories (toutes les organisations).
-     * Utilisé pour les selects/dropdowns où on veut afficher toutes les catégories.
+     * Get all categories filtered by organization type.
+     * Service organizations see only service-related categories.
      */
     public function all(): Collection
     {
         return Category::withoutOrganizationScope()
+            ->forCurrentOrganization()
             ->orderBy('name')
             ->get();
     }
@@ -24,6 +25,7 @@ class CategoryRepository
     public function getByProductType(int $productTypeId): Collection
     {
         return Category::withoutOrganizationScope()
+            ->forCurrentOrganization()
             ->where('product_type_id', $productTypeId)
             ->orderBy('name')
             ->get();
@@ -35,7 +37,7 @@ class CategoryRepository
      */
     public function allForCurrentOrganization(): Collection
     {
-        return Category::orderBy('name')->get();
+        return Category::forCurrentOrganization()->orderBy('name')->get();
     }
 
     /**
@@ -105,18 +107,24 @@ class CategoryRepository
     }
 
     /**
-     * Get paginated categories with optional search.
-     * Affiche TOUTES les catégories de toutes les organisations.
+     * Get paginated categories with optional search and product type filter.
+     * Filtered by organization type (service orgs see service categories).
      */
-    public function paginate(?string $search = null, int $perPage = 10)
+    public function paginate(?string $search = null, int $perPage = 10, ?int $productTypeId = null)
     {
         return Category::query()
-            ->withoutOrganizationScope() // Afficher toutes les catégories
+            ->withoutOrganizationScope()
+            ->forCurrentOrganization() // Filtrer par type d'organisation
             ->withCount('products')
-            ->with(['organization', 'productType']) // Charger l'organisation et le type de produit
+            ->with(['organization', 'productType'])
             ->when($search, function ($query, $search) {
-                $query->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('description', 'like', '%' . $search . '%');
+                });
+            })
+            ->when($productTypeId, function ($query, $productTypeId) {
+                $query->where('product_type_id', $productTypeId);
             })
             ->orderBy('name')
             ->paginate($perPage);

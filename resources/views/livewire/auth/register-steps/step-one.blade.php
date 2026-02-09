@@ -1,27 +1,30 @@
 <div>
     <form wire:submit.prevent="nextStep" class="space-y-4">
-        <x-auth.input
-            wire:model="name"
-            type="text"
-            name="name"
-            label="Nom complet"
-            placeholder="Jean Dupont"
-            icon="user"
-            autocomplete="name"
-            autofocus
-            :error="$errors->first('name')"
-        />
+        {{-- Name & Email on same row --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <x-auth.input
+                wire:model="name"
+                type="text"
+                name="name"
+                label="Nom complet"
+                placeholder="Jean Dupont"
+                icon="user"
+                autocomplete="name"
+                autofocus
+                :error="$errors->first('name')"
+            />
 
-        <x-auth.input
-            wire:model="email"
-            type="email"
-            name="email"
-            label="Adresse e-mail"
-            placeholder="vous@exemple.com"
-            icon="email"
-            autocomplete="email"
-            :error="$errors->first('email')"
-        />
+            <x-auth.input
+                wire:model="email"
+                type="email"
+                name="email"
+                label="Adresse e-mail"
+                placeholder="vous@exemple.com"
+                icon="email"
+                autocomplete="email"
+                :error="$errors->first('email')"
+            />
+        </div>
 
         <x-auth.input
             wire:model.live="password"

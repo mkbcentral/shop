@@ -1,22 +1,26 @@
 @props(['categories', 'search', 'categoryFilter', 'statusFilter', 'stockLevelFilter'])
 
+@php
+    $showStock = has_stock_management();
+@endphp
+
 <x-card>
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-900">Filtres</h2>
-        @if($search || $categoryFilter || $statusFilter || $stockLevelFilter)
+        @if($search || $categoryFilter || $statusFilter || ($showStock && $stockLevelFilter))
             <button wire:click="resetFilters" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
                 Réinitialiser les filtres
             </button>
         @endif
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-{{ $showStock ? 5 : 4 }} gap-4">
         <!-- Search -->
         <div class="md:col-span-2">
             <x-form.search-input
                 wire:model.live.debounce.300ms="search"
                 wireModel="search"
-                placeholder="Rechercher par nom ou référence..."
+                :placeholder="'Rechercher par nom ou référence...'"
             />
         </div>
 
@@ -39,6 +43,7 @@
             </x-form.select>
         </div>
 
+        @if($showStock)
         <!-- Stock Level Filter -->
         <div>
             <x-form.select wire:model.live="stockLevelFilter">
@@ -48,5 +53,6 @@
                 <option value="high">Stock élevé (>50)</option>
             </x-form.select>
         </div>
+        @endif
     </div>
 </x-card>

@@ -29,6 +29,8 @@ class PrinterService
         // Utiliser l'heure actuelle avec le timezone local - ajouter 1 heure pour WAT (UTC+1)
         $currentDate = \Carbon\Carbon::now('UTC')->addHour();
 
+        $companyInfo = $this->getCompanyInfoFromOrganization($organization);
+
         return [
             'invoice_number' => $invoice->invoice_number,
             'date' => $currentDate->format('d/m/Y H:i:s'),
@@ -43,7 +45,8 @@ class PrinterService
             'payment_method' => $this->formatPaymentMethod($sale->payment_method),
             'cashier' => $sale->user->name ?? 'N/A',
             'notes' => $sale->notes,
-            'company' => $this->getCompanyInfoFromOrganization($organization),
+            'company' => $companyInfo,
+            'currency' => $companyInfo['currency'] ?? 'CDF',
         ];
     }
 

@@ -134,7 +134,7 @@
                                 <p class="text-2xl font-bold text-indigo-600">
                                     {{ $statistics[$store->id]['total_products'] ?? 0 }}
                                 </p>
-                                <p class="text-xs text-indigo-600 font-medium mt-1">Produits</p>
+                                <p class="text-xs text-indigo-600 font-medium mt-1">{{ products_label() }}</p>
                             </div>
                             <div class="bg-green-50 rounded-lg p-3 text-center">
                                 <p class="text-xl font-bold text-green-600">
